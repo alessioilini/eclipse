@@ -5,6 +5,7 @@ export type OpponentView = Omit<SideState, 'hand' | 'deck' | 'discard'> & { hand
 export type PublicState = Omit<MatchState, 'sides'> & { sides: Record<Side, SideState | OpponentView> };
 
 /** State as seen by `side`: the opponent's hand, deck and discard are hidden behind sizes. */
+// `armedReactions` of the opponent stay visible: they are reset at round start and empty at planning time.
 export function viewFor(state: MatchState, side: Side): PublicState {
   const copy = structuredClone(state);
   const foe = other(side);

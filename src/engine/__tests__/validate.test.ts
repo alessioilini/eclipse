@@ -82,6 +82,26 @@ describe('validateCommands', () => {
   });
 });
 
+describe('cover: secondary guardian', () => {
+  const play = (s: MatchState, secondary?: SlotRef) =>
+    validateCommands(setHand(s, 'A', ['cover']), 'A', {
+      ...cmd(basic(0, enemy(0)), basic(1, enemy(0)), basic(2, enemy(0))),
+      card: { handIndex: 0, target: ally(0), secondary },
+    });
+
+  it('cover с живым стражем своей стороны как secondary — ок', () => {
+    expect(play(base(), ally(2))).toEqual([]);
+  });
+
+  it('cover с не-стражем, мёртвым стражем, чужим или отсутствующим secondary → wrong target type', () => {
+    expect(play(base(), ally(0))).toEqual(['wrong target type']);
+    // мёртвая Нериса сама не может действовать, поэтому проверяем только наличие ошибки secondary
+    expect(play(killActive(base(), ally(2)), ally(2))).toContain('wrong target type');
+    expect(play(base(), enemy(2))).toEqual(['wrong target type']);
+    expect(play(base())).toEqual(['wrong target type']);
+  });
+});
+
 describe('viewFor', () => {
   it('viewFor прячет руку противника, оставляет handSize', () => {
     const s = base();

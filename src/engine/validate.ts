@@ -108,6 +108,10 @@ export function validateCommands(state: MatchState, side: Side, cmds: SideComman
       const targetError = checkTarget(state, side, def.target, cmds.card.target);
       if (targetError) errors.push(targetError);
       const sec = cmds.card.secondary;
+      if (def.target === 'allyAndGuardian') {
+        const guardian = sec && 'slot' in sec && sec.side === side ? heroAt(state, sec) : null;
+        if (!guardian || !isAlive(guardian) || HEROES[guardian.id].role !== 'guardian') errors.push('wrong target type');
+      }
       if (def.target === 'slotAndReserve' && sec && 'reserveIndex' in sec && !isAlive(s.reserve[sec.reserveIndex])) {
         errors.push('reserve hero is dead');
       }
