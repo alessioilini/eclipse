@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { cardCost, energyBudget, ultimateLunaCost, validateCommands } from '../validate';
 import { viewFor } from '../view';
 import { ally, basic, cmd, enemy, makeMatch, setHand, setLuna, setRound, skill, ult } from './helpers';
-import type { MatchState, SlotRef } from '../types';
+import type { HeroAction, MatchState, SlotRef } from '../types';
 
 // A: aira, fenna, nerisa. B: aurora, justina, nokta. Skill costs: aira 2, fenna 1, nerisa 1.
 const base = (round = 1): MatchState => setRound(makeMatch(), round);
@@ -24,7 +24,7 @@ describe('validateCommands', () => {
     let s = base();
     for (const slot of [0, 1, 2] as const) s = killActive(s, enemy(slot));
     const c = cmd(basic(0, enemy(0)), basic(1, enemy(0)), basic(2, enemy(0)));
-    expect(validateCommands(s, 'A', c)).toContain('target slot is dead');
+    expect(validateCommands(s, 'A', c)).toEqual(['target slot is dead', 'target slot is dead', 'target slot is dead']);
     // а если жив хотя бы один враг — мёртвая цель допустима (ретаргет)
     let s2 = base();
     s2 = killActive(s2, enemy(0));
@@ -45,7 +45,7 @@ describe('validateCommands', () => {
     s.moon = 'new';
     const c = cmd(ult(0, enemy(0)), basic(1, enemy(0)), basic(2, enemy(0)));
     expect(ultimateLunaCost(s, 'A')).toBe(3);
-    expect(validateCommands(s, 'A', c)).toContain('not enough luna');
+    expect(validateCommands(s, 'A', c)).toEqual(['not enough luna']);
     s.moon = 'full';
     expect(ultimateLunaCost(s, 'A')).toBe(2);
     expect(validateCommands(s, 'A', c)).toEqual([]);
@@ -59,7 +59,7 @@ describe('validateCommands', () => {
     const withCard1 = setHand(s0, 'A', ['lunarSpark']);
     expect(validateCommands(withCard1, 'A', { ...skills, card: { handIndex: 0 } })).toEqual([]);
     const withCard2 = setHand(s0, 'A', ['dispel']);
-    expect(validateCommands(withCard2, 'A', { ...skills, card: { handIndex: 0 } })).toContain('not enough energy');
+    expect(validateCommands(withCard2, 'A', { ...skills, card: { handIndex: 0 } })).toEqual(['not enough energy']);
   });
 
   it('bloodPact в команде позволяет потратить 6 в раунде 1', () => {
@@ -68,7 +68,7 @@ describe('validateCommands', () => {
     s = setLuna(s, 'A', 0);
     const skills = cmd(skill(0, enemy(0)), skill(1, enemy(0)), skill(2, enemy(0)));
     expect(validateCommands(setHand(s, 'A', ['lunarSpark']), 'A', { ...skills, card: { handIndex: 0 } }))
-      .toContain('not enough energy');
+      .toEqual(['not enough energy']);
     const pact = setHand(s, 'A', ['bloodPact']);
     expect(validateCommands(pact, 'A', { ...skills, card: { handIndex: 0, target: ally(0) } })).toEqual([]);
   });
@@ -95,10 +95,43 @@ describe('cover: secondary guardian', () => {
 
   it('cover с не-стражем, мёртвым стражем, чужим или отсутствующим secondary → wrong target type', () => {
     expect(play(base(), ally(0))).toEqual(['wrong target type']);
-    // мёртвая Нериса сама не может действовать, поэтому проверяем только наличие ошибки secondary
-    expect(play(killActive(base(), ally(2)), ally(2))).toContain('wrong target type');
+    // мёртвая Нериса не может действовать (basic в слоте 2) и не годится как страж
+    expect(play(killActive(base(), ally(2)), ally(2))).toEqual(['dead hero cannot act', 'wrong target type']);
     expect(play(base(), enemy(2))).toEqual(['wrong target type']);
     expect(play(base())).toEqual(['wrong target type']);
+  });
+});
+
+describe('emergencySwap и swap: резерв', () => {
+  const fill = [basic(0, enemy(0)), basic(1, enemy(0))] as const;
+  const play = (s: MatchState, card: { target?: SlotRef; secondary?: unknown }) =>
+    validateCommands(setHand(s, 'A', ['emergencySwap']), 'A', {
+      ...cmd(fill[0], fill[1], basic(2, enemy(0))),
+      card: { handIndex: 0, ...card } as never,
+    });
+
+  it('emergencySwap: живой слот и живой резерв — ок', () => {
+    expect(play(base(), { target: ally(0), secondary: { reserveIndex: 0 } })).toEqual([]);
+  });
+
+  it('emergencySwap без secondary или с SlotRef вместо reserveIndex → wrong target type', () => {
+    expect(play(base(), { target: ally(0) })).toEqual(['wrong target type']);
+    expect(play(base(), { target: ally(0), secondary: ally(1) })).toEqual(['wrong target type']);
+  });
+
+  it('emergencySwap: мёртвый резерв → reserve hero is dead', () => {
+    const s = base();
+    s.sides.A.reserve[1].hp = 0;
+    expect(play(s, { target: ally(0), secondary: { reserveIndex: 1 } })).toEqual(['reserve hero is dead']);
+  });
+
+  it('emergencySwap: reserveIndex вне 0..2 не бросает исключение', () => {
+    expect(play(base(), { target: ally(0), secondary: { reserveIndex: 5 } })).toEqual(['wrong target type']);
+  });
+
+  it('swap с reserveIndex 5 даёт ошибку, а не исключение', () => {
+    const bad = { type: 'swap', reserveIndex: 5 } as unknown as HeroAction;
+    expect(validateCommands(base(), 'A', cmd(bad, basic(1, enemy(0)), basic(2, enemy(0))))).toEqual(['wrong target type']);
   });
 });
 
@@ -113,7 +146,11 @@ describe('viewFor', () => {
     expect(opp.handSize).toBe(s.sides.B.hand.length);
     expect(opp.deckSize).toBe(s.sides.B.deck.length);
     expect((v.sides.A as { hand: unknown }).hand).toEqual(s.sides.A.hand);
-    // исходное состояние не изменено
-    expect(s.sides.B.hand).toBeDefined();
+    expect('hand' in v.sides.B).toBe(false);
+    // изменение представления не затрагивает исходное состояние
+    (v.sides.A as { hand: string[] }).hand.length = 0;
+    (v.sides.B as { handSize: number }).handSize = -1;
+    expect(s.sides.A.hand.length).toBeGreaterThan(0);
+    expect(s.sides.B.hand.length).toBeGreaterThan(0);
   });
 });

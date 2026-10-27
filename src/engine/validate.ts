@@ -1,4 +1,4 @@
-import type { CardId, HeroAction, MatchState, Side, SideCommands, SlotRef, TargetType } from './types';
+import type { CardId, HeroAction, MatchState, Side, SideCommands, SideState, SlotRef, TargetType } from './types';
 import { CARDS } from './data/cards';
 import { HEROES } from './data/heroes';
 import { hasStatus, isAlive } from './status';
@@ -50,6 +50,12 @@ function checkTarget(state: MatchState, side: Side, type: TargetType, target: Sl
   }
 }
 
+/** Checks a reserve index; a malformed index is a wrong target, never a throw. */
+function checkReserve(s: SideState, index: unknown): string | null {
+  if (typeof index !== 'number' || !Number.isInteger(index) || index < 0 || index > 2) return 'wrong target type';
+  return isAlive(s.reserve[index as 0 | 1 | 2]) ? null : 'reserve hero is dead';
+}
+
 function validateAction(state: MatchState, side: Side, slot: 0 | 1 | 2, action: HeroAction): string[] {
   const s = state.sides[side];
   const hero = s.active[slot];
@@ -76,7 +82,7 @@ function validateAction(state: MatchState, side: Side, slot: 0 | 1 | 2, action: 
       break;
     case 'swap':
       if (s.flags.swapBanned) errors.push('swap banned');
-      if (!isAlive(s.reserve[action.reserveIndex])) errors.push('reserve hero is dead');
+      push(checkReserve(s, action.reserveIndex));
       break;
   }
   return errors;
@@ -112,8 +118,12 @@ export function validateCommands(state: MatchState, side: Side, cmds: SideComman
         const guardian = sec && 'slot' in sec && sec.side === side ? heroAt(state, sec) : null;
         if (!guardian || !isAlive(guardian) || HEROES[guardian.id].role !== 'guardian') errors.push('wrong target type');
       }
-      if (def.target === 'slotAndReserve' && sec && 'reserveIndex' in sec && !isAlive(s.reserve[sec.reserveIndex])) {
-        errors.push('reserve hero is dead');
+      if (def.target === 'slotAndReserve') {
+        if (!sec || !('reserveIndex' in sec)) errors.push('wrong target type');
+        else {
+          const reserveError = checkReserve(s, sec.reserveIndex);
+          if (reserveError) errors.push(reserveError);
+        }
       }
       energy += cardCost(state, side, cardId);
       if (cardId === 'bloodPact') budget += BLOOD_PACT_BUDGET_BONUS;
