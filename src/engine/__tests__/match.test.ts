@@ -87,7 +87,7 @@ describe('createMatch', () => {
 
   it('active определяется starting, резерв остаётся в порядке heroes', () => {
     const d = deckA();
-    d.starting = [4, 0, 2] as unknown as Deck['starting']; // type says Slot, spec says indices 0..5
+    d.starting = [4, 0, 2];
     const m = createMatch(d, deckA(), 5);
     expect(m.sides.A.active.map((h) => h.id)).toEqual(['zefira', 'aira', 'nerisa']);
     expect(m.sides.A.reserve.map((h) => h.id)).toEqual(['fenna', 'tali', 'liraya']);

@@ -1,5 +1,6 @@
 export type Side = 'A' | 'B';
 export type Slot = 0 | 1 | 2;
+export type HeroIndex = 0 | 1 | 2 | 3 | 4 | 5;
 export type SlotRef = { side: Side; slot: Slot };
 export type Element = 'fire' | 'water' | 'wind' | 'light' | 'dark' | 'star';
 export type Role = 'guardian' | 'striker' | 'mage' | 'support';
@@ -83,6 +84,6 @@ export type HeroAction = { type: 'basic'; target: SlotRef } | { type: 'skill'; t
   | { type: 'ultimate'; target?: SlotRef } | { type: 'swap'; reserveIndex: Slot } | { type: 'none' };
 export type CardPlay = { handIndex: number; target?: SlotRef; secondary?: SlotRef | { reserveIndex: Slot } };
 export type SideCommands = { actions: [HeroAction, HeroAction, HeroAction]; card?: CardPlay };
-export type Deck = { heroes: HeroId[]; starting: [Slot, Slot, Slot] /* индексы в heroes */; cards: CardId[] };
+export type Deck = { heroes: HeroId[]; starting: [HeroIndex, HeroIndex, HeroIndex] /* индексы в heroes */; cards: CardId[] };
 
 export type GameEvent = { type: string; round: number; phase: string; [k: string]: unknown };
