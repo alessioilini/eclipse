@@ -19,6 +19,9 @@ describe('roundHalfUp', () => {
     expect(roundHalfUp(6.9)).toBe(7);
     expect(roundHalfUp(5.75)).toBe(6);
   });
+  it('roundHalfUp: устойчив к ошибке float (13.499999999999998 → 14)', () => {
+    expect(roundHalfUp(13.499999999999998)).toBe(14);
+  });
 });
 
 describe('computeDamage', () => {
@@ -37,6 +40,9 @@ describe('computeDamage', () => {
   it('снижение −3 после бонусов: 4 − 3 = 1; 4 − 4 → min 1', () => {
     expect(computeDamage({ ...base, atk: 4, mod: 1, attacker: 'star', target: 'star', reductions: 3 })).toBe(1);
     expect(computeDamage({ ...base, atk: 4, mod: 1, attacker: 'star', target: 'star', reductions: 4 })).toBe(1);
+  });
+  it('Blood Moon + Eclipse: 9 × 1.2 × 1.25 = 13.5 → 14 (float-устойчиво)', () => {
+    expect(computeDamage({ ...base, atk: 9, mod: 1, attacker: 'star', target: 'star', bloodMoon: true, round: 9 })).toBe(14);
   });
   it('Total Eclipse раунд 9: 8 × 1.25 = 10; Blood Moon: 8 × 1.2 = 10', () => {
     expect(computeDamage({ ...base, atk: 8, mod: 1, attacker: 'star', target: 'star', round: 9 })).toBe(10);
@@ -64,6 +70,12 @@ describe('applyToHero', () => {
     expect(r.hero.hp).toBe(1);
     expect(r.hpLoss).toBe(2);
     expect(hasStatus(r.hero, 'undying')).toBe(false);
+  });
+  it('undying при hp 0 статус не расходуется', () => {
+    const h = applyStatus(hero({ hp: 0 }), { id: 'undying', duration: 'thisRound', round: 1 });
+    const r = applyToHero(h, 5, {});
+    expect(r.hero.hp).toBe(0);
+    expect(hasStatus(r.hero, 'undying')).toBe(true);
   });
   it('не мутирует исходного героя', () => {
     const h = hero({ shield: 5 });

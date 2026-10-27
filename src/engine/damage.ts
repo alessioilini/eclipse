@@ -9,9 +9,11 @@ const ECLIPSE_HEAL_MULT = 0.5;
 const ECLIPSE_SHIELD_MULT = 0.75;
 const CURSE_HEAL_MULT = 0.5;
 
-/** Mathematical rounding, half up. */
+const ROUND_EPSILON = 1e-9;
+
+/** Mathematical rounding, half up; epsilon absorbs float error (9*1.2*1.25 = 13.499999999999998). */
 export function roundHalfUp(x: number): number {
-  return Math.floor(x + 0.5);
+  return Math.floor(x + 0.5 + ROUND_EPSILON);
 }
 
 export type DamageInput = {
@@ -36,8 +38,8 @@ export function applyToHero(
   const absorbed = opts.pierce ? 0 : Math.min(hero.shield, dmg);
   let hpLoss = dmg - absorbed;
   let next: HeroState = { ...hero, shield: hero.shield - absorbed, statuses: hero.statuses.map(s => ({ ...s })) };
-  if (hasStatus(hero, 'undying') && hero.hp - hpLoss < 1) {
-    hpLoss = Math.max(0, hero.hp - 1);
+  if (hero.hp > 0 && hasStatus(hero, 'undying') && hero.hp - hpLoss < 1) {
+    hpLoss = hero.hp - 1;
     next = removeStatus(next, 'undying');
   }
   next.hp = Math.max(0, hero.hp - hpLoss);
