@@ -44,3 +44,9 @@ export function setLuna(state: MatchState, side: Side, n: number): MatchState {
   s.sides[side].luna = n;
   return s;
 }
+
+export function setRound(state: MatchState, round: number): MatchState {
+  const s = structuredClone(state);
+  s.round = round;
+  return s;
+}
