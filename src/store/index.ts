@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { ENGINE_VERSION } from '../engine';
+import { truncateName } from '../game/links/codec';
 import type { SaveV1 } from '../game/save/defaults';
 import { writeSave } from '../game/save/storage';
 import { emptyDraft, isFinished } from '../game/session';
@@ -42,6 +43,12 @@ export function restoredStep(script: TutorialScript, round: number, saved: numbe
   return first >= 0 && saved > first ? first : saved;
 }
 
+/** Имя из сохранения: migrate проверяет форму поверхностно, поэтому нестроковое или пустое имя — null. */
+function savedName(raw: unknown): string | null {
+  const name = typeof raw === 'string' ? truncateName(raw.trim()) : '';
+  return name === '' ? null : name;
+}
+
 /**
  * Загружает сохранение в стор и возвращает новое состояние. Матч восстанавливается в планирование
  * текущего раунда: в сохранении всегда состояние после `startRound` (или завершённый матч).
@@ -68,6 +75,7 @@ export function hydrate(save: SaveV1): StoreState {
     unlocked: save.profile.unlocked,
     tutorialStep: save.profile.tutorialStep,
     stats: save.profile.stats,
+    name: savedName(save.profile.name),
     decks: save.decks,
     activeDeckId: save.activeDeckId,
     speed: save.settings.speed,
@@ -96,7 +104,10 @@ export function toSave(state: StoreState): SaveV1 {
   const s = state.session;
   return {
     version: 1,
-    profile: { unlocked: state.unlocked, tutorialStep: state.tutorialStep, stats: state.stats },
+    profile: {
+      unlocked: state.unlocked, tutorialStep: state.tutorialStep, stats: state.stats,
+      ...(state.name !== null ? { name: state.name } : {}),
+    },
     decks: state.decks,
     activeDeckId: state.activeDeckId,
     settings: { speed: state.speed, sound: state.sound },
@@ -118,7 +129,7 @@ type SaveStorage = Parameters<typeof writeSave>[1];
 /** Поля, изменение которых (по ссылке) требует записи сохранения. */
 function persisted(s: StoreState): unknown[] {
   return [
-    s.unlocked, s.tutorialStep, s.stats, s.decks, s.activeDeckId, s.speed, s.sound,
+    s.unlocked, s.tutorialStep, s.stats, s.name, s.decks, s.activeDeckId, s.speed, s.sound,
     s.session?.state ?? null, s.tutorialStepIndex,
   ];
 }

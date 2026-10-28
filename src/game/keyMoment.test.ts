@@ -115,6 +115,20 @@ describe('keyMoment: пять правил по приоритету', () => {
     expect(k.text).toBe(fmt(ru.keyMoment.ultKill, { name: HEROES.fenna.name }));
   });
 
+  it('topDamage, shields и ultKill несут героиню и число (для шаринга)', () => {
+    const top = keyMoment([dmg('A', 0, 'aira', 41), dmg('A', 1, 'fenna', 30), dmg('A', 2, 'nerisa', 29)], final('A'), 'A');
+    expect(top).toMatchObject({ rule: 'topDamage', heroId: 'aira', value: 41 });
+    const shields = keyMoment([
+      dmg('B', 0, 'aurora', 1, 20, 0, 'aira'), dmg('B', 1, 'justina', 1, 20, 1, 'fenna'),
+      dmg('A', 0, 'aira', 10), dmg('A', 1, 'fenna', 10), dmg('A', 2, 'nerisa', 10),
+    ], final('A'), 'A');
+    expect(shields).toMatchObject({ rule: 'shields', heroId: 'aira', value: 40 });
+    const ult = keyMoment([action('A', 1, 'fenna', 'ultimate'), death('B', 0, 'aurora')], final('A'), 'A');
+    expect(ult).toMatchObject({ rule: 'ultKill', heroId: 'fenna' });
+    expect(ult.value).toBeUndefined();
+    expect(keyMoment([], final('A', 3), 'A').heroId).toBeUndefined();
+  });
+
   it('смерть после следующего heroAction не приписывается ульте', () => {
     const events = [action('A', 1, 'fenna', 'ultimate'), action('A', 0, 'aira', 'basic'), death('B', 0, 'aurora')];
     expect(keyMoment(events, final('A'), 'A').rule).toBe('rounds');

@@ -5,6 +5,10 @@ import { fmt, ru } from '../i18n/ru';
 export type KeyMoment = {
   rule: 'bloodMoonComeback' | 'topDamage' | 'shields' | 'ultKill' | 'rounds';
   text: string;
+  /** Героиня момента (topDamage, shields, ultKill) — для шаринга и арта. */
+  heroId?: HeroId;
+  /** Число момента: доля урона в процентах (topDamage) или поглощённый урон (shields). */
+  value?: number;
 };
 
 const TOP_DAMAGE_SHARE = 0.35;
@@ -115,7 +119,8 @@ export function keyMoment(events: EngineEvent[], final: MatchState, side: Side):
     const [topId, topDmg] = [...dealt.entries()].reduce((best, cur) => (cur[1] > best[1] ? cur : best));
     const share = topDmg / total;
     if (share >= TOP_DAMAGE_SHARE) {
-      return { rule: 'topDamage', text: fmt(ru.keyMoment.topDamage, { name: nameOf(topId), n: Math.round(share * 100) }) };
+      const n = Math.round(share * 100);
+      return { rule: 'topDamage', text: fmt(ru.keyMoment.topDamage, { name: nameOf(topId), n }), heroId: topId, value: n };
     }
   }
 
@@ -123,11 +128,14 @@ export function keyMoment(events: EngineEvent[], final: MatchState, side: Side):
   const absorbedTotal = [...absorbed.values()].reduce((a, b) => a + b, 0);
   if (absorbedTotal >= SHIELDS_MIN) {
     const [guardId] = [...absorbed.entries()].reduce((best, cur) => (cur[1] > best[1] ? cur : best));
-    return { rule: 'shields', text: fmt(ru.keyMoment.shields, { name: nameOf(guardId), n: absorbedTotal }) };
+    return {
+      rule: 'shields', text: fmt(ru.keyMoment.shields, { name: nameOf(guardId), n: absorbedTotal }),
+      heroId: guardId, value: absorbedTotal,
+    };
   }
 
   // 4. Ульта убила героиню противника.
-  if (ultKiller) return { rule: 'ultKill', text: fmt(ru.keyMoment.ultKill, { name: nameOf(ultKiller) }) };
+  if (ultKiller) return { rule: 'ultKill', text: fmt(ru.keyMoment.ultKill, { name: nameOf(ultKiller) }), heroId: ultKiller };
 
   // 5. Иначе — число раундов.
   return rounds;

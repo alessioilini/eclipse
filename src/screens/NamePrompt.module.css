@@ -1,0 +1,46 @@
+/* Диалог имени: затемнённый фон и карточка по центру. */
+.root {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--sp-16);
+}
+
+.backdrop {
+  position: absolute;
+  inset: 0;
+  background: var(--scrim);
+}
+
+.dialog {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-12);
+  width: 100%;
+  max-width: 360px;
+  padding: var(--sp-16);
+  border: 1px solid var(--accent);
+  border-radius: var(--r-16);
+  background: var(--surface);
+}
+
+.title {
+  margin: 0;
+  font-size: var(--fs-20);
+  text-align: center;
+}
+
+.input {
+  min-height: var(--tap);
+  padding: var(--sp-8) var(--sp-12);
+  border: 1px solid var(--muted);
+  border-radius: var(--r-8);
+  background: var(--bg);
+  color: inherit;
+  font: inherit;
+  font-size: var(--fs-16);
+}

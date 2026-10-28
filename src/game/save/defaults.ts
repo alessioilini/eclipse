@@ -2,7 +2,11 @@ import type { Deck, HeroId, MatchState } from '../../engine';
 
 export type SaveV1 = {
   version: 1;
-  profile: { unlocked: HeroId[]; tutorialStep: 0 | 1 | 2 | 3; stats: { wins: number; losses: number; draws: number } };
+  profile: {
+    unlocked: HeroId[]; tutorialStep: 0 | 1 | 2 | 3; stats: { wins: number; losses: number; draws: number };
+    /** Имя игрока для вызовов (спека §5); необязательное поле без смены версии. */
+    name?: string;
+  };
   decks: { id: string; name: string; deck: Deck }[];
   activeDeckId: string | null;
   settings: { speed: 'normal' | 'fast'; sound: boolean };

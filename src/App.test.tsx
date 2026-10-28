@@ -30,9 +30,9 @@ describe('App', () => {
     window.location.hash = '';
   });
 
-  it('показывает меню с четырьмя кнопками и счётчиком побед', () => {
+  it('показывает меню с пятью кнопками и счётчиком побед', () => {
     render(<App />);
-    expect(screen.getAllByRole('button')).toHaveLength(4);
+    expect(screen.getAllByRole('button')).toHaveLength(5);
     expect(screen.getByTestId('wins')).toHaveTextContent('0');
   });
 

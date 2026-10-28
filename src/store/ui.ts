@@ -12,7 +12,7 @@ export type Sheet =
   | { kind: 'hero'; ref: SlotRef };
 
 /** Разовое уведомление для следующего экрана (текст берётся из ru по ключу). */
-export type Notice = 'needDeck';
+export type Notice = 'needDeck' | 'copied' | 'shareFailed';
 
 export type UiSlice = {
   selectedSlot: Slot | null;

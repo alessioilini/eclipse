@@ -9,6 +9,7 @@ import { Button } from '../ui/Button';
 import { cx } from '../ui/cx';
 import styles from './Result.module.css';
 import { useAppBack } from './useAppBack';
+import { useShare } from './useShare';
 
 /** Матчи, за итог которых уже была вибрация: перемонтирование экрана её не повторяет. */
 const buzzed = new WeakSet<object>();
@@ -25,6 +26,8 @@ export function Result({ now = Date.now }: Props) {
   const clearMatch = useStore((s) => s.clearMatch);
   const recordMatchResult = useStore((s) => s.recordMatchResult);
   const tutorialStep = useStore((s) => s.tutorialStep);
+
+  const sharing = useShare(now);
 
   const state = session?.state ?? null;
   const result = state?.result ?? null;
@@ -88,6 +91,9 @@ export function Result({ now = Date.now }: Props) {
     navigate({ name: 'battle' });
   };
 
+  // Вызов на колоду игрока из этого матча; момент — тот же, что на экране.
+  const share = () => sharing.start(session.playerDeck, moment.text);
+
   // После боя обучения — переход к следующему, пока обучение не пройдено.
   const next = session.mode === 'tutorial' && tutorialStep < 3
     ? () => {
@@ -110,14 +116,17 @@ export function Result({ now = Date.now }: Props) {
         <Button variant={next ? 'secondary' : 'primary'} size={next ? 'md' : 'lg'} onClick={again}>
           {ru.result.again}
         </Button>
-        {session.challenge && (
-          // «Ответный вызов» подключается вместе с «Поделиться» (Task 6); пока отключён.
-          <Button variant="secondary" disabled title={ru.challenge.soon} onClick={() => {}}>
-            {ru.challenge.counter}
-          </Button>
+        {session.mode === 'free' && (
+          <Button variant="secondary" onClick={share} testId="share">{ru.share.button}</Button>
+        )}
+        {session.mode === 'free' && session.challenge && (
+          // Ответный вызов — тот же шаринг: своя колода из этого матча против отправителя.
+          <Button variant="secondary" onClick={share} testId="counter">{ru.challenge.counter}</Button>
         )}
         <Button variant="secondary" onClick={toMenu}>{ru.result.menu}</Button>
       </div>
+      {sharing.notice && <p className={styles.notice} role="status">{sharing.notice}</p>}
+      {sharing.prompt}
     </main>
   );
 }

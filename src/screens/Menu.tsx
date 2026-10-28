@@ -6,6 +6,7 @@ import { useStore } from '../store';
 import { Button } from '../ui/Button';
 import { MoonWidget } from '../ui/MoonWidget';
 import styles from './Menu.module.css';
+import { useShare } from './useShare';
 
 type Props = {
   /** Источник seed свободного матча; в тестах подменяется. */
@@ -33,6 +34,8 @@ export function Menu({ now = Date.now }: Props) {
   // Пока игрок в меню, в простое подгружаем чанк боя: «Играть» откроет его без ожидания сети.
   useEffect(() => warmBattleChunk(), []);
   const tutorialStep = useStore((s) => s.tutorialStep);
+  const activeDeck = useStore((s) => s.decks.find((d) => d.id === s.activeDeckId)?.deck ?? null);
+  const sharing = useShare(now);
 
   const play = () => {
     const s = useStore.getState();
@@ -62,6 +65,11 @@ export function Menu({ now = Date.now }: Props) {
     navigate({ name: 'battle' });
   };
 
+  // Вызов вне матча: активная колода, вместо ключевого момента — нейтральная фраза.
+  const invite = () => {
+    if (activeDeck) sharing.start(activeDeck, ru.share.noMoment);
+  };
+
   const tutorial = () => navigate({ name: 'tutorial', id: Math.min(tutorialStep + 1, 3) as 1 | 2 | 3 });
 
   return (
@@ -75,8 +83,11 @@ export function Menu({ now = Date.now }: Props) {
         <Button variant="secondary" onClick={() => navigate({ name: 'heroes' })}>{ru.menu.heroes}</Button>
         <Button variant="secondary" onClick={() => navigate({ name: 'decks' })}>{ru.menu.decks}</Button>
         <Button variant="secondary" onClick={tutorial}>{ru.menu.tutorial}</Button>
+        <Button variant="secondary" disabled={!activeDeck} onClick={invite} testId="invite">{ru.menu.invite}</Button>
       </nav>
+      {sharing.notice && <p className={styles.notice} role="status">{sharing.notice}</p>}
       <p className={styles.wins} data-testid="wins">{fmt(ru.menu.wins, { n: wins })}</p>
+      {sharing.prompt}
     </main>
   );
 }

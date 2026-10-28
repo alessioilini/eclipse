@@ -35,3 +35,10 @@
   color: var(--muted);
   text-align: center;
 }
+
+.notice {
+  margin: 0;
+  font-size: var(--fs-14);
+  color: var(--accent);
+  text-align: center;
+}

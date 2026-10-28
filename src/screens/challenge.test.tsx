@@ -152,14 +152,14 @@ describe('результат матча-вызова', () => {
     expect(window.location.hash).toBe('#/battle');
   });
 
-  it('кнопка «Ответный вызов» есть, но отключена', () => {
+  it('кнопка «Ответный вызов» есть и активна', () => {
     render(<Challenge code={CODE} />).unmount();
     st().startMatch(GHOST, { opponentDeck: GHOST, seed: SEED, mode: 'free', challenge: { name: NAME, code: CODE } });
     finishCurrent();
     render(<Result />);
     const counter = screen.getByRole('button', { name: ru.challenge.counter });
-    expect(counter).toBeDisabled();
-    expect(counter).toHaveAttribute('title', ru.challenge.soon);
+    expect(counter).toBeEnabled();
+    expect(counter).not.toHaveAttribute('title');
   });
 
   it('в обычном матче нет ни подзаголовка вызова, ни «Ответного вызова»', () => {

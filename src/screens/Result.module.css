@@ -48,3 +48,9 @@
   width: 100%;
   max-width: calc(var(--card-w) * 3);
 }
+
+.notice {
+  margin: 0;
+  font-size: var(--fs-14);
+  color: var(--accent);
+}

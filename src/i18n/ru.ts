@@ -21,6 +21,7 @@ export const ru = {
     tutorial: 'Обучение',
     wins: 'Победы: {n}',
     needDeck: 'Сначала соберите колоду',
+    invite: 'Вызвать друга',
   },
   battle: {
     confirm: 'Подтвердить',
@@ -120,7 +121,20 @@ export const ru = {
     menu: 'В меню',
     resultVs: 'против {name}',
     counter: 'Ответный вызов',
-    soon: 'скоро',
+  },
+  share: {
+    button: 'Поделиться',
+    text: '{name}: {moment} Сможешь победить эту команду? {url}',
+    noMoment: 'вызывает тебя на бой.',
+  },
+  platform: {
+    copied: 'Ссылка скопирована',
+    shareFailed: 'Не удалось поделиться',
+  },
+  name: {
+    title: 'Как тебя зовут?',
+    placeholder: 'Имя',
+    done: 'Готово',
   },
   heroes: {
     title: 'Героини',
