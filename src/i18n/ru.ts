@@ -1,12 +1,8 @@
 import type { Element, Role, StatusId, Timing } from '../engine/types';
+import type { BlockReason, ValidationCode } from '../engine';
 
-// TODO(Task 1): replace these local types with imports from the engine public API.
-export type ValidationCode =
-  | 'DEAD_HERO' | 'NONE_ONLY_DEAD' | 'TARGET_DEAD' | 'WRONG_TARGET' | 'SKILL_FREEZE'
-  | 'SKILL_SILENCE' | 'ULT_SILENCE' | 'ULT_USED' | 'ENERGY' | 'LUNA' | 'RESERVE_DEAD'
-  | 'DUPLICATE_RESERVE' | 'SWAP_BANNED' | 'CARD_NOT_IN_HAND' | 'ONE_CARD';
-
-export type BlockReason = 'dead' | 'energy' | 'luna' | 'used' | 'freeze' | 'silence' | 'banned';
+// Re-exported for UI modules that already import them from here.
+export type { BlockReason, ValidationCode };
 
 export const ru = {
   common: {

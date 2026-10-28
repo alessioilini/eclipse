@@ -1,4 +1,5 @@
-import type { CardId, HeroAction, MatchState, Side, SideCommands, SideState, SlotRef, TargetType } from './types';
+import type { CardId, CardPlay, HeroAction, HeroState, MatchState, Side, SideCommands, SideState, Slot, SlotRef, TargetType } from './types';
+import type { ValidationCode, ValidationIssue } from './errors';
 import { CARDS } from './data/cards';
 import { HEROES } from './data/heroes';
 import { hasStatus, isAlive } from './status';
@@ -9,7 +10,7 @@ import type { PublicState } from './view';
 export type PlanningState = MatchState | PublicState;
 
 export const ULTIMATE_ENERGY_COST = 2;
-const BLOOD_PACT_BUDGET_BONUS = 2;
+export const BLOOD_PACT_BUDGET_BONUS = 2;
 const MIRA_DISCOUNT = 1;
 
 /** Energy available to `side` in the current round (spec 2.3). Round 0 counts as round 1. */
@@ -43,122 +44,183 @@ function isSlotRef(x: unknown): x is SlotRef {
   return (r.side === 'A' || r.side === 'B') && (r.slot === 0 || r.slot === 1 || r.slot === 2);
 }
 
-/** Checks a target against the target type; returns an error string or null. Malformed refs never throw. */
-function checkTarget(state: PlanningState, side: Side, type: TargetType, target: SlotRef | undefined): string | null {
+const SLOTS: Slot[] = [0, 1, 2];
+
+/**
+ * Targets that pass `checkTarget` for a target type (spec §5, R5): living enemies for `enemy`,
+ * living own actives for the ally-side types, `'auto'` for `self | allies | enemies | none`.
+ */
+export function legalTargetsFor(state: PlanningState, side: Side, type: TargetType): SlotRef[] | 'auto' {
+  switch (type) {
+    case 'enemy': return aliveActive(state, other(side));
+    case 'ally': case 'allyAndGuardian': case 'slotAndReserve': case 'reserveSlot': return aliveActive(state, side);
+    default: return 'auto';
+  }
+}
+
+/** Checks a target against the target type; returns an issue code or null. Malformed refs never throw. */
+function checkTarget(state: PlanningState, side: Side, type: TargetType, target: SlotRef | undefined): ValidationCode | null {
   switch (type) {
     case 'ally':
     case 'allyAndGuardian':
     case 'slotAndReserve':
     case 'reserveSlot':
-      if (!isSlotRef(target) || target.side !== side) return 'wrong target type';
-      return isAlive(heroAt(state, target)) ? null : 'target slot is dead';
+      if (!isSlotRef(target) || target.side !== side) return 'WRONG_TARGET';
+      return isAlive(heroAt(state, target)) ? null : 'TARGET_DEAD';
     case 'enemy':
-      if (!isSlotRef(target) || target.side !== other(side)) return 'wrong target type';
+      if (!isSlotRef(target) || target.side !== other(side)) return 'WRONG_TARGET';
       // A dead enemy is retargeted by the engine, so it is only an error when none is left.
-      return aliveActive(state, other(side)).length > 0 ? null : 'target slot is dead';
+      return aliveActive(state, other(side)).length > 0 ? null : 'TARGET_DEAD';
     default:
       // self / allies / enemies / none: a supplied target is ignored, but it must not be malformed.
-      return target === undefined || isSlotRef(target) ? null : 'wrong target type';
+      return target === undefined || isSlotRef(target) ? null : 'WRONG_TARGET';
   }
 }
 
 /** Checks a reserve index; a malformed index is a wrong target, never a throw. */
-function checkReserve(s: Pick<SideState, 'reserve'>, index: unknown): string | null {
-  if (typeof index !== 'number' || !Number.isInteger(index) || index < 0 || index > 2) return 'wrong target type';
-  return isAlive(s.reserve[index as 0 | 1 | 2]) ? null : 'reserve hero is dead';
+function checkReserve(s: Pick<SideState, 'reserve'>, index: unknown): ValidationCode | null {
+  if (typeof index !== 'number' || !Number.isInteger(index) || index < 0 || index > 2) return 'WRONG_TARGET';
+  return isAlive(s.reserve[index as Slot]) ? null : 'RESERVE_DEAD';
+}
+
+/** A living own guardian at `ref`: the secondary of an `allyAndGuardian` card («Прикрытие»). */
+export function isCoverGuardian(state: PlanningState, side: Side, ref: unknown): boolean {
+  if (!isSlotRef(ref) || ref.side !== side) return false;
+  const hero = heroAt(state, ref);
+  return isAlive(hero) && HEROES[hero.id].role === 'guardian';
+}
+
+/** Reserve indices a swap may go into (living reserve heroines), ascending. */
+export function livingReserve(s: Pick<SideState, 'reserve'>): Slot[] {
+  return SLOTS.filter(i => checkReserve(s, i) === null);
 }
 
 /** The side's own state (everything but the deck order); a PublicState carries it only for the side it was built for. */
-function ownSide(state: PlanningState, side: Side): Omit<SideState, 'deck'> {
+export function ownSide(state: PlanningState, side: Side): Omit<SideState, 'deck'> {
   const s = state.sides[side];
   if (!('hand' in s)) throw new Error(`validateCommands: the hand of side ${side} is hidden in this view`);
   return s;
 }
 
-function validateAction(state: PlanningState, side: Side, slot: 0 | 1 | 2, action: HeroAction): string[] {
+/** Status blocks of a skill, in check order (freeze, then silence). */
+export function skillIssues(hero: HeroState): ValidationCode[] {
+  const out: ValidationCode[] = [];
+  if (hasStatus(hero, 'freeze')) out.push('SKILL_FREEZE');
+  if (hasStatus(hero, 'silence')) out.push('SKILL_SILENCE');
+  return out;
+}
+
+/** Blocks of an ultimate, in check order (silence, then already used). */
+export function ultimateIssues(hero: HeroState): ValidationCode[] {
+  const out: ValidationCode[] = [];
+  if (hasStatus(hero, 'silence')) out.push('ULT_SILENCE');
+  if (hero.ultimateUsed) out.push('ULT_USED');
+  return out;
+}
+
+/** Energy price of one hero action (0 for a dead heroine, whose action is not resolved). */
+export function actionEnergy(state: PlanningState, side: Side, slot: Slot, action: HeroAction | undefined): number {
+  const hero = ownSide(state, side).active[slot];
+  if (!action || !isAlive(hero)) return 0;
+  if (action.type === 'skill') return HEROES[hero.id].skill.cost;
+  if (action.type === 'ultimate') return ULTIMATE_ENERGY_COST;
+  return 0;
+}
+
+/** Energy price of a card play and the budget it adds (Blood Pact); nothing for an absent, unknown or multiple card. */
+export function cardEnergy(state: PlanningState, side: Side, card: CardPlay | undefined): { cost: number; bonus: number } {
+  if (!card || Array.isArray(card)) return { cost: 0, bonus: 0 };
+  const cardId = ownSide(state, side).hand[card.handIndex];
+  if (cardId === undefined) return { cost: 0, bonus: 0 };
+  return { cost: cardCost(state, side, cardId), bonus: cardId === 'bloodPact' ? BLOOD_PACT_BUDGET_BONUS : 0 };
+}
+
+function validateAction(state: PlanningState, side: Side, slot: Slot, action: HeroAction): ValidationIssue[] {
   const s = ownSide(state, side);
   const hero = s.active[slot];
-  if (!isAlive(hero)) return action.type === 'none' ? [] : ['dead hero cannot act'];
+  if (!isAlive(hero)) return action.type === 'none' ? [] : [{ code: 'DEAD_HERO', slot }];
   const def = HEROES[hero.id];
-  const errors: string[] = [];
-  const push = (e: string | null) => { if (e) errors.push(e); };
+  const codes: ValidationCode[] = [];
+  const push = (e: ValidationCode | null) => { if (e) codes.push(e); };
   switch (action.type) {
     case 'none':
-      errors.push('none only for dead hero');
+      codes.push('NONE_ONLY_DEAD');
       break;
     case 'basic':
       push(checkTarget(state, side, 'enemy', action.target));
       break;
     case 'skill':
-      if (hasStatus(hero, 'freeze')) errors.push('skill blocked by freeze');
-      if (hasStatus(hero, 'silence')) errors.push('skill blocked by silence');
+      codes.push(...skillIssues(hero));
       push(checkTarget(state, side, def.skill.target, action.target));
       break;
     case 'ultimate':
-      if (hasStatus(hero, 'silence')) errors.push('ultimate blocked by silence');
-      if (hero.ultimateUsed) errors.push('ultimate already used');
+      codes.push(...ultimateIssues(hero));
       push(checkTarget(state, side, def.ultimate.target, action.target));
       break;
     case 'swap':
-      if (s.flags.swapBanned) errors.push('swap banned');
+      if (s.flags.swapBanned) codes.push('SWAP_BANNED');
       push(checkReserve(s, action.reserveIndex));
       break;
   }
-  return errors;
+  return codes.map(code => ({ code, slot }));
+}
+
+/** Card issues: one card per round, card in hand, target and secondary shape (spec §5). */
+function validateCard(state: PlanningState, side: Side, card: CardPlay | CardPlay[]): ValidationCode[] {
+  // spec §2.5: at most one card per side per round
+  if (Array.isArray(card)) return ['ONE_CARD'];
+  const s = ownSide(state, side);
+  const cardId = s.hand[card.handIndex];
+  if (cardId === undefined) return ['CARD_NOT_IN_HAND'];
+  const def = CARDS[cardId];
+  const codes: ValidationCode[] = [];
+  const targetError = checkTarget(state, side, def.target, card.target);
+  if (targetError) codes.push(targetError);
+  const sec: unknown = card.secondary;
+  const secIsObject = typeof sec === 'object' && sec !== null;
+  if (sec !== undefined && !secIsObject) {
+    codes.push('WRONG_TARGET');
+  } else if (def.target === 'allyAndGuardian') {
+    if (!isCoverGuardian(state, side, sec)) codes.push('WRONG_TARGET');
+  } else if (def.target === 'slotAndReserve') {
+    if (!secIsObject || !('reserveIndex' in sec)) codes.push('WRONG_TARGET');
+    else {
+      const reserveError = checkReserve(s, sec.reserveIndex);
+      if (reserveError) codes.push(reserveError);
+    }
+  }
+  return codes;
 }
 
 /** Returns every violation found, in a stable order: slots 0..2, then the card, then resources. */
-export function validateCommands(state: PlanningState, side: Side, cmds: SideCommands): string[] {
+export function validateCommands(state: PlanningState, side: Side, cmds: SideCommands): ValidationIssue[] {
   const s = ownSide(state, side);
-  const errors: string[] = [];
+  const issues: ValidationIssue[] = [];
   let energy = 0;
   let ultimates = 0;
   const swapInto = new Set<unknown>();
 
   cmds.actions.forEach((action, i) => {
-    const slot = i as 0 | 1 | 2;
-    errors.push(...validateAction(state, side, slot, action));
-    const hero = s.active[slot];
-    if (!isAlive(hero)) return;
-    if (action.type === 'skill') energy += HEROES[hero.id].skill.cost;
-    if (action.type === 'ultimate') { energy += ULTIMATE_ENERGY_COST; ultimates += 1; }
+    const slot = i as Slot;
+    issues.push(...validateAction(state, side, slot, action));
+    if (!isAlive(s.active[slot])) return;
+    energy += actionEnergy(state, side, slot, action);
+    if (action.type === 'ultimate') ultimates += 1;
     if (action.type === 'swap') {
-      if (swapInto.has(action.reserveIndex)) errors.push('duplicate reserve index');
+      if (swapInto.has(action.reserveIndex)) issues.push({ code: 'DUPLICATE_RESERVE', slot });
       swapInto.add(action.reserveIndex);
     }
   });
 
   let budget = energyBudget(state, side);
-  if (Array.isArray(cmds.card)) {
-    errors.push('one card per round'); // spec §2.5: at most one card per side per round
-  } else if (cmds.card) {
-    const cardId = s.hand[cmds.card.handIndex];
-    if (cardId === undefined) {
-      errors.push('card not in hand');
-    } else {
-      const def = CARDS[cardId];
-      const targetError = checkTarget(state, side, def.target, cmds.card.target);
-      if (targetError) errors.push(targetError);
-      const sec: unknown = cmds.card.secondary;
-      const secIsObject = typeof sec === 'object' && sec !== null;
-      if (sec !== undefined && !secIsObject) {
-        errors.push('wrong target type');
-      } else if (def.target === 'allyAndGuardian') {
-        const guardian = isSlotRef(sec) && sec.side === side ? heroAt(state, sec) : null;
-        if (!guardian || !isAlive(guardian) || HEROES[guardian.id].role !== 'guardian') errors.push('wrong target type');
-      } else if (def.target === 'slotAndReserve') {
-        if (!secIsObject || !('reserveIndex' in sec)) errors.push('wrong target type');
-        else {
-          const reserveError = checkReserve(s, sec.reserveIndex);
-          if (reserveError) errors.push(reserveError);
-        }
-      }
-      energy += cardCost(state, side, cardId);
-      if (cardId === 'bloodPact') budget += BLOOD_PACT_BUDGET_BONUS;
-    }
+  if (cmds.card) {
+    issues.push(...validateCard(state, side, cmds.card).map((code): ValidationIssue => ({ code, card: true })));
+    const card = cardEnergy(state, side, cmds.card);
+    energy += card.cost;
+    budget += card.bonus;
   }
 
-  if (energy > budget) errors.push('not enough energy');
-  if (ultimates * ultimateLunaCost(state, side) > s.luna) errors.push('not enough luna');
-  return errors;
+  if (energy > budget) issues.push({ code: 'ENERGY' });
+  if (ultimates * ultimateLunaCost(state, side) > s.luna) issues.push({ code: 'LUNA' });
+  return issues;
 }

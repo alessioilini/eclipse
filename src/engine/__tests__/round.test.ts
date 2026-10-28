@@ -396,9 +396,9 @@ describe('resolveRound: детерминизм и валидация', () => {
   it('невалидные команды → Error("invalid commands")', () => {
     const s = makeMatch();
     expect(() => playRound(s, cmd(basic(0, ally(1)), basic(1, enemy(0)), basic(2, enemy(0))), bDefault()))
-      .toThrow('invalid commands: A: wrong target type');
+      .toThrow('invalid commands: A: WRONG_TARGET');
     expect(() => playRound(s, aDefault(), cmd(none(), basic(1, ally(0)), basic(2, ally(0)))))
-      .toThrow('invalid commands: B: none only for dead hero');
+      .toThrow('invalid commands: B: NONE_ONLY_DEAD');
   });
 
   it('resolveRound без startRound бросает "round not started"', () => {
@@ -424,8 +424,8 @@ describe('resolveRound: детерминизм и валидация', () => {
     const energy5 = cmd(skill(0), skill(1, ally(0)), skill(2, ally(2)), { handIndex: 0 });
     // Карта с индексом 3 появляется в руке только после добора раунда 3.
     const drawn = cmd(basic(0, enemy(0)), basic(1, enemy(0)), basic(2, enemy(0)), { handIndex: 3 });
-    expect(validateCommands(pre, 'A', energy5)).toEqual(['not enough energy']);
-    expect(validateCommands(pre, 'A', drawn)).toEqual(['card not in hand']);
+    expect(validateCommands(pre, 'A', energy5)).toEqual([{ code: 'ENERGY' }]);
+    expect(validateCommands(pre, 'A', drawn)).toEqual([{ code: 'CARD_NOT_IN_HAND', card: true }]);
 
     const { state: started, events } = startRound(pre);
     expect(started.round).toBe(3);

@@ -208,8 +208,8 @@ describe('умения героинь через данные', () => {
     // Повторная ульта той же героини.
     const next = setLuna(r2.state, 'A', 5);
     const started = startRound(next).state;
-    expect(validateCommands(started, 'A', plan())).toEqual(['ultimate already used']);
-    expect(() => playRound(next, plan(), bPlan())).toThrow('ultimate already used');
+    expect(validateCommands(started, 'A', plan())).toEqual([{ code: 'ULT_USED', slot: 2 }]);
+    expect(() => playRound(next, plan(), bPlan())).toThrow('A: ULT_USED');
   });
 
   it('ультa Лираи: 100% всем, луна становится full', () => {

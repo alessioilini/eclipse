@@ -37,8 +37,8 @@ export function resolveRound(state: MatchState, cmds: Record<Side, SideCommands>
   if (state.result !== null) throw new Error('match finished');
   if (!state.awaitingCommands) throw new Error('round not started');
   const errors = [
-    ...validateCommands(state, 'A', cmds.A).map(e => `A: ${e}`),
-    ...validateCommands(state, 'B', cmds.B).map(e => `B: ${e}`),
+    ...validateCommands(state, 'A', cmds.A).map(e => `A: ${e.code}`),
+    ...validateCommands(state, 'B', cmds.B).map(e => `B: ${e.code}`),
   ];
   if (errors.length > 0) throw new Error('invalid commands: ' + errors.join('; '));
 
