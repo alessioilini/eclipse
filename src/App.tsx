@@ -1,7 +1,8 @@
 import { useEffect } from 'react';
 import { ru } from './i18n/ru';
-import { navigate, useRoute } from './router';
+import { navigate, toHash, useRoute } from './router';
 import { Battle } from './screens/Battle/Battle';
+import { Crashed } from './screens/Crashed';
 import { DeckBuilder } from './screens/DeckBuilder';
 import { Decks } from './screens/Decks';
 import { HeroDetail } from './screens/HeroDetail';
@@ -10,6 +11,7 @@ import { Menu } from './screens/Menu';
 import { Result } from './screens/Result';
 import { Tutorial } from './screens/Tutorial';
 import { useStore } from './store';
+import { ErrorBoundary } from './ui/ErrorBoundary';
 
 export function App() {
   const route = useRoute();
@@ -21,25 +23,27 @@ export function App() {
   }, [redirect]);
   return (
     <div className="app">
-      {route.name === 'menu' ? (
-        <Menu />
-      ) : route.name === 'tutorial' ? (
-        <Tutorial key={route.id} id={route.id} />
-      ) : route.name === 'battle' ? (
-        redirect === null && <Battle />
-      ) : route.name === 'result' ? (
-        <Result />
-      ) : route.name === 'decks' ? (
-        <Decks />
-      ) : route.name === 'deck' ? (
-        <DeckBuilder key={route.id} id={route.id} />
-      ) : route.name === 'heroes' ? (
-        <Heroes />
-      ) : route.name === 'hero' ? (
-        <HeroDetail key={route.id} id={route.id} />
-      ) : (
-        <p style={{ padding: 'var(--sp-24)' }}>{ru.common.soon}</p>
-      )}
+      <ErrorBoundary resetKey={toHash(route)} fallback={(reset) => <Crashed onDone={reset} />}>
+        {route.name === 'menu' ? (
+          <Menu />
+        ) : route.name === 'tutorial' ? (
+          <Tutorial key={route.id} id={route.id} />
+        ) : route.name === 'battle' ? (
+          redirect === null && <Battle />
+        ) : route.name === 'result' ? (
+          <Result />
+        ) : route.name === 'decks' ? (
+          <Decks />
+        ) : route.name === 'deck' ? (
+          <DeckBuilder key={route.id} id={route.id} />
+        ) : route.name === 'heroes' ? (
+          <Heroes />
+        ) : route.name === 'hero' ? (
+          <HeroDetail key={route.id} id={route.id} />
+        ) : (
+          <p style={{ padding: 'var(--sp-24)' }}>{ru.common.soon}</p>
+        )}
+      </ErrorBoundary>
     </div>
   );
 }
