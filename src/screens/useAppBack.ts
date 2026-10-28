@@ -23,7 +23,8 @@ export function useAppBack(fn: () => void): void {
     stack.push(handler);
     setBackHandler(handler);
     return () => {
-      stack.splice(stack.lastIndexOf(handler), 1);
+      const i = stack.lastIndexOf(handler);
+      if (i >= 0) stack.splice(i, 1);
       if (useStore.getState().backHandler === handler) setBackHandler(stack[stack.length - 1] ?? null);
     };
   }, []);

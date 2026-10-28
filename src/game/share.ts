@@ -4,8 +4,8 @@ import type { Platform } from '../platform/types';
 import { encodeChallenge, truncateName } from './links/codec';
 import { buildChallengeUrl } from './links/url';
 
-/** Текст шаринга (спека §5): имя, ключевой момент и ссылка-вызов. */
-export function shareText(opts: { name: string; moment: string; url: string }): string {
+/** Текст шаринга (спека §5): имя и ключевой момент. Ссылку платформа прикладывает сама (второй аргумент share). */
+export function shareText(opts: { name: string; moment: string }): string {
   return fmt(ru.share.text, opts);
 }
 

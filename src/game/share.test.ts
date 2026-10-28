@@ -21,13 +21,18 @@ const normalized = (d: Deck): Deck => {
 };
 
 describe('shareText', () => {
-  it('подставляет имя, ключевой момент и ссылку в шаблон', () => {
-    const text = shareText({ name: 'Лена', moment: 'Айра нанесла 41% урона.', url: 'https://x/#/c/abc' });
-    expect(text).toBe(fmt(ru.share.text, { name: 'Лена', moment: 'Айра нанесла 41% урона.', url: 'https://x/#/c/abc' }));
+  it('подставляет имя и ключевой момент; ссылки в тексте нет (она идёт отдельным аргументом)', () => {
+    const text = shareText({ name: 'Лена', moment: 'Айра нанесла 41% урона.' });
+    expect(text).toBe(fmt(ru.share.text, { name: 'Лена', moment: 'Айра нанесла 41% урона.' }));
     expect(text).toContain('Лена');
     expect(text).toContain('Айра нанесла 41% урона.');
-    expect(text).toContain('https://x/#/c/abc');
     expect(text).not.toMatch(/\{\w+\}/);
+    expect(text).not.toContain('http');
+  });
+
+  it('без момента читается как вызов', () => {
+    expect(shareText({ name: 'Оля', moment: ru.share.noMoment }))
+      .toBe(`Оля: ${ru.share.noMoment} Сможешь победить эту команду?`);
   });
 });
 

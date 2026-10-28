@@ -4,10 +4,11 @@ import { HERO_IDS } from '../engine';
 import type { Deck } from '../engine';
 import { buildPreset } from '../game/decks/presets';
 import { decodeChallenge, encodeChallenge } from '../game/links/codec';
+import { buildChallengeUrl } from '../game/links/url';
 import { defaultSave, type SaveV1 } from '../game/save/defaults';
 import { SAVE_KEY } from '../game/save/storage';
 import { ru } from '../i18n/ru';
-import { setPlatformForTests } from '../platform';
+import { getPlatform, setPlatformForTests } from '../platform';
 import type { Platform, ShareResult } from '../platform';
 import { createWebPlatform } from '../platform/web';
 import { attachPersistence, hydrate, toSave, useStore } from '../store';
@@ -76,8 +77,10 @@ describe('«Поделиться» на экране результата', () =
     await waitFor(() => expect(share).toHaveBeenCalledTimes(1));
     const [text, url] = share.mock.calls[0]!;
     expect(text).toContain(moment);
-    expect(text).toContain(url);
     expect(text).toContain('Оля');
+    // Ссылка — только вторым аргументом: в тексте её нет, иначе получатель видит её дважды.
+    expect(text).not.toContain(url);
+    expect(url).toBe(buildChallengeUrl(sharedCode(), getPlatform()));
     const c = decodeChallenge(sharedCode())!;
     expect(c.deck).toEqual(PLAYER);
     expect(c.name).toBe('Оля');
@@ -110,6 +113,34 @@ describe('«Поделиться» на экране результата', () =
     await waitFor(() => expect(share).toHaveBeenCalledTimes(1));
     await act(async () => {});
     expect(screen.queryByRole('status')).toBeNull();
+    expect(st().notice).toBeNull();
+  });
+
+  it('два быстрых нажатия — один вызов platform.share', async () => {
+    let resolve!: (r: ShareResult) => void;
+    share.mockImplementation(() => new Promise<ShareResult>((r) => { resolve = r; }));
+    st().setName('Оля');
+    finish();
+    render(<Result />);
+    fireEvent.click(screen.getByTestId('share'));
+    fireEvent.click(screen.getByTestId('share'));
+    expect(share).toHaveBeenCalledTimes(1);
+    await act(async () => resolve('clipboard'));
+    expect(screen.getByRole('status')).toHaveTextContent(ru.platform.copied);
+    fireEvent.click(screen.getByTestId('share'));
+    expect(share).toHaveBeenCalledTimes(2);
+  });
+
+  it('ответ платформы после ухода с экрана подсказку не ставит', async () => {
+    let resolve!: (r: ShareResult) => void;
+    share.mockImplementation(() => new Promise<ShareResult>((r) => { resolve = r; }));
+    st().setName('Оля');
+    finish();
+    const { unmount } = render(<Result />);
+    fireEvent.click(screen.getByTestId('share'));
+    expect(share).toHaveBeenCalledTimes(1);
+    unmount();
+    await act(async () => resolve('clipboard'));
     expect(st().notice).toBeNull();
   });
 
@@ -231,6 +262,7 @@ describe('«Вызвать друга» в меню', () => {
     fireEvent.click(screen.getByTestId('invite'));
     await waitFor(() => expect(share).toHaveBeenCalledTimes(1));
     expect(share.mock.calls[0]![0]).toContain(ru.share.noMoment);
+    expect(share.mock.calls[0]![0]).not.toContain(share.mock.calls[0]![1]);
     const c = decodeChallenge(sharedCode())!;
     expect(c.deck).toEqual(PLAYER);
     expect(c.name).toBe('Оля');

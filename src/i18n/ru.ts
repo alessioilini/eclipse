@@ -124,8 +124,8 @@ export const ru = {
   },
   share: {
     button: 'Поделиться',
-    text: '{name}: {moment} Сможешь победить эту команду? {url}',
-    noMoment: 'вызывает тебя на бой.',
+    text: '{name}: {moment} Сможешь победить эту команду?',
+    noMoment: 'бросает тебе вызов.',
   },
   platform: {
     copied: 'Ссылка скопирована',
