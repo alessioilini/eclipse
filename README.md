@@ -43,7 +43,7 @@ npm run art:pack
 - `--kind portrait|full` — только портреты или только арт в рост;
 - `--force` — перегенерировать уже существующие файлы (по умолчанию они пропускаются).
 
-Модель по умолчанию `gpt-image-2.5-sunburst`, альтернатива `gpt-image-2.5-flare`: `npm run art -- --model gpt-image-2.5-flare` или переменная `OPENAI_IMAGE_MODEL`. Полный прогон стоит около 1 доллара. Ключ берётся только из окружения: не записывайте его в файлы и не коммитьте. Стиль и промпты: `art/style.md`, `art/prompts.ts`.
+Модель по умолчанию `gpt-image-2.5-sunburst`, альтернатива `gpt-image-2.5-flare`: `npm run art -- --model gpt-image-2.5-flare` или переменная `OPENAI_IMAGE_MODEL`. Качество `--quality low|medium|high|xhigh|max` (по умолчанию medium; `high` заметно лучше рисует руки, примерно втрое дороже) или `OPENAI_IMAGE_QUALITY`. Полный прогон стоит около 1 доллара. Ключ берётся только из окружения: не записывайте его в файлы и не коммитьте. Стиль и промпты: `art/style.md`, `art/prompts.ts`.
 
 ## Telegram-бот
 

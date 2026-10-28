@@ -10,7 +10,8 @@ export const STYLE =
   + 'blue-violet shadows, dark gradient background from deep navy #0b0e1f to #161a33 with a few softly glowing '
   + 'floating particles, accent rim light in the element colour on the hair and clothes, one consistent palette for '
   + 'all characters: warm fair skin with a light blush and thin dark plum line art, painterly shading, a single young '
-  + 'woman as the only subject, no text, no letters, no logos, no watermark, no frame, no close-up weapons.';
+  + 'woman as the only subject, anatomically correct hands with exactly five fingers each, hands relaxed and simple, '
+  + 'no text, no letters, no logos, no watermark, no frame, no close-up weapons.';
 
 const PORTRAIT = 'bust portrait, looking at the camera, face in the upper third.';
 const FULL = 'full body, standing, slight turn, the whole figure in frame with space above the head and below the feet.';
@@ -30,13 +31,13 @@ export const PROMPTS: Record<HeroId, HeroPrompt> = {
     'Element fire, orange accent light #ff7a45. A fire mage in her early twenties with long wavy crimson hair '
     + 'fading to amber at the tips, small glowing embers drifting in her hair, amber eyes with a faint inner glow, '
     + 'a sly half-smile. Dark red mage robe with gold embroidery and smouldering ember-lit hems, a high collar, '
-    + 'a small ornate black lacquered casket held in one hand with sparks leaking from its lid.',
+    + 'a small ornate black lacquered casket floating beside her at waist height with sparks leaking from its lid, her hands relaxed at her sides.',
   ),
   // Fire · support. Passive "Warmth", skill "Spark of Life", ultimate "From the Ashes" (revive).
   fenna: framed(
     'Element fire, orange accent light #ff7a45. A gentle healer with shoulder-length wavy copper-orange hair and '
     + 'a phoenix-feather hairpin, warm hazel eyes, a kind smile. Cream and soft orange healer dress with a short '
-    + 'shawl of red and gold phoenix feathers, a small warm flame floating above her cupped palm, '
+    + 'shawl of red and gold phoenix feathers, a small warm flame floating in front of her chest, her hands folded loosely in her sleeves, '
     + 'a few drifting ash flakes turning into sparks.',
   ),
   // Water · guardian. Passive "Stone Water", skill "Protector", ultimate "Great Protection".
@@ -50,7 +51,7 @@ export const PROMPTS: Record<HeroId, HeroPrompt> = {
   tali: framed(
     'Element water, sky-blue accent light #4cc3ff. A petite water mage with long wavy pale-blue hair dusted with '
     + 'frost crystals, ice-blue eyes, a playful focused look. Flowing navy and white robe with a wave pattern on '
-    + 'the hem, a sheer frosted capelet, a ring of water droplets and tiny ice shards circling one raised hand.',
+    + 'the hem, a sheer frosted capelet, a ring of water droplets and tiny ice shards circling her, her hands hidden in wide sleeves.',
   ),
   // Wind · guardian. Passive "Illusory Guard", skill "Mirror Shield", ultimate "Reflection".
   zefira: framed(
@@ -82,7 +83,7 @@ export const PROMPTS: Record<HeroId, HeroPrompt> = {
     'Element dark, violet accent light #b48cff. A mysterious dark mage with long straight black-violet hair with '
     + 'a single pale streak, glowing violet eyes, a cool aloof expression. Dark violet robes covered in faint '
     + 'silver sigils, black feather trim on the shoulders like folded fallen wings, '
-    + 'a glowing purple seal circle hovering beside her open hand.',
+    + 'a glowing purple seal circle hovering beside her shoulder, her hands hidden in her long sleeves.',
   ),
   // Dark · striker. Passive "Rage", skill "Blood Strike", ultimate "Ruin".
   kira: framed(
@@ -94,7 +95,7 @@ export const PROMPTS: Record<HeroId, HeroPrompt> = {
   mira: framed(
     'Element star, pink accent light #ff9ad5. A clever tactician with a neat pink-lavender bob and a small star '
     + 'hairclip, bright pink eyes, a knowing smile. A deep blue cape lined with a star chart, a fitted white '
-    + 'blouse with a pink ribbon, a small glowing brass astrolabe held in her hands.',
+    + 'blouse with a pink ribbon, a small glowing brass astrolabe floating in front of her, her hands relaxed at her sides.',
   ),
   // Star · striker. Passive "Impulse", skill "Comet", ultimate "Starfall".
   selena: framed(
@@ -115,6 +116,7 @@ export function prompt(id: HeroId, kind: ArtKind): string {
 // - base описывает только внешность и костюм; кадр (портрет/в рост) добавляется сам, его в base не писать.
 // - Фирменные детали из спеки: у Айры угли в волосах, у Нерисы каменные наплечники — их не убирать.
 // - Цвет акцентного света в base совпадает с токеном стихии в src/styles/tokens.css (--el-*).
+// - Руки: STYLE требует пять пальцев и простые расслабленные позы рук; предметы в base парят рядом, а не зажаты в руке.
 // - Оружие крупным планом запрещено стилем: посох/щит допустимы только целиком и вторым планом.
 // - Если лицо в арте в рост не совпало с портретом, перегенерировать: npm run art -- --only <id> --kind full --force.
 // - Если не нравится портрет, перегенерировать его и затем арт в рост (он берёт портрет как референс).

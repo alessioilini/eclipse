@@ -13,7 +13,11 @@ const API = 'https://api.openai.com/v1/images';
 /** `gpt-image-1` отключена OpenAI 23 октября 2026. Основная модель Sunburst (точнее держит лицо в edits),
  * альтернатива `gpt-image-2.5-flare`; переопределяется `--model` или переменной `OPENAI_IMAGE_MODEL`. */
 export const DEFAULT_MODEL = 'gpt-image-2.5-sunburst';
-const QUALITY = 'medium';
+/** Качество по умолчанию; `high`/`xhigh` заметно лучше рисуют руки, но дороже в 3–6 раз. */
+export const DEFAULT_QUALITY = 'medium';
+const QUALITIES = ['low', 'medium', 'high', 'xhigh', 'max'] as const;
+export type Quality = (typeof QUALITIES)[number];
+const isQuality = (q: string): q is Quality => (QUALITIES as readonly string[]).includes(q);
 const PORTRAIT_SIZE = '1024x1024';
 const FULL_SIZE = '1024x1536';
 
@@ -42,14 +46,14 @@ async function errorDetail(res: Response): Promise<string | null> {
 }
 
 /** One Images API call; returns the PNG bytes of `data[0].b64_json`. */
-export async function callImages(fetchImpl: typeof fetch, apiKey: string, req: ImageRequest, model = DEFAULT_MODEL): Promise<Buffer> {
+export async function callImages(fetchImpl: typeof fetch, apiKey: string, req: ImageRequest, model = DEFAULT_MODEL, quality: Quality = DEFAULT_QUALITY): Promise<Buffer> {
   const auth = { Authorization: `Bearer ${apiKey}` };
   let res: Response;
   if (req.endpoint === 'generations') {
     res = await fetchImpl(`${API}/generations`, {
       method: 'POST',
       headers: { ...auth, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model, prompt: req.prompt, size: req.size, quality: QUALITY, n: 1 }),
+      body: JSON.stringify({ model, prompt: req.prompt, size: req.size, quality, n: 1 }),
     });
   } else {
     const form = new FormData();
@@ -58,7 +62,7 @@ export async function callImages(fetchImpl: typeof fetch, apiKey: string, req: I
     form.append('image', new Blob([new Uint8Array(req.image)], { type: 'image/png' }), 'portrait.png');
     form.append('prompt', req.prompt);
     form.append('size', req.size);
-    form.append('quality', QUALITY);
+    form.append('quality', quality);
     form.append('n', '1');
     // Content-Type with the multipart boundary is set by fetch itself.
     res = await fetchImpl(`${API}/edits`, { method: 'POST', headers: auth, body: form });
@@ -75,13 +79,18 @@ interface Options {
   kinds: ArtKind[];
   force: boolean;
   model: string | null;
+  quality: Quality | null;
 }
 
 function parseArgs(argv: string[]): Options | string {
-  const opts: Options = { ids: [...HERO_IDS], kinds: ['portrait', 'full'], force: false, model: null };
+  const opts: Options = { ids: [...HERO_IDS], kinds: ['portrait', 'full'], force: false, model: null, quality: null };
   for (let i = 0; i < argv.length; i++) {
     const [flag, inline] = (argv[i] ?? '').split('=');
-    if (flag === '--model') {
+    if (flag === '--quality') {
+      const q = inline ?? argv[++i];
+      if (!q || !isQuality(q)) return `--quality принимает ${QUALITIES.join('|')}, а не ${q ?? '(пусто)'}`;
+      opts.quality = q;
+    } else if (flag === '--model') {
       const model = inline ?? argv[++i];
       if (!model) return '--model требует имя модели, например gpt-image-2.5-flare';
       opts.model = model;
@@ -136,7 +145,13 @@ export async function run(argv: string[], deps: RunDeps): Promise<number> {
     return 1;
   }
   const model = opts.model ?? env.OPENAI_IMAGE_MODEL ?? DEFAULT_MODEL;
-  log(`модель: ${model}`);
+  const envQuality = env.OPENAI_IMAGE_QUALITY;
+  if (envQuality !== undefined && !isQuality(envQuality)) {
+    log(`OPENAI_IMAGE_QUALITY принимает ${QUALITIES.join('|')}, а не ${envQuality}`);
+    return 1;
+  }
+  const quality: Quality = opts.quality ?? envQuality ?? DEFAULT_QUALITY;
+  log(`модель: ${model}, качество: ${quality}`);
   mkdirSync(outDir, { recursive: true });
 
   let failed = 0;
@@ -152,19 +167,19 @@ export async function run(argv: string[], deps: RunDeps): Promise<number> {
       try {
         let png: Buffer;
         if (kind === 'portrait') {
-          png = await callImages(fetchImpl, apiKey, { endpoint: 'generations', prompt: text, size: PORTRAIT_SIZE }, model);
+          png = await callImages(fetchImpl, apiKey, { endpoint: 'generations', prompt: text, size: PORTRAIT_SIZE }, model, quality);
         } else if (existsSync(portraitPath)) {
           // The portrait is the reference, so the face and the costume match.
           try {
             const image = readFileSync(portraitPath);
-            png = await callImages(fetchImpl, apiKey, { endpoint: 'edits', prompt: text, size: FULL_SIZE, image }, model);
+            png = await callImages(fetchImpl, apiKey, { endpoint: 'edits', prompt: text, size: FULL_SIZE, image }, model, quality);
           } catch (e) {
             log(`${id} full: edits — ${describeError(e)}, генерация без референса`);
-            png = await callImages(fetchImpl, apiKey, { endpoint: 'generations', prompt: text, size: FULL_SIZE }, model);
+            png = await callImages(fetchImpl, apiKey, { endpoint: 'generations', prompt: text, size: FULL_SIZE }, model, quality);
           }
         } else {
           log(`${id} full: нет портрета, генерация без референса`);
-          png = await callImages(fetchImpl, apiKey, { endpoint: 'generations', prompt: text, size: FULL_SIZE }, model);
+          png = await callImages(fetchImpl, apiKey, { endpoint: 'generations', prompt: text, size: FULL_SIZE }, model, quality);
         }
         writeFileSync(file, png);
         log(`${id} ${kind}: готово`);

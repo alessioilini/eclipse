@@ -14,6 +14,7 @@
   огонь #ff7a45, вода #4cc3ff, ветер #7ee787, свет #ffe08a, тьма #b48cff, звёзды #ff9ad5.
 - **Палитра:** единая для всех двенадцати — тёплая светлая кожа с лёгким румянцем, тонкие
   тёмно-сливовые линии контура, живописная заливка без жёсткого cel-shading.
+- **Руки:** анатомически верные, ровно пять пальцев, простые расслабленные позы; предметы парят рядом с героиней, а не зажаты в кулаке (у моделей это главный источник брака).
 - **Запрещено:** текст, буквы, логотипы, водяные знаки, рамки, оружие крупным планом
   (посох или щит допустимы только целиком и вторым планом), откровенные наряды.
 - **Кадр:** портрет — по грудь, взгляд в камеру, лицо в верхней трети; в рост — стоя, лёгкий поворот,
@@ -22,5 +23,5 @@
 ## STYLE (английский блок для промптов)
 
 ```
-Night anime fantasy illustration, semi-realistic proportions, soft painted moonlight from the top-left with cool blue-violet shadows, dark gradient background from deep navy #0b0e1f to #161a33 with a few softly glowing floating particles, accent rim light in the element colour on the hair and clothes, one consistent palette for all characters: warm fair skin with a light blush and thin dark plum line art, painterly shading, a single young woman as the only subject, no text, no letters, no logos, no watermark, no frame, no close-up weapons.
+Night anime fantasy illustration, semi-realistic proportions, soft painted moonlight from the top-left with cool blue-violet shadows, dark gradient background from deep navy #0b0e1f to #161a33 with a few softly glowing floating particles, accent rim light in the element colour on the hair and clothes, one consistent palette for all characters: warm fair skin with a light blush and thin dark plum line art, painterly shading, a single young woman as the only subject, anatomically correct hands with exactly five fingers each, hands relaxed and simple, no text, no letters, no logos, no watermark, no frame, no close-up weapons.
 ```
