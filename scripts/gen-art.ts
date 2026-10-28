@@ -20,10 +20,22 @@ export type ImageRequest =
   | { endpoint: 'generations'; prompt: string; size: ImageSize }
   | { endpoint: 'edits'; prompt: string; size: ImageSize; image: Uint8Array };
 
-/** A non-2xx answer of the Images API: only the status is kept (the body is not logged). */
+/** A non-2xx answer of the Images API: the status plus the API's own error code/message (never the request). */
 export class ImagesError extends Error {
-  constructor(readonly status: number) {
-    super(`HTTP ${status}`);
+  constructor(readonly status: number, readonly detail: string | null = null) {
+    super(detail ? `HTTP ${status}: ${detail}` : `HTTP ${status}`);
+  }
+}
+
+/** Reads `error.code` / `error.message` from an error body; the key never appears there. */
+async function errorDetail(res: Response): Promise<string | null> {
+  try {
+    const json = (await res.json()) as { error?: { code?: unknown; message?: unknown } };
+    const code = typeof json.error?.code === 'string' ? json.error.code : null;
+    const message = typeof json.error?.message === 'string' ? json.error.message.slice(0, 300) : null;
+    return [code, message].filter(Boolean).join(' — ') || null;
+  } catch {
+    return null;
   }
 }
 
@@ -49,7 +61,7 @@ export async function callImages(fetchImpl: typeof fetch, apiKey: string, req: I
     // Content-Type with the multipart boundary is set by fetch itself.
     res = await fetchImpl(`${API}/edits`, { method: 'POST', headers: auth, body: form });
   }
-  if (!res.ok) throw new ImagesError(res.status);
+  if (!res.ok) throw new ImagesError(res.status, await errorDetail(res));
   const json = (await res.json()) as { data?: Array<{ b64_json?: string }> };
   const b64 = json.data?.[0]?.b64_json;
   if (!b64) throw new Error('пустой ответ: нет data[0].b64_json');
@@ -85,7 +97,7 @@ function parseArgs(argv: string[]): Options | string {
 
 /** Причина сбоя без деталей запроса: статус HTTP или код сетевой ошибки (ENOTFOUND, ECONNRESET, …). */
 const describeError = (e: unknown): string => {
-  if (e instanceof ImagesError) return `HTTP ${e.status}`;
+  if (e instanceof ImagesError) return e.message;
   const cause = e instanceof Error ? (e.cause as { code?: unknown } | undefined) : undefined;
   const code = cause && typeof cause.code === 'string' ? cause.code : null;
   return code ? `сбой запроса (${code})` : 'сбой запроса';
