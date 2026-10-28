@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { ENGINE_VERSION } from '../engine';
 import { truncateName } from '../game/links/codec';
+import { createCloudWriter } from '../game/save/cloud';
 import type { SaveV1 } from '../game/save/defaults';
 import { writeSave } from '../game/save/storage';
 import { emptyDraft, isFinished } from '../game/session';
@@ -8,6 +9,7 @@ import type { MatchSession } from '../game/session';
 import { createRunner } from '../game/tutorial/runner';
 import { SCRIPTS } from '../game/tutorial/scripts';
 import type { TutorialScript } from '../game/tutorial/types';
+import type { CloudStorage } from '../platform/types';
 import { createDecksSlice, type DecksSlice } from './decks';
 import { createMatchSlice, noMatch, type MatchSlice } from './match';
 import { createProfileSlice, type ProfileSlice } from './profile';
@@ -134,13 +136,23 @@ function persisted(s: StoreState): unknown[] {
   ];
 }
 
-/** Подписывает запись сохранения на изменения сохраняемых полей; возвращает отписку. */
-export function attachPersistence(storage?: SaveStorage): () => void {
+/**
+ * Подписывает запись сохранения на изменения сохраняемых полей; возвращает отписку. С облаком каждая
+ * запись идёт и в localStorage, и (отложенно, без матча) в облако; отписка досылает отложенную запись.
+ */
+export function attachPersistence(storage?: SaveStorage, cloud?: CloudStorage): () => void {
+  const writer = cloud ? createCloudWriter(cloud) : null;
   let prev = persisted(useStore.getState());
-  return useStore.subscribe((state) => {
+  const unsubscribe = useStore.subscribe((state) => {
     const next = persisted(state);
     if (next.every((v, i) => Object.is(v, prev[i]))) return;
     prev = next;
-    writeSave(toSave(state), storage);
+    const save = toSave(state);
+    writeSave(save, storage);
+    writer?.write(save);
   });
+  return () => {
+    unsubscribe();
+    if (writer) void writer.flush();
+  };
 }

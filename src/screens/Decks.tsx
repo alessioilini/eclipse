@@ -11,6 +11,9 @@ import { cx } from '../ui/cx';
 import styles from './Decks.module.css';
 import { useAppBack } from './useAppBack';
 
+/** Предел числа колод: колоды хранятся в одном ключе облака Telegram (4096 символов). */
+const MAX_DECKS = 8;
+
 /** Спека §6: список колод, активная отмечена, «Новая колода», «Собрать за меня», удаление с подтверждением. */
 export function Decks() {
   const decks = useStore((s) => s.decks);
@@ -30,6 +33,7 @@ export function Decks() {
   const [archetypeSheet, setArchetypeSheet] = useState(false);
 
   const canBuild = unlocked.length >= 6;
+  const atLimit = decks.length >= MAX_DECKS;
 
   const create = (archetype: Archetype, name: string) => {
     const id = newId();
@@ -79,7 +83,11 @@ export function Decks() {
         })}
       </ul>
 
-      {canBuild ? (
+      {!canBuild ? (
+        <p className={styles.muted}>{ru.decks.needSix}</p>
+      ) : atLimit ? (
+        <p className={styles.muted}>{ru.decks.limit}</p>
+      ) : (
         <div className={styles.footer}>
           <Button
             variant="primary"
@@ -89,8 +97,6 @@ export function Decks() {
           </Button>
           <Button variant="secondary" onClick={() => setArchetypeSheet(true)}>{ru.decks.autoBuild}</Button>
         </div>
-      ) : (
-        <p className={styles.muted}>{ru.decks.needSix}</p>
       )}
 
       {archetypeSheet && (

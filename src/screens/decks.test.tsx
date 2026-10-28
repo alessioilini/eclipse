@@ -34,6 +34,24 @@ describe('список колод', () => {
     expect(screen.queryByRole('button', { name: ru.decks.autoBuild })).toBeNull();
   });
 
+  it('восемь колод: кнопки создания скрыты, показан лимит', () => {
+    unlockAll();
+    for (let i = 1; i <= 8; i++) seedDeck(`d${i}`, `Колода ${i}`);
+    render(<Decks />);
+    expect(screen.getByText(ru.decks.limit)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: ru.decks.new })).toBeNull();
+    expect(screen.queryByRole('button', { name: ru.decks.autoBuild })).toBeNull();
+  });
+
+  it('семь колод: кнопки создания на месте, лимита нет', () => {
+    unlockAll();
+    for (let i = 1; i <= 7; i++) seedDeck(`d${i}`, `Колода ${i}`);
+    render(<Decks />);
+    expect(screen.queryByText(ru.decks.limit)).toBeNull();
+    expect(screen.getByRole('button', { name: ru.decks.new })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: ru.decks.autoBuild })).toBeInTheDocument();
+  });
+
   it('«Новая колода» создаёт «Колода N» из сбалансированного пресета и открывает конструктор', () => {
     unlockAll();
     seedDeck();
