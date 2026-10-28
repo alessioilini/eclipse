@@ -1,10 +1,11 @@
 import {
-  chooseCommands, createMatch, createRng, eventsFor, resolveRound, startRound, validateCommands, viewFor,
+  HEROES, chooseCommands, createMatch, createRng, eventsFor, resolveRound, startRound, validateCommands, viewFor,
 } from '../engine';
 import type {
   CardPlay, Deck, EngineEvent, HeroAction, MatchState, PublicState, SideCommands, ValidationIssue,
 } from '../engine';
 import { randomDeck } from '../engine/sim';
+import { BLOOD_PACT_BUDGET_BONUS, ULTIMATE_ENERGY_COST, cardCost, energyBudget } from '../engine/validate';
 
 /** Планируемый ход игрока: действие на каждый слот (null = ещё не выбрано) и необязательная карта. */
 export type Draft = {
@@ -63,6 +64,33 @@ export function draftToCommands(draft: Draft): SideCommands | null {
 export function draftIssues(state: MatchState, draft: Draft): ValidationIssue[] {
   const cmds = draftToCommands(draft);
   return cmds ? validateCommands(state, 'A', cmds) : [];
+}
+
+/** Черновик в форме, которую принимают `legalActions` / `legalCardPlays` (пустые слоты — `null`, движок их пропускает). */
+export function draftForEngine(draft: Draft): Partial<SideCommands> {
+  return { actions: draft.actions as SideCommands['actions'], ...(draft.card ? { card: draft.card } : {}) };
+}
+
+/**
+ * Энергия черновика игрока: бюджет раунда (с +2 от Кровавой сделки, если она выбрана) и сумма цен
+ * выбранных скиллов, ульт (2) и карты. Действия павших героинь не стоят ничего.
+ */
+export function draftEnergy(state: MatchState, draft: Draft): { budget: number; spent: number } {
+  const own = state.sides.A;
+  let budget = energyBudget(state, 'A');
+  let spent = 0;
+  draft.actions.forEach((action, slot) => {
+    const hero = own.active[slot];
+    if (!action || !hero || hero.hp <= 0) return;
+    if (action.type === 'skill') spent += HEROES[hero.id].skill.cost;
+    else if (action.type === 'ultimate') spent += ULTIMATE_ENERGY_COST;
+  });
+  const cardId = draft.card ? own.hand[draft.card.handIndex] : undefined;
+  if (cardId !== undefined) {
+    spent += cardCost(state, 'A', cardId);
+    if (cardId === 'bloodPact') budget += BLOOD_PACT_BUDGET_BONUS;
+  }
+  return { budget, spent };
 }
 
 /** Бот (или сценарный противник) → resolveRound → события игрока → startRound следующего раунда. */

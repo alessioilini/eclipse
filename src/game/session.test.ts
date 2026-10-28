@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { createRng, validateDeck } from '../engine';
-import type { HeroAction, SideCommands, Slot } from '../engine';
+import { CARD_IDS, HEROES, createRng, validateDeck } from '../engine';
+import type { Deck, HeroAction, SideCommands, Slot } from '../engine';
 import { randomDeck } from '../engine/sim';
 import {
-  confirmRound, draftToCommands, draftIssues, emptyDraft, isFinished, newMatch, opponentDeckFor, playerView, surrender,
+  confirmRound, draftEnergy, draftToCommands, draftIssues, emptyDraft, isFinished, newMatch, opponentDeckFor, playerView, surrender,
 } from './session';
 import type { Draft, MatchSession } from './session';
 
@@ -137,5 +137,31 @@ describe('игровая сессия', () => {
       expect(validateDeck(d)).toEqual([]);
       expect(opponentDeckFor(seed)).toEqual(d);
     }
+  });
+});
+
+describe('энергия черновика', () => {
+  // Активные A: tali (скилл 1), fenna (скилл 1), nerisa; в руке будет bloodPact (0, бюджет +2).
+  const deckA: Deck = { heroes: ['aira', 'fenna', 'nerisa', 'tali', 'zefira', 'liraya'], starting: [3, 1, 2], cards: CARD_IDS.slice(0, 12) };
+  const deckB: Deck = { heroes: ['aurora', 'justina', 'nokta', 'kira', 'mira', 'selena'], starting: [0, 1, 2], cards: CARD_IDS.slice(0, 12) };
+  const session = () => newMatch(deckA, { opponentDeck: deckB, seed: 3, mode: 'free' });
+
+  it('считает цену скилла и ульты против бюджета раунда', () => {
+    const { state } = session();
+    const draft: Draft = {
+      actions: [{ type: 'skill', target: { side: 'B', slot: 0 } }, { type: 'ultimate' }, basicOn(1)],
+      card: null,
+    };
+    expect(draftEnergy(state, emptyDraft(state))).toEqual({ budget: 4, spent: 0 });
+    expect(draftEnergy(state, draft)).toEqual({ budget: 4, spent: HEROES.tali.skill.cost + 2 });
+  });
+
+  it('добавляет цену карты и +2 к бюджету от Кровавой сделки', () => {
+    const state = structuredClone(session().state);
+    state.sides.A.hand = ['bloodPact', 'cover'];
+    const pact: Draft = { actions: [null, null, null], card: { handIndex: 0, target: { side: 'A', slot: 0 } } };
+    expect(draftEnergy(state, pact)).toEqual({ budget: 6, spent: 0 });
+    const cover: Draft = { actions: [{ type: 'skill', target: { side: 'B', slot: 0 } }, null, null], card: { handIndex: 1 } };
+    expect(draftEnergy(state, cover)).toEqual({ budget: 4, spent: HEROES.tali.skill.cost + 1 });
   });
 });

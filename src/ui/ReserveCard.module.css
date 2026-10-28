@@ -10,6 +10,15 @@
   cursor: pointer;
 }
 
+.card:global(.selected) {
+  outline: var(--border) solid var(--accent);
+  outline-offset: var(--border);
+}
+
+.card:global(.dimmed) {
+  opacity: 0.4;
+}
+
 .card:global(.dead) {
   opacity: 0.35;
   filter: grayscale(1);

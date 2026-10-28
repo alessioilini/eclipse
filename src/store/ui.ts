@@ -7,7 +7,9 @@ export type Sheet =
   | { kind: 'targets'; slot: Slot; action: 'basic' | 'skill' | 'ultimate' }
   | { kind: 'reserve'; slot: Slot }
   | { kind: 'card'; handIndex: number; step: 'target' | 'secondary'; target?: SlotRef }
-  | { kind: 'log' };
+  | { kind: 'log' }
+  /** Карточка героини (только чтение), открывается долгим нажатием. */
+  | { kind: 'hero'; ref: SlotRef };
 
 export type UiSlice = {
   selectedSlot: Slot | null;

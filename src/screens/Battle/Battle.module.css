@@ -1,0 +1,152 @@
+/* Экран боя: портретная колонка сверху вниз в порядке спеки §3.1. */
+.screen {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-8);
+  min-height: 100dvh;
+  padding: var(--sp-8) var(--sp-8) var(--sp-16);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-8);
+}
+
+.title {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.opponent {
+  font-size: var(--fs-16);
+  font-weight: 600;
+}
+
+.round {
+  font-size: var(--fs-14);
+  color: var(--accent);
+}
+
+.oppReserve {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+}
+
+.reserveRow {
+  display: flex;
+  justify-content: center;
+  gap: var(--sp-8);
+}
+
+.oppInfo {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: var(--sp-12);
+  font-size: var(--fs-12);
+}
+
+.oppHand {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.cardBack {
+  width: var(--sp-12);
+  height: var(--sp-16);
+  border: 1px solid var(--accent);
+  border-radius: 2px;
+  background: var(--surface);
+}
+
+.count {
+  margin-left: var(--sp-4);
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.row {
+  display: flex;
+  justify-content: center;
+  gap: var(--sp-8);
+}
+
+.center {
+  display: flex;
+  justify-content: center;
+}
+
+.hint {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-8);
+  padding: var(--sp-4) var(--sp-12);
+  border: 1px solid var(--accent);
+  border-radius: var(--r-8);
+  background: var(--surface);
+  font-size: var(--fs-14);
+}
+
+.confirm {
+  display: flex;
+  flex-direction: column;
+}
+
+.placeholder {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+}
+
+.empty {
+  color: var(--muted);
+  text-align: center;
+}
+
+/* Лист карточки героини: та же геометрия, что у ActionSheet. */
+.sheetRoot {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+
+.backdrop {
+  position: absolute;
+  inset: 0;
+  background: var(--scrim);
+}
+
+.sheet {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-8);
+  width: 100%;
+  max-width: 480px;
+  margin: 0 auto;
+  padding: var(--sp-16) var(--sp-16) calc(var(--sp-16) + env(safe-area-inset-bottom));
+  border-radius: var(--r-16) var(--r-16) 0 0;
+  background: var(--surface);
+  font-size: var(--fs-14);
+}
+
+.sheet p {
+  margin: 0;
+}
+
+.sheetTitle {
+  margin: 0;
+  font-size: var(--fs-20);
+}

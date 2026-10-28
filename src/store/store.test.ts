@@ -152,6 +152,14 @@ describe('матч в сторе', () => {
     expect(s.allEvents).toEqual([]);
   });
 
+  it('startMatch сбрасывает выбранную героиню и открытый лист', () => {
+    useStore.getState().openSheet({ kind: 'actions', slot: 2 });
+    expect(useStore.getState().selectedSlot).toBe(2);
+    useStore.getState().startMatch(playerDeck(), opts());
+    expect(useStore.getState().selectedSlot).toBeNull();
+    expect(useStore.getState().sheet).toBeNull();
+  });
+
   it('setAction и setCard меняют черновик', () => {
     useStore.getState().startMatch(playerDeck(), opts());
     useStore.getState().setAction(1, basicOn(2));

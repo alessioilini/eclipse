@@ -52,7 +52,7 @@ export const createMatchSlice: StateCreator<StoreState, [], [], MatchSlice> = (s
   ...noMatch(),
   startMatch(playerDeck, opts) {
     const session = newMatch(playerDeck, opts);
-    set({ ...noMatch(), session, draft: emptyDraft(session.state) });
+    set({ ...noMatch(), session, draft: emptyDraft(session.state), selectedSlot: null, sheet: null });
   },
   setAction(slot, action) {
     const { draft } = get();
