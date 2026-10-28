@@ -6,7 +6,10 @@ export type SaveV1 = {
   decks: { id: string; name: string; deck: Deck }[];
   activeDeckId: string | null;
   settings: { speed: 'normal' | 'fast'; sound: boolean };
-  match: null | { state: MatchState; botSeed: number; mode: 'free' | 'tutorial'; tutorialId?: 1 | 2 | 3; tutorialStepIndex?: number };
+  match: null | {
+    state: MatchState; botSeed: number; mode: 'free' | 'tutorial'; tutorialId?: 1 | 2 | 3; tutorialStepIndex?: number;
+    playerDeck: Deck; opponentDeck: Deck;
+  };
 };
 
 export function defaultSave(): SaveV1 {
