@@ -60,8 +60,8 @@ function checkReserve(s: Pick<SideState, 'reserve'>, index: unknown): string | n
   return isAlive(s.reserve[index as 0 | 1 | 2]) ? null : 'reserve hero is dead';
 }
 
-/** The side's full state; a PublicState carries it only for the side it was built for. */
-function ownSide(state: PlanningState, side: Side): SideState {
+/** The side's own state (everything but the deck order); a PublicState carries it only for the side it was built for. */
+function ownSide(state: PlanningState, side: Side): Omit<SideState, 'deck'> {
   const s = state.sides[side];
   if (!('hand' in s)) throw new Error(`validateCommands: the hand of side ${side} is hidden in this view`);
   return s;

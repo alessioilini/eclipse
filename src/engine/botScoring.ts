@@ -1,6 +1,6 @@
 import { DEBUFF_ORDER } from './types';
-import type { Ability, CardPlay, Condition, HeroAction, HeroState, Primitive, Side, SideCommands, SideState, Slot, StatusId } from './types';
-import type { PublicState } from './view';
+import type { Ability, CardPlay, Condition, HeroAction, HeroState, Primitive, Side, SideCommands, Slot, StatusId } from './types';
+import type { OwnView, PublicState } from './view';
 import { HEROES } from './data/heroes';
 import { elementMultiplier } from './data/elements';
 import { computeDamage, healAmount, shieldAmount } from './damage';
@@ -61,7 +61,7 @@ export type Plan = {
 };
 
 /** The planning side's full state; the view hides only the opponent. */
-export function ownSide(view: PublicState, side: Side): SideState {
+export function ownSide(view: PublicState, side: Side): OwnView {
   const s = view.sides[side];
   if (!('hand' in s)) throw new Error(`bot: side ${side} cannot see its own hand`);
   return s;

@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { cardCost, energyBudget, ultimateLunaCost, validateCommands } from '../validate';
-import { viewFor } from '../view';
+import { eventsFor, viewFor } from '../view';
 import { ally, basic, cmd, enemy, makeMatch, setHand, setLuna, setRound, skill, ult } from './helpers';
-import type { HeroAction, MatchState, SlotRef } from '../types';
+import type { GameEvent, HeroAction, MatchState, SlotRef } from '../types';
 
 // A: aira, fenna, nerisa. B: aurora, justina, nokta. Skill costs: aira 2, fenna 1, nerisa 1.
 const base = (round = 1): MatchState => setRound(makeMatch(), round);
@@ -152,5 +152,46 @@ describe('viewFor', () => {
     (v.sides.B as { handSize: number }).handSize = -1;
     expect(s.sides.A.hand.length).toBeGreaterThan(0);
     expect(s.sides.B.hand.length).toBeGreaterThan(0);
+  });
+
+  it('viewFor: без seed и rngState, своя колода только размером (R33)', () => {
+    const s = base();
+    const v = viewFor(s, 'A') as unknown as Record<string, unknown>;
+    expect('seed' in v).toBe(false);
+    expect('rngState' in v).toBe(false);
+    const own = (v.sides as Record<string, Record<string, unknown>>).A!;
+    expect('deck' in own).toBe(false);
+    expect(own.deckSize).toBe(s.sides.A.deck.length);
+    expect(own.hand).toEqual(s.sides.A.hand);
+    expect(own.discard).toEqual(s.sides.A.discard);
+  });
+});
+
+describe('eventsFor', () => {
+  const ev = (type: string, extra: Record<string, unknown>): GameEvent => ({ type, round: 1, phase: 'roundStart', ...extra });
+
+  it('скрывает cardId только в draw / discardOverflow противника, остальное без изменений', () => {
+    const events: GameEvent[] = [
+      ev('draw', { side: 'A', cardId: 'fieldKit' }),
+      ev('draw', { side: 'B', cardId: 'eclipse' }),
+      ev('discardOverflow', { side: 'A', cardId: 'unseal' }),
+      ev('discardOverflow', { side: 'B', cardId: 'cover' }),
+      ev('cardPlayed', { side: 'B', cardId: 'dispel', cost: 2 }),
+      ev('reshuffle', { side: 'B', count: 4 }),
+    ];
+    const before = structuredClone(events);
+    const forA = eventsFor(events, 'A');
+    expect(forA).toEqual([
+      ev('draw', { side: 'A', cardId: 'fieldKit' }),
+      ev('draw', { side: 'B' }),
+      ev('discardOverflow', { side: 'A', cardId: 'unseal' }),
+      ev('discardOverflow', { side: 'B' }),
+      ev('cardPlayed', { side: 'B', cardId: 'dispel', cost: 2 }),
+      ev('reshuffle', { side: 'B', count: 4 }),
+    ]);
+    expect('cardId' in forA[1]!).toBe(false);
+    expect(eventsFor(events, 'B').map(e => e['cardId'])).toEqual([undefined, 'eclipse', undefined, 'cover', 'dispel', undefined]);
+    // исходный список не меняется
+    expect(events).toEqual(before);
   });
 });
