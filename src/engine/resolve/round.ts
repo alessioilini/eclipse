@@ -1,31 +1,54 @@
 import type { GameEvent, MatchState, Side, SideCommands } from '../types';
 import { createRngFromState } from '../rng';
 import { validateCommands } from '../validate';
-import type { Ctx } from './context';
+import type { Ctx, Phase } from './context';
 import { emit } from './context';
 import { roundStart } from './roundStart';
 import { actionOrder } from './order';
 import { runHeroAction } from './actions';
 import { endRound } from './endRound';
 
+type Result = { state: MatchState; events: GameEvent[] };
+
+function openCtx(state: MatchState, phase: Phase): Ctx {
+  const s = structuredClone(state);
+  return { s, events: [], rng: createRngFromState(s.rngState), phase };
+}
+
+function closeCtx(ctx: Ctx): Result {
+  ctx.s.rngState = ctx.rng.state();
+  return { state: ctx.s, events: ctx.events };
+}
+
 /**
- * Resolves one full round (spec §2.5). Pure: the input state is cloned, never mutated.
- * Throws on a finished match or on commands rejected by validateCommands.
+ * Spec §2.5 step 1 (Round Start). Pure. The returned state is what both sides plan on:
+ * this round's energy, moon, Luna and hand (with the drawn card). Then call resolveRound.
  */
-export function resolveRound(state: MatchState, cmds: Record<Side, SideCommands>): { state: MatchState; events: GameEvent[] } {
+export function startRound(state: MatchState): Result {
   if (state.result !== null) throw new Error('match finished');
+  if (state.awaitingCommands) throw new Error('round already started');
+  const ctx = openCtx(state, 'roundStart');
+  roundStart(ctx);
+  ctx.s.awaitingCommands = true;
+  return closeCtx(ctx);
+}
+
+/**
+ * Spec §2.5 steps 3–8 on a state returned by startRound. Pure: the input is cloned, never mutated.
+ * Throws on a finished match, on a round that was not started, or on commands rejected by
+ * validateCommands (checked against the started round).
+ */
+export function resolveRound(state: MatchState, cmds: Record<Side, SideCommands>): Result {
+  if (state.result !== null) throw new Error('match finished');
+  if (!state.awaitingCommands) throw new Error('round not started');
   const errors = [
     ...validateCommands(state, 'A', cmds.A).map(e => `A: ${e}`),
     ...validateCommands(state, 'B', cmds.B).map(e => `B: ${e}`),
   ];
   if (errors.length > 0) throw new Error('invalid commands: ' + errors.join('; '));
 
-  const s = structuredClone(state);
-  const ctx: Ctx = { s, events: [], rng: createRngFromState(s.rngState), phase: 'roundStart' };
-
-  roundStart(ctx);
-
-  ctx.phase = 'reveal';
+  const ctx = openCtx(state, 'reveal');
+  ctx.s.awaitingCommands = false;
   emit(ctx, { type: 'reveal', commands: structuredClone(cmds) });
 
   ctx.phase = 'swift';
@@ -41,7 +64,5 @@ export function resolveRound(state: MatchState, cmds: Record<Side, SideCommands>
   // TODO(Task 11): playStandard(ctx, cmds)
 
   endRound(ctx);
-
-  s.rngState = ctx.rng.state();
-  return { state: s, events: ctx.events };
+  return closeCtx(ctx);
 }

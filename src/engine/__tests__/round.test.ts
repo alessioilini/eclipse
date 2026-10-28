@@ -1,11 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import { resolveRound } from '../resolve/round';
+import { resolveRound, startRound } from '../resolve/round';
+import { validateCommands } from '../validate';
 import { effectiveSpd } from '../status';
 import { CARD_IDS } from '../data/cards';
 import type { GameEvent, MatchState, Side, SideCommands, SlotRef } from '../types';
-import { makeMatch, cmd, basic, swap, none, enemy, ally, setHp, setHand, setRound } from './helpers';
+import { makeMatch, cmd, basic, skill, swap, none, enemy, ally, setHp, setHand, setRound, playRound } from './helpers';
 
-const run = (s: MatchState, A: SideCommands, B: SideCommands) => resolveRound(s, { A, B });
+const run = playRound;
 
 /** A: all three hit B0; B: all three hit A2. Nobody dies in one round with the default teams. */
 const aDefault = () => cmd(basic(0, enemy(0)), basic(1, enemy(0)), basic(2, enemy(0)));
@@ -297,6 +298,8 @@ describe('resolveRound: конец раунда', () => {
     expect(r.state.result).toEqual({ winner: 'B', reason: 'hpPct' });
     expect(r.events.at(-1)).toEqual({ type: 'matchEnd', round: 10, phase: 'endRound', winner: 'B', reason: 'hpPct' });
     expect(() => run(r.state, aDefault(), bDefault())).toThrow('match finished');
+    expect(() => startRound(r.state)).toThrow('match finished');
+    expect(() => resolveRound(r.state, { A: aDefault(), B: bDefault() })).toThrow('match finished');
   });
 
   it('обе стороны теряют последнюю в одном раунде → draw', () => {
@@ -341,5 +344,45 @@ describe('resolveRound: детерминизм и валидация', () => {
       .toThrow('invalid commands: A: wrong target type');
     expect(() => run(s, aDefault(), cmd(none(), basic(1, ally(0)), basic(2, ally(0)))))
       .toThrow('invalid commands: B: none only for dead hero');
+  });
+
+  it('resolveRound без startRound бросает "round not started"', () => {
+    const s = makeMatch();
+    expect(s.awaitingCommands).toBe(false);
+    expect(() => resolveRound(s, { A: aDefault(), B: bDefault() })).toThrow('round not started');
+    const started = startRound(s);
+    expect(started.state.awaitingCommands).toBe(true);
+    expect(s.awaitingCommands).toBe(false); // вход не мутируется
+    expect(started.state.rngState).toBe(s.rngState); // добор без перетасовки rng не трогает
+    const done = resolveRound(started.state, { A: aDefault(), B: bDefault() });
+    expect(done.state.awaitingCommands).toBe(false);
+    expect(started.state.awaitingCommands).toBe(true);
+    expect(() => resolveRound(done.state, { A: aDefault(), B: bDefault() })).toThrow('round not started');
+    expect(() => startRound(started.state)).toThrow('round already started');
+  });
+
+  it('валидация видит начатый раунд: в раунде 3 энергия 5 и добранная карта', () => {
+    const pre = structuredClone(setRound(makeMatch(), 2));
+    pre.sides.A.hand[0] = 'moonTurn'; // 1 Energy, без цели
+    pre.sides.A.deck[0] = 'reserveImpulse';
+    // Скиллы 2 + 1 + 1 и карта 1 = 5 Energy: в раунде 2 бюджет 4, в раунде 3 бюджет 5.
+    const energy5 = cmd(skill(0), skill(1, ally(0)), skill(2, ally(2)), { handIndex: 0 });
+    // Карта с индексом 3 появляется в руке только после добора раунда 3.
+    const drawn = cmd(basic(0, enemy(0)), basic(1, enemy(0)), basic(2, enemy(0)), { handIndex: 3 });
+    expect(validateCommands(pre, 'A', energy5)).toEqual(['not enough energy']);
+    expect(validateCommands(pre, 'A', drawn)).toEqual(['card not in hand']);
+
+    const { state: started, events } = startRound(pre);
+    expect(started.round).toBe(3);
+    expect(started.sides.A.energy).toBe(5);
+    expect(started.sides.A.hand[3]).toBe('reserveImpulse');
+    expect(events.map(e => e.phase)).toEqual(events.map(() => 'roundStart'));
+    expect(validateCommands(started, 'A', energy5)).toEqual([]);
+    expect(validateCommands(started, 'A', drawn)).toEqual([]);
+    const r = resolveRound(started, { A: energy5, B: bDefault() });
+    // До Task 9 скилл по союзнице никого не бьёт.
+    expect(damageBy(r.events, ally(1))).toEqual([]);
+    expect(damageBy(r.events, ally(2))).toEqual([]);
+    expect(() => resolveRound(started, { A: drawn, B: bDefault() })).not.toThrow();
   });
 });

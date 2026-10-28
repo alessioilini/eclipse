@@ -1,6 +1,7 @@
 import { createMatch } from '../match';
+import { resolveRound, startRound } from '../resolve/round';
 import { CARD_IDS } from '../data/cards';
-import type { CardId, CardPlay, HeroAction, HeroId, MatchState, Side, Slot, SideCommands, SlotRef } from '../types';
+import type { CardId, CardPlay, GameEvent, HeroAction, HeroId, MatchState, Side, Slot, SideCommands, SlotRef } from '../types';
 
 export function makeMatch(opts: { a?: HeroId[]; b?: HeroId[]; cardsA?: CardId[]; cardsB?: CardId[]; seed?: number } = {}): MatchState {
   const heroesA = opts.a ?? ['aira', 'fenna', 'nerisa', 'tali', 'zefira', 'liraya'];
@@ -49,4 +50,11 @@ export function setRound(state: MatchState, round: number): MatchState {
   const s = structuredClone(state);
   s.round = round;
   return s;
+}
+
+/** startRound + resolveRound in one call; events of both halves, in order. */
+export function playRound(state: MatchState, a: SideCommands, b: SideCommands): { state: MatchState; events: GameEvent[] } {
+  const started = startRound(state);
+  const resolved = resolveRound(started.state, { A: a, B: b });
+  return { state: resolved.state, events: [...started.events, ...resolved.events] };
 }

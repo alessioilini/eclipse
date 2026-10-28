@@ -83,6 +83,11 @@ function attack(ctx: Ctx, ref: SlotRef, kind: 'basic' | 'skill' | 'ultimate', pl
     emit(ctx, { type: 'heroAction', side: ref.side, slot: ref.slot, heroId, action: kind });
     return;
   }
+  if (planned.side === ref.side) {
+    // TODO(Task 9): ally-targeted skills; until then they act without hitting anyone.
+    emit(ctx, { type: 'heroAction', side: ref.side, slot: ref.slot, heroId, action: kind, target: planned });
+    return;
+  }
   const t = resolveTarget(ctx.s, planned);
   if (t && !sameRef(t, planned)) emit(ctx, { type: 'retarget', from: planned, to: t });
   if (!t) { skip(ctx, ref, 'no target'); return; }

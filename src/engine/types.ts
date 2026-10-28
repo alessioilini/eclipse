@@ -78,6 +78,8 @@ export type SideState = { energy: number; maxEnergyBonus: number; luna: number;
 export type MatchState = { seed: number; rngState: number; round: number; moon: MoonPhase;
   sides: Record<Side, SideState>; roundFlags: { moonShifted: boolean; ultLunaDelta: number };
   deaths: { side: Side; heroId: HeroId; round: number }[];
+  /** true between startRound and resolveRound: the round has started and waits for both sides' commands. */
+  awaitingCommands: boolean;
   result: null | { winner: Side | 'draw'; reason: 'wipe' | 'heroes' | 'hpPct' | 'damage' | 'draw' } };
 
 export type HeroAction = { type: 'basic'; target: SlotRef } | { type: 'skill'; target?: SlotRef }

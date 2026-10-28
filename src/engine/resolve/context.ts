@@ -3,7 +3,7 @@ import type { Rng } from '../rng';
 
 export type Phase = 'roundStart' | 'reveal' | 'swift' | 'reactions' | 'heroes' | 'standard' | 'endRound';
 
-/** Resolution context: `s` is the draft (a clone owned by resolveRound), mutated in place. */
+/** Resolution context: `s` is the draft (a clone owned by startRound / resolveRound), mutated in place. */
 export type Ctx = { s: MatchState; events: GameEvent[]; rng: Rng; phase: Phase };
 
 /** An event before `round` and `phase` are stamped on it. */

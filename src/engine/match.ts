@@ -69,7 +69,7 @@ export function createMatch(deckA: Deck, deckB: Deck, seed: number): MatchState 
     seed, rngState: rng.state(), round: 0, moon: 'new',
     sides: { A: createSide(deckA, shuffledA), B: createSide(deckB, shuffledB) },
     roundFlags: { moonShifted: false, ultLunaDelta: 0 },
-    deaths: [], result: null,
+    deaths: [], result: null, awaitingCommands: false,
   };
 }
 
