@@ -286,6 +286,63 @@ describe('applyEvent', () => {
     expect(v.sides.A.active[0]).toMatchObject({ alive: true, hp: 6, statuses: [] });
   });
 
+  it('fizzle карты (не повтор) убирает её из руки, fizzle повтора и героини — нет', () => {
+    const v = baseView();
+    const foe = ev({ type: 'fizzle', side: 'B', cardId: 'lunarSpark', action: 'card', reason: 'energy' }, 'swift');
+    expect(applyEvent(v, foe).sides.B.handSize).toBe(v.sides.B.handSize - 1);
+    const cardId = v.sides.A.hand![0]!;
+    const own = applyEvent(v, ev({ type: 'fizzle', side: 'A', cardId, action: 'card', reason: 'target dead' }, 'standard'));
+    expect(own.sides.A.hand).toHaveLength(v.sides.A.hand!.length - 1);
+    expect(own.sides.A.handSize).toBe(v.sides.A.handSize - 1);
+    const replay = ev({ type: 'fizzle', side: 'B', cardId: 'lunarSpark', action: 'card', reason: 'no target', replay: true });
+    expect(applyEvent(v, replay).sides.B.handSize).toBe(v.sides.B.handSize);
+    const hero = ev({ type: 'fizzle', side: 'A', slot: 0, heroId: 'aira', action: 'skill', reason: 'silence' });
+    expect(applyEvent(v, hero)).toEqual(v);
+  });
+
+  it('redirect прикрытия расходует redirectTo цели, redirect Насмешки статусы не трогает', () => {
+    let v = baseView();
+    v = applyEvent(v, ev({ type: 'statusApplied', source: B1, target: B0, status: 'redirectTo', value: 2 }, 'reactions'));
+    const taunt = applyEvent(v, ev({ type: 'redirect', from: B0, to: B1, reason: 'taunt' }));
+    expect(taunt.sides.B.active[0]!.statuses.some(s => s.id === 'redirectTo')).toBe(true);
+    const cover = applyEvent(v, ev({ type: 'redirect', from: B0, to: B1, reason: 'cover' }));
+    expect(cover.sides.B.active[0]!.statuses.some(s => s.id === 'redirectTo')).toBe(false);
+  });
+
+  it('swap снимает Насмешку с уходящей героини, autoFill — нет', () => {
+    let v = baseView();
+    v = applyEvent(v, ev({ type: 'statusApplied', source: A0, target: A0, status: 'taunt', value: 0 }));
+    const out = v.sides.A.active[0]!.heroId;
+    const inc = v.sides.A.reserve[0]!.heroId;
+    const swapped = applyEvent(v, ev({ type: 'swap', side: 'A', slot: 0, reserveIndex: 0, out, in: inc }));
+    expect(swapped.sides.A.reserve[0]!.statuses.some(s => s.id === 'taunt')).toBe(false);
+    const filled = applyEvent(v, ev({ type: 'autoFill', side: 'A', slot: 0, reserveIndex: 0, in: inc }, 'endRound'));
+    expect(filled.sides.A.reserve[0]!.statuses.some(s => s.id === 'taunt')).toBe(true);
+  });
+
+  it('«Переписать судьбу» возвращает героиню с 1 HP', () => {
+    let v = baseView();
+    v = applyEvent(v, dmg(B0, 0, 0));
+    v = applyEvent(v, ev({ type: 'reactionTriggered', side: 'B', cardId: 'rewriteFate', target: B0, heroId: 'fenna' }));
+    expect(v.sides.B.active[0]).toMatchObject({ hp: 1, alive: true });
+  });
+
+  it('revive и bloodMoon работают с героиней в резерве', () => {
+    const v = structuredClone(baseView());
+    const fallen = v.sides.A.reserve[1]!;
+    v.sides.A.reserve[1] = { ...fallen, hp: 0, alive: false, statuses: [{ id: 'mark', value: 0, stacks: 1, expiresAtRound: null }] };
+    const revived = applyEvent(v, ev({ type: 'revive', side: 'A', heroId: fallen.heroId, hp: 6, reserveIndex: 1 }));
+    expect(revived.sides.A.reserve[1]).toMatchObject({ hp: 6, alive: true, shield: 0, statuses: [] });
+
+    const last = v.sides.A.reserve[2]!;
+    v.sides.A.reserve[2] = { ...last, statuses: [{ id: 'burn', value: 0, stacks: 2, expiresAtRound: null }] };
+    const moon = applyEvent(v, ev({
+      type: 'bloodMoon', side: 'A', heroId: last.heroId, slot: null, reserveIndex: 2, cleansed: ['burn'],
+    }, 'endRound'));
+    expect(moon.sides.A.bloodMoon).toBe(true);
+    expect(moon.sides.A.reserve[2]!.statuses).toEqual([]);
+  });
+
   it('applyBeat применяет все события бита по порядку', () => {
     const v = baseView();
     const [beat] = toBeats([action(), dmg(B0, 9, 0), dmg(B0, 4, 0)]);
@@ -295,10 +352,10 @@ describe('applyEvent', () => {
 
 // --- Spec §4.3 property --------------------------------------------------------------------------
 
-type HeroSnap = Pick<ViewHero, 'heroId' | 'hp' | 'shield' | 'alive'> & { statuses: string[] };
+type HeroSnap = Pick<ViewHero, 'heroId' | 'hp' | 'maxHp' | 'shield' | 'alive'> & { statuses: string[] };
 const snapHero = (h: ViewHero): HeroSnap => ({
-  heroId: h.heroId, hp: h.hp, shield: h.shield, alive: h.alive,
-  statuses: h.statuses.map(s => `${s.id}:${s.stacks}`).sort(),
+  heroId: h.heroId, hp: h.hp, maxHp: h.maxHp, shield: h.shield, alive: h.alive,
+  statuses: h.statuses.map(s => `${s.id}:${s.stacks}:${s.value}`).sort(),
 });
 function snap(v: ViewState) {
   return {
@@ -307,11 +364,20 @@ function snap(v: ViewState) {
       const sd = v.sides[side];
       return [side, {
         active: sd.active.map(snapHero), reserve: sd.reserve.map(snapHero),
-        luna: sd.luna, handSize: sd.handSize, bloodMoon: sd.bloodMoon,
-        ...(side === 'A' ? { energy: sd.energy, hand: [...(sd.hand ?? [])].sort() } : {}),
+        energy: sd.energy, luna: sd.luna, handSize: sd.handSize, bloodMoon: sd.bloodMoon,
+        hand: sd.hand ? [...sd.hand].sort() : null,
       }];
     })),
   };
+}
+
+/** Freezes an object graph so that any mutation by the reducer throws (ES modules run in strict mode). */
+function deepFreeze<T>(x: T): T {
+  if (x !== null && typeof x === 'object' && !Object.isFrozen(x)) {
+    Object.freeze(x);
+    for (const value of Object.values(x)) deepFreeze(value);
+  }
+  return x;
 }
 
 describe('свойство §4.3', () => {
@@ -322,10 +388,17 @@ describe('свойство §4.3', () => {
       while (state.result === null && rounds < 200) {
         const started = startRound(state).state;
         const after = resolveRound(started, botCommands(started, seed));
-        const before = viewFromPublic(viewFor(started, 'A'));
-        const replayed = eventsFor(after.events, 'A').reduce(applyEvent, before);
-        const expected = viewFromPublic(viewFor(after.state, 'A'));
-        expect(snap(replayed), `seed ${seed}, round ${started.round}`).toEqual(snap(expected));
+        for (const side of SIDES) {
+          const before = viewFromPublic(viewFor(started, side));
+          const pristine = structuredClone(before);
+          const events = deepFreeze(eventsFor(after.events, side));
+          // Every step gets a frozen input: a reducer that mutates its state or the event throws here.
+          const replayed = events.reduce((v, e) => applyEvent(deepFreeze(v), e), before);
+          const expected = viewFromPublic(viewFor(after.state, side));
+          const where = `seed ${seed}, round ${started.round}, view ${side}`;
+          expect(snap(replayed), where).toEqual(snap(expected));
+          expect(before, where).toEqual(pristine);
+        }
         state = after.state;
         rounds++;
       }

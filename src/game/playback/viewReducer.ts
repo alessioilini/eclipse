@@ -8,11 +8,6 @@ export type { ViewHero, ViewState } from './types';
 
 const SIDES: Side[] = ['A', 'B'];
 const MAX_BURN_STACKS = 3;
-/** «Переписать судьбу» brings the dying heroine back at 1 HP (engine reactions.ts); its event carries no hp. */
-const REWRITE_FATE_HP = 1;
-/** `redirectTo` values (engine targeting.ts): the cover card and Nerisa's skill. */
-const REDIRECT_COVER = 2;
-const REDIRECT_NERISA = 1;
 
 type ViewSide = ViewState['sides'][Side];
 
@@ -132,6 +127,21 @@ function cleanseIds(statuses: Status[], ids: StatusId[]): Status[] {
     ? dropFirst(acc, s => s.id === id && s.value < 0)
     : acc.filter(s => s.id !== id)), statuses);
 }
+
+// --- Engine changes with no event of their own ------------------------------------------------
+// The engine changes some visible state without a dedicated event; the reducer reproduces each one
+// from the event it rides on (the §4.3 property test checks them all):
+// - a played card leaves the hand at Reveal: counted on its `cardPlayed` or card `fizzle` (non-replay);
+// - `swap` drops the outgoing heroine's Taunt (engine `swapIn`); `autoFill` does not;
+// - `redirect` (cover / Nerisa) spends the target's `redirectTo` entry (engine `interceptSingleHit`);
+// - `reactionTriggered` «Переписать судьбу» sets the heroine to 1 HP (engine `rewriteFate`);
+// - `statusApplied` carries no duration: a new entry gets `expiresAtRound: null` (see `removeStatusEntries`).
+
+/** «Переписать судьбу» brings the dying heroine back at 1 HP (engine reactions.ts); its event carries no hp. */
+const REWRITE_FATE_HP = 1;
+/** `redirectTo` values (engine targeting.ts): the cover card and Nerisa's skill. */
+const REDIRECT_COVER = 2;
+const REDIRECT_NERISA = 1;
 
 /** The `redirectTo` entry an interception used: the one of this kind pointing at the interceptor. */
 function spendRedirect(statuses: Status[], kind: number, to: SlotRef): Status[] {
