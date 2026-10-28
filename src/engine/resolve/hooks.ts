@@ -1,5 +1,6 @@
 import { MAX_LUNA } from '../types';
 import type { CardId, Side, Slot, SlotRef } from '../types';
+import type { DirectDamageReason } from '../events';
 import { CARDS } from '../data/cards';
 import { effectiveAtk, hasStatus, isAlive } from '../status';
 import { aliveActive, findLowestHpEnemy, heroAt, other, REDIRECT_NERISA, sameRef } from '../targeting';
@@ -63,7 +64,7 @@ function singleHit(p: HookPayload): HitOpts {
 }
 
 /** Direct damage from an ability hook (spec §3.1): event `directDamage`, then the death check. */
-function directFromHook(ctx: Ctx, source: SlotRef, target: SlotRef, amount: number, reason: string): void {
+function directFromHook(ctx: Ctx, source: SlotRef, target: SlotRef, amount: number, reason: DirectDamageReason): void {
   const dmg = directHit(ctx, source, target, amount);
   emit(ctx, { type: 'directDamage', source, target, dmg, hp: heroAt(ctx.s, target).hp, reason });
   checkDeath(ctx, target, source);
@@ -92,11 +93,11 @@ function reviveLastFallen(ctx: Ctx, self: SlotRef): boolean {
     const back = { ...dead, hp: FENNA_REVIVE_HP, shield: 0, shieldExpiresAtRound: null, statuses: [], once };
     if (slot >= 0) {
       sd.active[slot] = back;
-      emit(ctx, { type: 'revive', side: self.side, heroId: back.id, hp: back.hp, slot });
+      emit(ctx, { type: 'revive', side: self.side, heroId: back.id, hp: back.hp, slot: slot as Slot });
       grantShield(ctx, self, { side: self.side, slot: slot as Slot }, FENNA_REVIVE_SHIELD);
     } else {
       sd.reserve[reserveIndex] = back;
-      emit(ctx, { type: 'revive', side: self.side, heroId: back.id, hp: back.hp, reserveIndex });
+      emit(ctx, { type: 'revive', side: self.side, heroId: back.id, hp: back.hp, reserveIndex: reserveIndex as Slot });
       grantShield(ctx, self, { side: self.side, reserveIndex: reserveIndex as Slot }, FENNA_REVIVE_SHIELD);
     }
     return true;

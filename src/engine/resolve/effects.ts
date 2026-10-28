@@ -1,5 +1,6 @@
 import { BUFF_IDS, MAX_LUNA, MOON_ORDER } from '../types';
-import type { CardId, Duration, Element, HeroState, MoonPhase, Side, Slot, SlotRef, StatusId } from '../types';
+import type { Duration, Element, HeroState, MoonPhase, Side, Slot, SlotRef, StatusId } from '../types';
+import type { EventSource, LunaReason, SkipReason, SwapReason } from '../events';
 import { HEROES } from '../data/heroes';
 import { elementMultiplier } from '../data/elements';
 import {
@@ -17,9 +18,9 @@ import { fire } from './triggers';
 // and cards never import actions.ts (no cycle).
 
 /** A tactic card as the source of an effect (it has no slot); `cardId` like every card event. */
-export type CardSource = { side: Side; cardId: CardId };
+export type { CardSource } from '../events';
 /** Who causes an effect: a heroine in an active slot, or a card played by a side. */
-export type Source = SlotRef | CardSource;
+export type Source = EventSource;
 
 export const isSlotSource = (src: Source): src is SlotRef => 'slot' in src;
 
@@ -73,7 +74,7 @@ export function dealHit(ctx: Ctx, attacker: SlotRef, target: SlotRef, mod: numbe
     reductions += opts.intercepted.reduction;
   } else if (opts.single) {
     const r = interceptSingleHit(s, attacker, target);
-    if (!sameRef(r.target, target)) emit(ctx, { type: 'redirect', from: target, to: r.target, reason: r.reason });
+    if (r.reason && !sameRef(r.target, target)) emit(ctx, { type: 'redirect', from: target, to: r.target, reason: r.reason });
     tgt = r.target;
     reductions += r.reduction;
   }
@@ -288,7 +289,7 @@ export function changeMoon(ctx: Ctx, change: { shift?: -1 | 1; set?: MoonPhase }
 }
 
 /** Luna ± `amount` for `side`, clamped to 0..5; `lunaChanged` when it changed. */
-export function gainLuna(ctx: Ctx, side: Side, amount: number, reason: string): void {
+export function gainLuna(ctx: Ctx, side: Side, amount: number, reason: LunaReason): void {
   const sd = ctx.s.sides[side];
   const before = sd.luna;
   sd.luna = Math.max(0, Math.min(MAX_LUNA, sd.luna + amount));
@@ -296,7 +297,7 @@ export function gainLuna(ctx: Ctx, side: Side, amount: number, reason: string): 
 }
 
 /** `heroAction` with `action: 'skipped'` for the heroine in `ref`. */
-export function skipAction(ctx: Ctx, ref: SlotRef, reason: string): void {
+export function skipAction(ctx: Ctx, ref: SlotRef, reason: SkipReason): void {
   emit(ctx, { type: 'heroAction', side: ref.side, slot: ref.slot, heroId: heroAt(ctx.s, ref).id, action: 'skipped', reason });
 }
 
@@ -314,7 +315,7 @@ export function basicAttack(ctx: Ctx, ref: SlotRef, planned: SlotRef | undefined
  * outgoing one loses Taunt, the incoming one is marked as entered this round (she does not act),
  * event `swap` (with `reason` for card swaps). Callers check that the reserve heroine is alive.
  */
-export function swapIn(ctx: Ctx, side: Side, slot: Slot, reserveIndex: Slot, reason?: string): void {
+export function swapIn(ctx: Ctx, side: Side, slot: Slot, reserveIndex: Slot, reason?: SwapReason): void {
   const sd = ctx.s.sides[side];
   const out = removeStatus(sd.active[slot], 'taunt');
   const incoming = sd.reserve[reserveIndex];

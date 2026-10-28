@@ -93,7 +93,7 @@ function bloodMoon(ctx: Ctx, side: Side): void {
   sd.bloodMoonUsed = true;
   emit(ctx, {
     type: 'bloodMoon', side, heroId: hero.id,
-    ...(activeSlot >= 0 ? { slot: activeSlot } : { slot: null, reserveIndex }),
+    ...(activeSlot >= 0 ? { slot: activeSlot as Slot } : { slot: null, reserveIndex: reserveIndex as Slot }),
     ...(removed.length > 0 ? { cleansed: removed } : {}),
   });
 }
@@ -107,7 +107,7 @@ function autoFill(ctx: Ctx, side: Side): void {
     const incoming = sd.reserve[reserveIndex]!;
     sd.reserve[reserveIndex] = sd.active[slot];
     sd.active[slot] = incoming;
-    emit(ctx, { type: 'autoFill', side, slot, reserveIndex, in: incoming.id });
+    emit(ctx, { type: 'autoFill', side, slot, reserveIndex: reserveIndex as Slot, in: incoming.id });
   }
 }
 

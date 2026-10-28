@@ -62,7 +62,8 @@ describe('текстовый лог', () => {
 
   it('fizzle героини и карты, взвод и срабатывание Reaction печатаются по cardId', () => {
     const s = makeMatch();
-    const ev = (type: string, extra: Record<string, unknown>): GameEvent => ({ type, round: 1, phase: 'heroes', ...extra });
+    // Hand-built events (any shape): cast, the union cannot check a `type` given as a string.
+    const ev = (type: string, extra: Record<string, unknown>): GameEvent => ({ type, round: 1, phase: 'heroes', ...extra }) as GameEvent;
     expect(formatEvent(ev('fizzle', { side: 'A', slot: 0, heroId: 'aira', action: 'skill', reason: 'energy' }), s))
       .toBe('A Айра.Skill fizzles (energy)');
     expect(formatEvent(ev('fizzle', { side: 'B', cardId: 'fieldKit', action: 'card', reason: 'target dead' }), s))

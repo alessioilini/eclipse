@@ -1,3 +1,5 @@
+import type { EngineEvent } from './events';
+
 export type Side = 'A' | 'B';
 export type Slot = 0 | 1 | 2;
 export type HeroIndex = 0 | 1 | 2 | 3 | 4 | 5;
@@ -91,4 +93,5 @@ export type CardPlay = { handIndex: number; target?: SlotRef; secondary?: SlotRe
 export type SideCommands = { actions: [HeroAction, HeroAction, HeroAction]; card?: CardPlay };
 export type Deck = { heroes: HeroId[]; starting: [HeroIndex, HeroIndex, HeroIndex] /* индексы в heroes */; cards: CardId[] };
 
-export type GameEvent = { type: string; round: number; phase: string; [k: string]: unknown };
+/** Kept for compatibility: the typed event union lives in events.ts. */
+export type GameEvent = EngineEvent;

@@ -7,9 +7,8 @@ import { fire } from '../resolve/triggers';
 import { cardCost } from '../validate';
 import { HEROES } from '../data/heroes';
 import type { GameEvent, HeroId, MatchState, SlotRef, Status } from '../types';
-import { makeMatch, cmd, basic, ult, enemy, ally, setLuna, playRound } from './helpers';
+import { makeMatch, cmd, basic, ult, enemy, ally, setLuna, playRound, ofType } from './helpers';
 
-const ofType = (events: GameEvent[], type: string) => events.filter(e => e.type === type);
 const isRef = (a: unknown, b: SlotRef) => {
   const r = a as SlotRef | undefined;
   return !!r && r.side === b.side && r.slot === b.slot;

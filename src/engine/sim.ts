@@ -6,7 +6,8 @@ import { resolveRound, startRound } from './resolve/round';
 import { viewFor } from './view';
 import { CARDS, CARD_IDS } from './data/cards';
 import { HERO_IDS } from './data/heroes';
-import type { CardId, Deck, GameEvent, HeroId, MatchState, Side, SideCommands, Slot } from './types';
+import type { EngineEvent, EventSource } from './events';
+import type { CardId, Deck, HeroId, MatchState, Side, SideCommands, SlotRef } from './types';
 
 const SIDES: Side[] = ['A', 'B'];
 /** Spec §2.2: a match never lasts longer than this; hitting it is an engine bug. */
@@ -102,9 +103,9 @@ export function randomDeck(rng: Rng): Deck {
  * Bot vs bot. Each side's bot gets its own Rng per round, seeded deterministically from the match seed:
  * `createRng(seed * 7919 + round * 2 + (side === 'B' ? 1 : 0))`.
  */
-export function playMatch(deckA: Deck, deckB: Deck, seed: number): { state: MatchState; events: GameEvent[]; rounds: number } {
+export function playMatch(deckA: Deck, deckB: Deck, seed: number): { state: MatchState; events: EngineEvent[]; rounds: number } {
   let state = createMatch(deckA, deckB, seed);
-  const events: GameEvent[] = [];
+  const events: EngineEvent[] = [];
   while (state.result === null) {
     if (state.round >= MAX_ROUNDS) throw new Error(`match exceeded ${MAX_ROUNDS} rounds (seed ${seed})`);
     const started = startRound(state);
@@ -127,9 +128,7 @@ const emptyRecord = <K extends string, V>(keys: K[], make: () => V): Record<K, V
 
 const emptyTally = (): HeroTally => ({ hits: 0, direct: 0, burn: 0, swaps: 0, fizzles: 0, ults: 0, deaths: 0 });
 
-type Ref = { side: Side; slot: Slot };
-const isSlotRef = (v: unknown): v is Ref => typeof v === 'object' && v !== null && 'slot' in v && 'side' in v;
-const num = (v: unknown): number => (typeof v === 'number' ? v : 0);
+const isSlotRef = (src: EventSource): src is SlotRef => 'slot' in src;
 
 /** Who stands where, replayed from the `swap` / `autoFill` events (the events carry slots, not heroines). */
 class Board {
@@ -143,22 +142,20 @@ class Board {
     this.sides = { A: of(decks.A), B: of(decks.B) };
   }
 
-  at(ref: Ref): HeroId {
+  at(ref: SlotRef): HeroId {
     return this.sides[ref.side].active[ref.slot]!;
   }
 
-  apply(ev: GameEvent): void {
+  apply(ev: EngineEvent): void {
     if (ev.type !== 'swap' && ev.type !== 'autoFill') return;
-    const b = this.sides[ev['side'] as Side];
-    const slot = ev['slot'] as number;
-    const reserveIndex = ev['reserveIndex'] as number;
-    b.reserve[reserveIndex] = b.active[slot]!;
-    b.active[slot] = ev['in'] as HeroId;
+    const b = this.sides[ev.side];
+    b.reserve[ev.reserveIndex] = b.active[ev.slot]!;
+    b.active[ev.slot] = ev.in;
   }
 }
 
 /** Tallies of one match from its events: damage by source and heroine, swaps, fizzles, per-round HP flow. */
-export function matchStats(decks: Record<Side, Deck>, events: GameEvent[]): MatchStats {
+export function matchStats(decks: Record<Side, Deck>, events: EngineEvent[]): MatchStats {
   const board = new Board(decks);
   const heroes = emptyRecord(HERO_IDS, emptyTally);
   const burnBy = new Map<HeroId, HeroId | null>(); // burning heroine → who applied her Burn
@@ -178,68 +175,55 @@ export function matchStats(decks: Record<Side, Deck>, events: GameEvent[]): Matc
 
   for (const ev of events) {
     board.apply(ev);
-    const target = ev['target'];
     switch (ev.type) {
-      case 'damage': {
-        const loss = num(ev['hpLoss']);
-        heroes[ev['attackerId'] as HeroId].hits += loss;
-        absorbed += num(ev['absorbed']);
-        addRound(hpLost, ev.round, loss);
+      case 'damage':
+        heroes[ev.attackerId].hits += ev.hpLoss;
+        absorbed += ev.absorbed;
+        addRound(hpLost, ev.round, ev.hpLoss);
         break;
-      }
       case 'directDamage':
       case 'detonate':
       case 'reflect': {
-        const src = ev.type === 'reflect' ? ev['from'] : ev['source'];
-        const dmg = num(ev['dmg']);
-        if (isSlotRef(src)) heroes[board.at(src)].direct += dmg;
-        addRound(hpLost, ev.round, dmg);
+        const src = ev.type === 'reflect' ? ev.from : ev.source;
+        if (isSlotRef(src)) heroes[board.at(src)].direct += ev.dmg;
+        addRound(hpLost, ev.round, ev.dmg);
         break;
       }
       case 'selfHp':
-        addRound(hpLost, ev.round, num(ev['hpLoss']));
+        addRound(hpLost, ev.round, ev.hpLoss);
         break;
       case 'burn': {
-        if (!isSlotRef(target)) break;
-        const dmg = num(ev['dmg']);
-        const by = burnBy.get(board.at(target));
-        if (by) heroes[by].burn += dmg;
-        burn += dmg;
-        addRound(hpLost, ev.round, dmg);
+        const by = burnBy.get(board.at(ev.target));
+        if (by) heroes[by].burn += ev.dmg;
+        burn += ev.dmg;
+        addRound(hpLost, ev.round, ev.dmg);
         break;
       }
       case 'statusApplied':
-        if (ev['status'] === 'burn' && isSlotRef(target)) {
-          const src = ev['source'];
-          burnBy.set(board.at(target), isSlotRef(src) ? board.at(src) : null);
-        }
+        if (ev.status === 'burn') burnBy.set(board.at(ev.target), isSlotRef(ev.source) ? board.at(ev.source) : null);
         break;
       case 'heal':
-        addRound(healed, ev.round, num(ev['healed']));
+        addRound(healed, ev.round, ev.healed);
         break;
       case 'shield':
-        addRound(shielded, ev.round, num(ev['amount']));
+        addRound(shielded, ev.round, ev.amount);
         break;
-      case 'heroAction': {
-        const id = ev['heroId'] as HeroId;
-        if (ev['action'] === 'swap') heroes[id].swaps += 1;
-        if (ev['action'] === 'ultimate') heroes[id].ults += 1;
+      case 'heroAction':
+        if (ev.action === 'swap') heroes[ev.heroId].swaps += 1;
+        if (ev.action === 'ultimate') heroes[ev.heroId].ults += 1;
         break;
-      }
-      case 'fizzle': {
-        const reason = String(ev['reason']);
-        fizzlesByReason[reason] = (fizzlesByReason[reason] ?? 0) + 1;
-        if (ev['action'] !== 'card') heroes[ev['heroId'] as HeroId].fizzles += 1;
+      case 'fizzle':
+        fizzlesByReason[ev.reason] = (fizzlesByReason[ev.reason] ?? 0) + 1;
+        if (ev.action !== 'card') heroes[ev.heroId].fizzles += 1;
         break;
-      }
       case 'death':
-        heroes[ev['heroId'] as HeroId].deaths += 1;
+        heroes[ev.heroId].deaths += 1;
         break;
       case 'cardPlayed':
-        if (!ev['replay']) cardPlays[ev['cardId'] as CardId] += 1;
+        if (!ev.replay) cardPlays[ev.cardId] += 1;
         break;
       case 'bloodMoon':
-        if (firstBloodMoon === null) firstBloodMoon = ev['side'] as Side;
+        if (firstBloodMoon === null) firstBloodMoon = ev.side;
         break;
     }
   }

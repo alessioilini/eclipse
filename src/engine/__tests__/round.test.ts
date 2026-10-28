@@ -4,14 +4,13 @@ import { validateCommands } from '../validate';
 import { effectiveSpd } from '../status';
 import { CARD_IDS } from '../data/cards';
 import type { GameEvent, MatchState, Side, SideCommands, SlotRef } from '../types';
-import { makeMatch, cmd, basic, skill, ult, swap, none, enemy, ally, setHp, setHand, setRound, playRound } from './helpers';
+import { makeMatch, cmd, basic, skill, ult, swap, none, enemy, ally, setHp, setHand, setRound, playRound, ofType } from './helpers';
 
 
 /** A: all three hit B0; B: all three hit A2. Nobody dies in one round with the default teams. */
 const aDefault = () => cmd(basic(0, enemy(0)), basic(1, enemy(0)), basic(2, enemy(0)));
 const bDefault = () => cmd(basic(0, ally(2)), basic(1, ally(2)), basic(2, ally(2)));
 
-const ofType = (events: GameEvent[], type: string) => events.filter(e => e.type === type);
 const sameRef = (a: unknown, b: SlotRef) => {
   const r = a as SlotRef;
   return r.side === b.side && r.slot === b.slot;

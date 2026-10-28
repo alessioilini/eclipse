@@ -10,6 +10,7 @@ import { fire } from './triggers';
 import { drawCard } from './deck';
 import { applyStatusTo, changeMoon, cleanseFrom, gainLuna, healHero } from './effects';
 import type { CardSource } from './effects';
+import type { CardFizzleReason } from '../events';
 import { CARD_HOOKS } from './cardHooks';
 
 // Tactic cards (spec §2.5 steps 3–5 and 7, §4.2). A side plays at most one card per round
@@ -142,7 +143,7 @@ function withTargets(target?: SlotRef, secondary?: Secondary): Checked {
  */
 function checkCardTargets(
   ctx: Ctx, side: Side, cardId: CardId, target: SlotRef | undefined, secondary: Secondary | undefined,
-): Checked | string {
+): Checked | CardFizzleReason {
   const s = ctx.s;
   const aliveAlly = (ref: SlotRef | undefined): ref is SlotRef =>
     !!ref && ref.side === side && isAlive(heroAt(s, ref));

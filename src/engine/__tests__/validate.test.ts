@@ -210,7 +210,8 @@ describe('viewFor', () => {
 });
 
 describe('eventsFor', () => {
-  const ev = (type: string, extra: Record<string, unknown>): GameEvent => ({ type, round: 1, phase: 'roundStart', ...extra });
+  // Hand-built events (any shape): cast, the union cannot check a `type` given as a string.
+  const ev = (type: string, extra: Record<string, unknown>): GameEvent => ({ type, round: 1, phase: 'roundStart', ...extra }) as GameEvent;
 
   it('скрывает cardId только в draw / discardOverflow противника, остальное без изменений', () => {
     const events: GameEvent[] = [
@@ -232,7 +233,7 @@ describe('eventsFor', () => {
       ev('reshuffle', { side: 'B', count: 4 }),
     ]);
     expect('cardId' in forA[1]!).toBe(false);
-    expect(eventsFor(events, 'B').map(e => e['cardId'])).toEqual([undefined, 'eclipse', undefined, 'cover', 'dispel', undefined]);
+    expect(eventsFor(events, 'B').map(e => ('cardId' in e ? e.cardId : undefined))).toEqual([undefined, 'eclipse', undefined, 'cover', 'dispel', undefined]);
     // исходный список не меняется
     expect(events).toEqual(before);
   });

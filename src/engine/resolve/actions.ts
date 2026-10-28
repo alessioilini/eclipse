@@ -1,4 +1,5 @@
 import type { Ability, Condition, HeroAction, Primitive, SlotRef, TargetType } from '../types';
+import type { HeroFizzleReason } from '../events';
 import { HEROES } from '../data/heroes';
 import { directDamage } from '../damage';
 import { hasStatus, isAlive } from '../status';
@@ -142,7 +143,7 @@ export function runPrimitive(
 }
 
 /** Why a planned skill/ultimate cannot be performed at resolution time (spec §3.4, rulings), or null. */
-function fizzleReason(ctx: Ctx, actor: SlotRef, ability: Ability, kind: AbilityKind): string | null {
+function fizzleReason(ctx: Ctx, actor: SlotRef, ability: Ability, kind: AbilityKind): HeroFizzleReason | null {
   const s = ctx.s;
   const hero = heroAt(s, actor);
   const sd = s.sides[actor.side];
@@ -199,7 +200,7 @@ export function runAbility(ctx: Ctx, actor: SlotRef, ability: Ability, target: S
   let intercepted: AbilityInterception | undefined;
   if (ability.target === 'enemy' && tgt) {
     const r = interceptSingleHit(s, actor, tgt);
-    if (!sameRef(r.target, tgt)) emit(ctx, { type: 'redirect', from: tgt, to: r.target, reason: r.reason });
+    if (r.reason && !sameRef(r.target, tgt)) emit(ctx, { type: 'redirect', from: tgt, to: r.target, reason: r.reason });
     tgt = r.target;
     intercepted = { reduction: r.reduction };
   }
