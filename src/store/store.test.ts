@@ -8,6 +8,7 @@ import { formatLog } from '../engine/log';
 import { viewFromPublic } from '../game/playback/viewReducer';
 import { newMatch, playerView } from '../game/session';
 import { createRunner, current, dismissSay } from '../game/tutorial/runner';
+import { STARTER_DECK_ID } from '../game/tutorial/rewards';
 import { SCRIPTS } from '../game/tutorial/scripts';
 import { attachPersistence, hydrate, restoredStep, toSave, useStore } from './index';
 import { selectAllowed } from './match';
@@ -32,6 +33,18 @@ function fillDraft(): void {
   s.setAction(0, basicOn(0));
   s.setAction(1, basicOn(1));
   s.setAction(2, basicOn(2));
+}
+
+/**
+ * Делает ближайшее подтверждение последним: раунд 10 (решающий подсчёт), резерв противника погиб —
+ * у A больше живых героинь, и раунд завершает матч её победой.
+ */
+function makeNextRoundFinal(): void {
+  const session = useStore.getState().session!;
+  const state = structuredClone(session.state);
+  state.round = 10;
+  for (const h of state.sides.B.reserve) h.hp = 0;
+  useStore.setState({ session: { ...session, state } });
 }
 
 let detach: (() => void) | null = null;
@@ -296,6 +309,27 @@ describe('матч в сторе', () => {
     expect(useStore.getState().stats).toEqual({ wins: 0, losses: 1, draws: 0 });
   });
 
+  it('подтверждение, завершающее матч, записывает итог один раз сразу, до монтирования экранов', () => {
+    useStore.getState().startMatch(playerDeck(), opts());
+    makeNextRoundFinal();
+    fillDraft();
+    useStore.getState().confirm();
+    let s = useStore.getState();
+    expect(s.phase).toBe('playback');
+    expect(s.session!.state.result?.winner).toBe('A');
+    expect(s.stats).toEqual({ wins: 1, losses: 0, draws: 0 });
+    expect(s.resultRecordedFor).toBe(s.session!.state);
+    // Запасной путь экрана результата и конец проигрывания итог не удваивают.
+    s.recordMatchResult();
+    s.finishPlayback();
+    s = useStore.getState();
+    s.recordMatchResult();
+    expect(useStore.getState().stats).toEqual({ wins: 1, losses: 0, draws: 0 });
+    expect(useStore.getState().phase).toBe('finished');
+    // Итог уже в сохранении, записанном при подтверждении.
+    expect(toSave(s).profile.stats.wins).toBe(1);
+  });
+
   it('восстановленный завершённый матч не засчитывается повторно', () => {
     useStore.getState().startMatch(playerDeck(), opts());
     useStore.getState().surrender();
@@ -384,6 +418,33 @@ describe('обучение в сторе', () => {
     st().finishPlayback();
     expect(st().tutorial!.round).toBe(2);
     expect(current(st().tutorial!)).toEqual(script.steps[6]);
+  });
+
+  it('подтверждение, завершающее бой обучения победой, выдаёт награды один раз, до монтирования экранов', () => {
+    startTutorial();
+    makeNextRoundFinal();
+    fillDraft();
+    useStore.getState().confirm();
+    const s = useStore.getState();
+    expect(s.session!.state.result?.winner).toBe('A');
+    expect(s.tutorialStep).toBe(1);
+    expect(s.unlocked).toHaveLength(8);
+    expect(s.unlocked).toEqual(expect.arrayContaining(['tali', 'zefira', 'nokta', 'mira']));
+    expect(s.stats).toEqual({ wins: 0, losses: 0, draws: 0 });
+    const unlocked = s.unlocked;
+    s.applyTutorialRewards(1);
+    s.recordMatchResult();
+    expect(useStore.getState().unlocked).toBe(unlocked);
+    expect(useStore.getState().stats).toEqual({ wins: 0, losses: 0, draws: 0 });
+  });
+
+  it('applyTutorialRewards(3) выдаёт колоду «Сбалансированная» один раз и делает её активной', () => {
+    useStore.getState().applyTutorialRewards(3);
+    useStore.getState().applyTutorialRewards(3);
+    const s = useStore.getState();
+    expect(s.decks.filter(d => d.id === STARTER_DECK_ID)).toHaveLength(1);
+    expect(s.activeDeckId).toBe(STARTER_DECK_ID);
+    expect(s.tutorialStep).toBe(3);
   });
 
   it('итог матча обучения не идёт в статистику', () => {

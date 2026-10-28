@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { MAX_ROUNDS } from '../../game/session';
 import { fmt, ru } from '../../i18n/ru';
 import { navigate } from '../../router';
@@ -20,6 +20,12 @@ export function Battle() {
   const hidden = useHidden();
   const [asking, setAsking] = useState(false);
   const toMenu = () => navigate({ name: 'menu' });
+
+  // Завершённый матч (в т.ч. восстановленный после перезагрузки) живёт на экране результата: итог уже
+  // записан стором в момент завершения.
+  useEffect(() => {
+    if (session && phase === 'finished') navigate({ name: 'result' });
+  }, [session, phase]);
 
   // «Назад» (спека §2): свободный матч — сдача с подтверждением; бой обучения просто откладывается
   // (продолжится из меню); завершённый матч уже ждёт на экране результата.
@@ -78,7 +84,6 @@ export function Battle() {
       )}
       {phase === 'planning' && <Planning session={session} />}
       {phase === 'playback' && <Playback session={session} />}
-      {phase === 'finished' && <p className={styles.empty}>{ru.common.soon}</p>}
       {sheet?.kind === 'log' && <LogDrawer session={session} />}
     </main>
   );

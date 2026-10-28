@@ -10,7 +10,9 @@ import {
 import type { Draft, MatchSession, NewMatchOpts } from '../game/session';
 import { allowed, onConfirm, onDraftChange, onPlaybackDone } from '../game/tutorial/runner';
 import type { AllowSet, RunnerState } from '../game/tutorial/runner';
+import { tutorialRewards } from '../game/tutorial/rewards';
 import type { HiddenElement } from '../game/tutorial/types';
+import { ru } from '../i18n/ru';
 import type { StoreState } from './index';
 
 export type MatchPhase = 'planning' | 'playback' | 'finished';
@@ -47,8 +49,13 @@ export type MatchSlice = {
   finishPlayback(): void;
   surrender(): void;
   clearMatch(): void;
-  /** Заносит итог завершённого матча в статистику ровно один раз на матч; повторные вызовы ничего не делают. */
+  /**
+   * Запасной путь записи итога: обычно итог заносится в том же `set`, что завершает матч (`confirm`,
+   * `surrender`), и вызов ничего не делает. Ровно один раз на матч.
+   */
   recordMatchResult(): void;
+  /** Награды за победу в бою обучения `id` (спека §5.1); повторный вызов ничего не меняет. */
+  applyTutorialRewards(id: 1 | 2 | 3): void;
 };
 
 export const blankDraft = (): Draft => ({ actions: [null, null, null], card: null });
@@ -75,6 +82,27 @@ const NONE_HIDDEN: HiddenElement[] = [];
 /** Элементы интерфейса, скрытые сценарием обучения; вне обучения — один и тот же пустой массив. */
 export function selectHidden(s: Pick<StoreState, 'tutorial'>): HiddenElement[] {
   return s.tutorial?.script.hidden ?? NONE_HIDDEN;
+}
+
+const STAT_KEY = { A: 'wins', B: 'losses', draw: 'draws' } as const;
+
+/**
+ * Запись итога завершённого матча — часть того же `set`, что его завершает, чтобы итог не терялся при
+ * перезагрузке или уходе с экрана до результата: свободный матч — +1 в статистику, победа в бою
+ * обучения — его награды. Пусто, если матч не завершён или уже записан (`resultRecordedFor`).
+ */
+function resultPatch(s: StoreState, session: MatchSession): Partial<StoreState> {
+  const result = session.state.result;
+  if (!result || s.resultRecordedFor === session.state) return {};
+  if (session.mode === 'tutorial') {
+    // Бои обучения в статистику не идут.
+    const rewards = result.winner === 'A' && session.tutorialId !== undefined
+      ? tutorialRewards(s, session.tutorialId, ru.tutorial.starterDeck)
+      : {};
+    return { resultRecordedFor: session.state, ...rewards };
+  }
+  const key = STAT_KEY[result.winner];
+  return { resultRecordedFor: session.state, stats: { ...s.stats, [key]: s.stats[key] + 1 } };
 }
 
 function requireSession(session: MatchSession | null): MatchSession {
@@ -123,6 +151,8 @@ export const createMatchSlice: StateCreator<StoreState, [], [], MatchSlice> = (s
         session, viewBeforePlayback, lastEvents: [...roundStart, ...events], allEvents: [...allEvents, ...events],
         beats: toBeats(events), beatIndex: 0, phase: 'playback',
         ...(tutorial ? runnerFields(onConfirm(tutorial)) : {}),
+        // Матч завершился этим раундом: итог и награды записываются сразу, до проигрывания (I1).
+        ...(isFinished(session) ? resultPatch(get(), session) : {}),
       });
     },
     advanceBeat() {
@@ -140,18 +170,21 @@ export const createMatchSlice: StateCreator<StoreState, [], [], MatchSlice> = (s
       else set({ phase: 'planning', draft: emptyDraft(session.state), ...runner });
     },
     surrender() {
-      set({ session: surrenderSession(requireSession(get().session)), phase: 'finished' });
+      const session = surrenderSession(requireSession(get().session));
+      set({ session, phase: 'finished', ...resultPatch(get(), session) });
     },
     clearMatch() {
       set(noMatch());
     },
     recordMatchResult() {
-      const { session, resultRecordedFor, recordResult } = get();
-      const result = session?.state.result;
-      // Бои обучения в статистику не идут.
-      if (!session || !result || session.mode === 'tutorial' || resultRecordedFor === session.state) return;
-      set({ resultRecordedFor: session.state });
-      recordResult(result.winner === 'A' ? 'win' : result.winner === 'B' ? 'loss' : 'draw');
+      const { session } = get();
+      if (!session) return;
+      const patch = resultPatch(get(), session);
+      if (Object.keys(patch).length > 0) set(patch);
+    },
+    applyTutorialRewards(id) {
+      const patch = tutorialRewards(get(), id, ru.tutorial.starterDeck);
+      if (Object.keys(patch).length > 0) set(patch);
     },
   };
 };

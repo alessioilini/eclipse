@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useState } from 'react';
 import { isFinished } from '../game/session';
 import { createRunner, current, dismissSay } from '../game/tutorial/runner';
-import { STARTER_DECK_ID, TUTORIAL_UNLOCKS, starterDeck } from '../game/tutorial/rewards';
 import { SCRIPTS } from '../game/tutorial/scripts';
 import type { SlotRef } from '../engine';
 import type { Requirement, TutorialScript, TutorialStep, UiAnchor } from '../game/tutorial/types';
@@ -53,17 +52,6 @@ function startScript(script: TutorialScript): void {
   s.setTutorialRunner(createRunner(script));
 }
 
-/** Победа в бою обучения: прогресс, новые героини, после третьего боя — первая колода (спека §5.1). */
-function grantRewards(id: Id): void {
-  const s = useStore.getState();
-  s.completeTutorial(id);
-  s.unlock(TUTORIAL_UNLOCKS[id]);
-  if (id === 3 && !s.decks.some((d) => d.id === STARTER_DECK_ID)) {
-    s.upsertDeck({ id: STARTER_DECK_ID, name: ru.tutorial.starterDeck, deck: starterDeck() });
-    s.setActiveDeck(STARTER_DECK_ID);
-  }
-}
-
 /** Бой обучения: экран боя под управлением сценария и оверлей подсказок (спека §5). */
 export function Tutorial({ id }: { id: Id }) {
   const script = SCRIPTS[id];
@@ -75,19 +63,22 @@ export function Tutorial({ id }: { id: Id }) {
 
   const restart = useCallback(() => startScript(script), [script]);
 
-  // Незавершённый бой этого сценария продолжается (в т.ч. после перезагрузки), иначе начинается заново.
+  // Незавершённый бой этого сценария продолжается (в т.ч. после перезагрузки); завершённый победой ведёт
+  // на результат, поражением — остаётся на экране повтора; чужой матч или его отсутствие — новый бой.
   useEffect(() => {
     const s = useStore.getState();
-    const ours = s.session?.mode === 'tutorial' && s.session.tutorialId === id;
-    if (!ours || !s.tutorial || isFinished(s.session!)) restart();
+    const ours = s.session?.mode === 'tutorial' && s.session.tutorialId === id && s.tutorial !== null;
+    if (!ours) restart();
+    else if (isFinished(s.session!) && s.session!.state.result?.winner === 'A') navigate({ name: 'result' });
   }, [id, restart]);
 
-  // Конец боя: победа — награды и экран результата; поражение остаётся здесь с кнопкой перезапуска.
+  // Конец боя: победа — экран результата (награды уже выданы стором при подтверждении последнего раунда;
+  // повторная выдача ничего не меняет); поражение остаётся здесь с кнопкой перезапуска.
   useEffect(() => {
     if (phase !== 'finished') return;
     const s = useStore.getState().session;
     if (s?.mode !== 'tutorial' || s.tutorialId !== id || s.state.result?.winner !== 'A') return;
-    grantRewards(id);
+    useStore.getState().applyTutorialRewards(id);
     navigate({ name: 'result' });
   }, [phase, id]);
 
