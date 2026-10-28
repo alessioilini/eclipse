@@ -3,13 +3,17 @@ import { CARDS } from './data/cards';
 import { HEROES } from './data/heroes';
 import { hasStatus, isAlive } from './status';
 import { aliveActive, heroAt, other } from './targeting';
+import type { PublicState } from './view';
+
+/** A full state, or the PublicState of the side being validated (its own hand is visible there). */
+export type PlanningState = MatchState | PublicState;
 
 export const ULTIMATE_ENERGY_COST = 2;
 const BLOOD_PACT_BUDGET_BONUS = 2;
 const MIRA_DISCOUNT = 1;
 
 /** Energy available to `side` in the current round (spec 2.3). Round 0 counts as round 1. */
-export function energyBudget(state: MatchState, side: Side): number {
+export function energyBudget(state: PlanningState, side: Side): number {
   const r = state.round;
   const base = r >= 6 ? 6 : r >= 3 ? 5 : 4;
   const s = state.sides[side];
@@ -17,14 +21,14 @@ export function energyBudget(state: MatchState, side: Side): number {
 }
 
 /** Luna price of one ultimate: 3, 2 under the full moon, plus the round-wide delta. */
-export function ultimateLunaCost(state: MatchState, side: Side): number {
+export function ultimateLunaCost(state: PlanningState, side: Side): number {
   void side;
   const base = state.moon === 'full' ? 2 : 3;
   return base + state.roundFlags.ultLunaDelta;
 }
 
 /** Energy price of playing `cardId` this round, with all modifiers; never below 0. */
-export function cardCost(state: MatchState, side: Side, cardId: CardId): number {
+export function cardCost(state: PlanningState, side: Side, cardId: CardId): number {
   const s = state.sides[side];
   let cost = CARDS[cardId].cost + s.flags.cardCostDelta + (s.nextCardCostUp?.value ?? 0);
   const hasMira = aliveActive(state, side).some(ref => heroAt(state, ref).id === 'mira');
@@ -33,7 +37,7 @@ export function cardCost(state: MatchState, side: Side, cardId: CardId): number 
 }
 
 /** Checks a target against the target type; returns an error string or null. */
-function checkTarget(state: MatchState, side: Side, type: TargetType, target: SlotRef | undefined): string | null {
+function checkTarget(state: PlanningState, side: Side, type: TargetType, target: SlotRef | undefined): string | null {
   switch (type) {
     case 'ally':
     case 'allyAndGuardian':
@@ -51,13 +55,20 @@ function checkTarget(state: MatchState, side: Side, type: TargetType, target: Sl
 }
 
 /** Checks a reserve index; a malformed index is a wrong target, never a throw. */
-function checkReserve(s: SideState, index: unknown): string | null {
+function checkReserve(s: Pick<SideState, 'reserve'>, index: unknown): string | null {
   if (typeof index !== 'number' || !Number.isInteger(index) || index < 0 || index > 2) return 'wrong target type';
   return isAlive(s.reserve[index as 0 | 1 | 2]) ? null : 'reserve hero is dead';
 }
 
-function validateAction(state: MatchState, side: Side, slot: 0 | 1 | 2, action: HeroAction): string[] {
+/** The side's full state; a PublicState carries it only for the side it was built for. */
+function ownSide(state: PlanningState, side: Side): SideState {
   const s = state.sides[side];
+  if (!('hand' in s)) throw new Error(`validateCommands: the hand of side ${side} is hidden in this view`);
+  return s;
+}
+
+function validateAction(state: PlanningState, side: Side, slot: 0 | 1 | 2, action: HeroAction): string[] {
+  const s = ownSide(state, side);
   const hero = s.active[slot];
   if (!isAlive(hero)) return action.type === 'none' ? [] : ['dead hero cannot act'];
   const def = HEROES[hero.id];
@@ -89,8 +100,8 @@ function validateAction(state: MatchState, side: Side, slot: 0 | 1 | 2, action: 
 }
 
 /** Returns every violation found, in a stable order: slots 0..2, then the card, then resources. */
-export function validateCommands(state: MatchState, side: Side, cmds: SideCommands): string[] {
-  const s = state.sides[side];
+export function validateCommands(state: PlanningState, side: Side, cmds: SideCommands): string[] {
+  const s = ownSide(state, side);
   const errors: string[] = [];
   let energy = 0;
   let ultimates = 0;

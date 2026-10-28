@@ -1,4 +1,4 @@
-import type { HeroState, MatchState, Side, Slot, SlotRef } from './types';
+import type { HeroState, MatchState, Side, SideState, Slot, SlotRef } from './types';
 import { hasStatus, isAlive } from './status';
 
 const SLOTS: Slot[] = [0, 1, 2];
@@ -13,7 +13,10 @@ export const ZEFIRA_REDUCTION = 2;
 export type InterceptReason = 'taunt' | 'cover' | 'nerisa' | 'zefira' | null;
 export type InterceptResult = { target: SlotRef; reason: InterceptReason; reduction: number };
 
-export function heroAt(state: MatchState, ref: SlotRef): HeroState {
+/** The part of a state that the read-only lookups need: a full MatchState or a PublicState. */
+export type Board = { sides: Record<Side, { active: SideState['active'] }> };
+
+export function heroAt(state: Board, ref: SlotRef): HeroState {
   return state.sides[ref.side].active[ref.slot];
 }
 
@@ -27,7 +30,7 @@ export function other(side: Side): Side {
 }
 
 /** Active slots of `side` whose hero is alive, in slot order. */
-export function aliveActive(state: MatchState, side: Side): SlotRef[] {
+export function aliveActive(state: Board, side: Side): SlotRef[] {
   return SLOTS.filter(slot => isAlive(state.sides[side].active[slot])).map(slot => ({ side, slot }));
 }
 
