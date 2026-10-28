@@ -7,8 +7,8 @@ import { viewFor } from '../view';
 import { CARD_IDS } from '../data/cards';
 import { HERO_IDS } from '../data/heroes';
 import { MAX_LUNA } from '../types';
-import type { MatchState, Side, SideCommands } from '../types';
-import { playMatch, randomDeck, runSimulation } from '../sim';
+import type { Deck, GameEvent, MatchState, Side, SideCommands } from '../types';
+import { matchStats, playMatch, randomDeck, runSimulation } from '../sim';
 
 const SIDES: Side[] = ['A', 'B'];
 
@@ -71,5 +71,59 @@ describe('симуляция', () => {
     expect(Object.keys(report.cards).sort()).toEqual([...CARD_IDS].sort());
     expect(report.matches).toBe(30);
     expect(report.roundHistogram.reduce((a, b) => a + b, 0)).toBe(30);
+  });
+});
+
+describe('метрики симуляции', () => {
+  it('причины исхода суммируются в число матчей; доля на лимите = heroes + hpPct + damage + draw', () => {
+    const r = runSimulation(30, 5);
+    const sum = Object.values(r.resultReasons).reduce((a, b) => a + b, 0);
+    expect(sum).toBe(30);
+    const limit = r.resultReasons.heroes + r.resultReasons.hpPct + r.resultReasons.damage + r.resultReasons.draw;
+    expect(r.roundLimitRate).toBeCloseTo(limit / 30);
+    expect(r.perRound.hpLost).toHaveLength(11);
+    expect(r.perRound.hpLost[0]).toBe(0);
+    expect(r.perRound.hpLost[1]).toBeGreaterThan(0);
+    expect(r.perRound.healed).toHaveLength(11);
+    expect(r.perRound.shielded).toHaveLength(11);
+    expect(r.totals.burn).toBeGreaterThan(0);
+  });
+
+  it('урон героини = удары + прямой + Burn; swaps, fizzles, ults, deaths присутствуют', () => {
+    const r = runSimulation(30, 5);
+    for (const id of HERO_IDS) {
+      const h = r.heroes[id];
+      expect(h.avgDamage).toBeCloseTo(h.damageBy.hits + h.damageBy.direct + h.damageBy.burn);
+      expect(h.swaps).toBeGreaterThanOrEqual(0);
+      expect(h.fizzles).toBeGreaterThanOrEqual(0);
+      expect(h.ults).toBeGreaterThanOrEqual(0);
+      expect(h.deaths).toBeGreaterThanOrEqual(0);
+    }
+    expect(r.heroes.aira.damageBy.burn).toBeGreaterThan(0);
+  });
+
+  it('matchStats: Burn засчитывается той, кто его наложила, даже после её ухода в резерв', () => {
+    const decks: Record<Side, Deck> = {
+      A: { heroes: ['aira', 'fenna', 'nerisa', 'tali', 'zefira', 'liraya'], starting: [0, 1, 2], cards: CARD_IDS.slice(0, 12) },
+      B: { heroes: ['aurora', 'justina', 'nokta', 'kira', 'mira', 'selena'], starting: [0, 1, 2], cards: CARD_IDS.slice(0, 12) },
+    };
+    const events: GameEvent[] = [
+      { type: 'statusApplied', round: 1, phase: 'heroes', source: { side: 'A', slot: 0 }, target: { side: 'B', slot: 1 }, status: 'burn', value: 0 },
+      { type: 'burn', round: 1, phase: 'endRound', target: { side: 'B', slot: 1 }, stacks: 1, dmg: 3, hp: 20 },
+      { type: 'heroAction', round: 2, phase: 'heroes', side: 'A', slot: 0, heroId: 'aira', action: 'swap' },
+      { type: 'swap', round: 2, phase: 'heroes', side: 'A', slot: 0, reserveIndex: 0, out: 'aira', in: 'tali' },
+      { type: 'burn', round: 2, phase: 'endRound', target: { side: 'B', slot: 1 }, stacks: 1, dmg: 3, hp: 17 },
+      // Burn from a card is nobody's damage.
+      { type: 'statusApplied', round: 3, phase: 'standard', source: { side: 'A', cardId: 'ashTrail' }, target: { side: 'B', slot: 0 }, status: 'burn', value: 0 },
+      { type: 'burn', round: 3, phase: 'endRound', target: { side: 'B', slot: 0 }, stacks: 1, dmg: 3, hp: 29 },
+      { type: 'fizzle', round: 3, phase: 'heroes', side: 'A', slot: 0, heroId: 'tali', action: 'skill', reason: 'energy' },
+      { type: 'death', round: 3, phase: 'endRound', side: 'B', slot: 1, heroId: 'justina' },
+    ];
+    const m = matchStats(decks, events);
+    expect(m.heroes.aira).toMatchObject({ hits: 0, direct: 0, burn: 6, swaps: 1 });
+    expect(m.heroes.tali.fizzles).toBe(1);
+    expect(m.heroes.justina.deaths).toBe(1);
+    expect(m.burn).toBe(9);
+    expect(m.hpLost).toEqual([0, 3, 3, 3]);
   });
 });

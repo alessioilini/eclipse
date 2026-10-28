@@ -323,8 +323,8 @@ describe('Reaction-карты', () => {
       .toEqual([['lastWord', 1], ['death', 1]]);
     // Luna: 2 (раунд 1) + 1 (lastWord) + 1 (смерть) = 4; урон в сторону A.
     expect(r.state.sides.A.luna).toBe(4);
-    // Урон стороны A: Лирая 6 + Айра 7 (Fire → Light ×1) + «Последнее слово» 4 = 17.
-    expect(r.state.sides.A.damageDealt).toBe(17);
+    // Урон стороны A: Лирая 6 + Айра 6 (Fire → Light ×1) + «Последнее слово» 4 = 16.
+    expect(r.state.sides.A.damageDealt).toBe(16);
     // Затем Лирая бьёт Нокту ещё на 6: 16 − 6 = 10.
     expect(hero(r.state, enemy(1)).hp).toBe(10);
   });

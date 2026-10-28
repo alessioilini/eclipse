@@ -44,8 +44,9 @@ describe('computeDamage', () => {
   it('Blood Moon + Eclipse: 9 × 1.2 × 1.25 = 13.5 → 14 (float-устойчиво)', () => {
     expect(computeDamage({ ...base, atk: 9, mod: 1, attacker: 'star', target: 'star', bloodMoon: true, round: 9 })).toBe(14);
   });
-  it('Total Eclipse раунд 9: 8 × 1.25 = 10; Blood Moon: 8 × 1.2 = 10', () => {
-    expect(computeDamage({ ...base, atk: 8, mod: 1, attacker: 'star', target: 'star', round: 9 })).toBe(10);
+  it('Total Eclipse с 7-го раунда: раунд 7 8 × 1.25 = 10, раунд 6 ещё 8; Blood Moon: 8 × 1.2 = 10', () => {
+    expect(computeDamage({ ...base, atk: 8, mod: 1, attacker: 'star', target: 'star', round: 7 })).toBe(10);
+    expect(computeDamage({ ...base, atk: 8, mod: 1, attacker: 'star', target: 'star', round: 6 })).toBe(8);
     expect(computeDamage({ ...base, atk: 8, mod: 1, attacker: 'star', target: 'star', bloodMoon: true })).toBe(10);
   });
 });
@@ -102,10 +103,12 @@ describe('heal / shield', () => {
     expect(healAmount(6, cursed, 'new', 1)).toBe(3);
     expect(healAmount(6, hero(), 'waxing', 1)).toBe(7);
     expect(healAmount(0, hero(), 'waning', 1)).toBe(0);
-    expect(healAmount(6, cursed, 'waning', 9)).toBe(1);
+    expect(healAmount(6, cursed, 'waning', 7)).toBe(1);
+    expect(healAmount(6, cursed, 'waning', 6)).toBe(2);
   });
-  it('shieldAmount: Eclipse 6×0.75 = 5 (4.5→5), waxing +1', () => {
-    expect(shieldAmount(6, 'new', 9)).toBe(5);
+  it('shieldAmount: Eclipse с 7-го раунда 6×0.75 = 5 (4.5→5), в 6-м ещё 6; waxing +1', () => {
+    expect(shieldAmount(6, 'new', 7)).toBe(5);
+    expect(shieldAmount(6, 'new', 6)).toBe(6);
     expect(shieldAmount(6, 'waxing', 1)).toBe(7);
   });
   it('applyHeal не выше maxHp', () => {

@@ -5,7 +5,7 @@ import type { HeroDef, HeroId } from '../types';
 // Hero rarity is not specified in the spec; 'rare' is a placeholder (it has no effect on the engine).
 export const HEROES: Record<HeroId, HeroDef> = {
   aira: {
-    id: 'aira', name: 'Айра', element: 'fire', role: 'mage', rarity: 'rare', hp: 20, atk: 7, spd: 6,
+    id: 'aira', name: 'Айра', element: 'fire', role: 'mage', rarity: 'rare', hp: 20, atk: 6, spd: 6,
     passive: {
       name: 'Жар',
       text: 'Каждый тик Burn по противникам наносит +1.',
@@ -124,7 +124,7 @@ export const HEROES: Record<HeroId, HeroDef> = {
     id: 'justina', name: 'Юстина', element: 'light', role: 'striker', rarity: 'rare', hp: 23, atk: 7, spd: 8,
     passive: {
       name: 'Преследование',
-      text: 'Когда противник получает Shield или бафф, Юстина получает +1 SPD до конца раунда (раз в раунд).',
+      text: 'Когда противник получает Shield или бафф, Юстина получает +1 SPD до конца следующего раунда (раз в раунд).',
       triggers: [{ on: 'onEnemyBuffed', once: 'round', hook: 'justina.pursuit' }],
     },
     skill: {
@@ -169,7 +169,7 @@ export const HEROES: Record<HeroId, HeroDef> = {
     },
   },
   mira: {
-    id: 'mira', name: 'Мира', element: 'star', role: 'support', rarity: 'rare', hp: 24, atk: 4, spd: 9,
+    id: 'mira', name: 'Мира', element: 'star', role: 'support', rarity: 'rare', hp: 24, atk: 5, spd: 9,
     passive: {
       name: 'Тактик',
       text: 'В нечётных раундах карта стороны стоит на 1 Energy меньше (не ниже 0).',

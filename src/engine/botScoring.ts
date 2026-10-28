@@ -12,15 +12,19 @@ import { isBuff } from './resolve/effects';
 // Weights (spec §6.4): lethal > save > ultimate > element edge > raw damage.
 export const KILL = 100;
 export const DAMAGE_PER_HP = 1;
-export const SAVE_ALLY = 60;
+/** Balance pass 1: 60 made defence outweigh damage while a «saved» ally still died in 38% of rounds. */
+export const SAVE_ALLY = 40;
 export const ULTIMATE = 15;
 export const ELEMENT_EDGE = 5;
 export const WASTED_ENERGY = -1;
 export const SWAP_PENALTY = -10;
 export const HEAL_PER_HP = 1;
 export const SHIELD_PER_POINT = 0.8;
-/** Tie-breaker: a hit on a wounded target is worth up to this much more (spec §6.4 item 5). */
-const LOW_HP_FOCUS = 2;
+/**
+ * A hit on a wounded target is worth up to this much more (spec §6.4 item 5). Balance pass 1: 10
+ * instead of 2, so that wounds are pressed rather than hits spread by element edge (+5).
+ */
+const LOW_HP_FOCUS = 10;
 const ELEMENT_EDGE_MULT = 1.15;
 const REVIVE = 40;
 const DRAW = 2;
@@ -80,11 +84,21 @@ function hitDamage(view: PublicState, attacker: HeroState, mod: number, target: 
   });
 }
 
-/** Sum of the Basic Attacks of every living enemy on `hero` (standing in `slot`), minus her shield. */
+/** Enemy hits counted as a threat: the opponent rarely lands more than two single hits on one slot per round. */
+const THREAT_ATTACKERS = 2;
+
+/**
+ * Threat on `hero` (standing in `slot`): the Basic Attacks of the two strongest living enemies,
+ * minus her shield. Balance pass 1: the sum over all three enemies flagged a third of the board
+ * as threatened while the opponent spreads its hits (three hits on one slot in 9% of rounds).
+ */
 export function incomingOn(view: PublicState, side: Side, hero: HeroState, slot: number): number {
   const foe = other(side);
-  const sum = actives(view, foe).filter(isAlive)
-    .reduce((acc, e) => acc + hitDamage(view, e, 1, hero, side, slot), 0);
+  const hits = actives(view, foe).filter(isAlive)
+    .map(e => hitDamage(view, e, 1, hero, side, slot))
+    .sort((a, b) => b - a)
+    .slice(0, THREAT_ATTACKERS);
+  const sum = hits.reduce((acc, h) => acc + h, 0);
   return Math.max(0, sum - hero.shield);
 }
 
