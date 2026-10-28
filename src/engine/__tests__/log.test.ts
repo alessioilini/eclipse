@@ -73,4 +73,13 @@ describe('текстовый лог', () => {
     expect(formatEvent(ev('reactionTriggered', { side: 'A', cardId: 'rewriteFate', target: ally(1), heroId: 'fenna' }), s))
       .toBe('A Переписать судьбу triggers → A1');
   });
+
+  it('bloodMoon печатает сторону и всех героинь под Кровавой Луной, снятые дебаффы и резерв', () => {
+    const s = makeMatch();
+    const ev = {
+      type: 'bloodMoon', round: 3, phase: 'endRound', side: 'B',
+      heroes: [{ heroId: 'aurora', slot: 0, cleansed: ['curse'] }, { heroId: 'kira', slot: null, reserveIndex: 0 }],
+    } as GameEvent;
+    expect(formatEvent(ev, s)).toBe('B Blood Moon: Аврора(B0) −curse, Кира(B:r0)');
+  });
 });

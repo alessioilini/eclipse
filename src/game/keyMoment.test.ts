@@ -26,7 +26,7 @@ function dmg(side: Side, slot: Slot, attackerId: HeroId, hpLoss: number, absorbe
   };
 }
 
-const bloodMoon = (side: Side): EngineEvent => ({ ...base, type: 'bloodMoon', side, heroId: 'aira', slot: 0 });
+const bloodMoon = (side: Side): EngineEvent => ({ ...base, type: 'bloodMoon', side, heroes: [{ heroId: 'aira', slot: 0 }] });
 const action = (side: Side, slot: Slot, heroId: HeroId, a: 'basic' | 'ultimate'): EngineEvent =>
   ({ ...base, type: 'heroAction', side, slot, heroId, action: a });
 const death = (side: Side, slot: Slot, heroId: HeroId): EngineEvent => ({ ...base, type: 'death', side, slot, heroId });
@@ -36,6 +36,18 @@ describe('keyMoment: пять правил по приоритету', () => {
     const k = keyMoment([bloodMoon('A')], final('A'), 'A');
     expect(k.rule).toBe('bloodMoonComeback');
     expect(k.text).toBe(fmt(ru.keyMoment.bloodMoonComeback, { name: HEROES.aira.name }));
+  });
+
+  it('Кровавая Луна над несколькими героинями перечисляет их имена', () => {
+    const moon: EngineEvent = {
+      ...base, type: 'bloodMoon', side: 'A',
+      heroes: [{ heroId: 'aira', slot: 0 }, { heroId: 'fenna', slot: 1 }, { heroId: 'nerisa', slot: null, reserveIndex: 0 }],
+    };
+    const k = keyMoment([moon], final('A'), 'A');
+    expect(k.rule).toBe('bloodMoonComeback');
+    expect(k.text).toBe(fmt(ru.keyMoment.bloodMoonComebackMany, { names: 'Айра, Фенна и Нериса' }));
+    const two = keyMoment([{ ...moon, heroes: moon.heroes.slice(0, 2) } as EngineEvent], final('A'), 'A');
+    expect(two.text).toBe(fmt(ru.keyMoment.bloodMoonComebackMany, { names: 'Айра и Фенна' }));
   });
 
   it('Кровавая Луна без победы не даёт камбэк', () => {

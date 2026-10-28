@@ -4,7 +4,7 @@
  * Version of the persisted `MatchState` shape and rules. Bumped by hand whenever either changes, so a
  * saved match from an older engine is dropped instead of being resumed under different rules.
  */
-export const ENGINE_VERSION = 1;
+export const ENGINE_VERSION = 2;
 
 export { createMatch, validateDeck, getWinner, MAX_ROUNDS } from './match';
 export { startRound, resolveRound } from './resolve/round';
@@ -13,6 +13,7 @@ export {
   isCoverGuardian, livingReserve, ownSide,
 } from './validate';
 export { ECLIPSE_ROUND } from './damage';
+export { BLOOD_MOON_DEFICIT } from './resolve/endRound';
 export { viewFor, eventsFor } from './view';
 export { chooseCommands } from './bot';
 export { legalActions, legalCardPlays } from './legal';
@@ -42,6 +43,6 @@ export type {
   ShieldRemovedEvent, ShieldExpiredEvent,
   StatusAppliedEvent, StatusRemovedEvent,
   EnergyChangedEvent, LunaChangedEvent, MoonChangedEvent,
-  DeathEvent, ReviveEvent, BloodMoonEvent,
+  DeathEvent, ReviveEvent, BloodMoonEvent, BloodMoonHero,
 } from './events';
 export type { Rng } from './rng';

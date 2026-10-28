@@ -11,6 +11,9 @@ const TOP_DAMAGE_SHARE = 0.35;
 const SHIELDS_MIN = 25;
 
 const nameOf = (id: HeroId): string => HEROES[id].name;
+/** «Айра, Фенна и Нериса»: запятые и «и» перед последним именем. */
+const listNames = (names: string[]): string =>
+  names.length <= 1 ? (names[0] ?? '') : `${names.slice(0, -1).join(', ')} и ${names[names.length - 1]}`;
 
 /** Кто стоял в слоте: заполняется по ходу событий, запасной вариант — состояние в конце матча. */
 type Occupants = Record<Side, Partial<Record<Slot, HeroId>>>;
@@ -51,12 +54,15 @@ export function keyMoment(events: EngineEvent[], final: MatchState, side: Side):
   if (events[0]?.round !== 1) return rounds;
   const won = final.result?.winner === side;
 
-  // 1. Кровавая Луна у стороны и её победа.
+  // 1. Кровавая Луна у стороны и её победа; имена всех героинь, которых она охватила.
   const moon = events.find((e) => e.type === 'bloodMoon' && e.side === side);
   if (moon && moon.type === 'bloodMoon' && won) {
+    const names = moon.heroes.map((h) => nameOf(h.heroId));
     return {
       rule: 'bloodMoonComeback',
-      text: fmt(ru.keyMoment.bloodMoonComeback, { name: nameOf(moon.heroId) }),
+      text: names.length === 1
+        ? fmt(ru.keyMoment.bloodMoonComeback, { name: names[0]! })
+        : fmt(ru.keyMoment.bloodMoonComebackMany, { names: listNames(names) }),
     };
   }
 

@@ -279,10 +279,12 @@ export function applyEvent(v: ViewState, ev: EngineEvent): ViewState {
         : withReserve(v, ev.side, ev.reserveIndex, back);
     }
     case 'bloodMoon': {
-      const cleanse = (h: ViewHero): ViewHero => ({ ...h, statuses: cleanseIds(h.statuses, ev.cleansed ?? []) });
-      const next = ev.slot !== null
-        ? withActive(v, { side: ev.side, slot: ev.slot }, cleanse)
-        : withReserve(v, ev.side, ev.reserveIndex, cleanse);
+      const next = ev.heroes.reduce((acc, hero) => {
+        const cleanse = (h: ViewHero): ViewHero => ({ ...h, statuses: cleanseIds(h.statuses, hero.cleansed ?? []) });
+        return hero.slot !== null
+          ? withActive(acc, { side: ev.side, slot: hero.slot }, cleanse)
+          : withReserve(acc, ev.side, hero.reserveIndex, cleanse);
+      }, v);
       return withSide(next, ev.side, sd => ({ ...sd, bloodMoon: true }));
     }
 

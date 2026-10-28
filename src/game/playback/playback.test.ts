@@ -89,7 +89,7 @@ describe('toBeats', () => {
     const beats = toBeats([
       ev({ type: 'moonChanged', from: 'new', to: 'waxing', by: { side: 'A', cardId: 'moonTurn' } }, 'roundStart'),
       ev({ type: 'reshuffle', side: 'A', count: 5 }, 'roundStart'),
-      ev({ type: 'bloodMoon', side: 'B', heroId: 'fenna', slot: 0 }, 'endRound'),
+      ev({ type: 'bloodMoon', side: 'B', heroes: [{ heroId: 'fenna', slot: 0 }] }, 'endRound'),
     ]);
     expect(beats.map(b => [b.kind, b.durationMs])).toEqual([['moon', 600], ['tick', 0], ['bloodMoon', 800]]);
   });
@@ -270,7 +270,7 @@ describe('applyEvent', () => {
 
   it('bloodMoon отмечает сторону, energyChanged и lunaChanged меняют счётчики', () => {
     let v = baseView();
-    v = applyEvent(v, ev({ type: 'bloodMoon', side: 'B', heroId: 'fenna', slot: 0 }, 'endRound'));
+    v = applyEvent(v, ev({ type: 'bloodMoon', side: 'B', heroes: [{ heroId: 'fenna', slot: 0 }] }, 'endRound'));
     expect(v.sides.B.bloodMoon).toBe(true);
     v = applyEvent(v, ev({ type: 'energyChanged', side: 'A', energy: 1, delta: -2, reason: 'skill' }));
     v = applyEvent(v, ev({ type: 'lunaChanged', side: 'A', luna: 4, delta: 1, reason: 'ability' }));
@@ -336,11 +336,15 @@ describe('applyEvent', () => {
 
     const last = v.sides.A.reserve[2]!;
     v.sides.A.reserve[2] = { ...last, statuses: [{ id: 'burn', value: 0, stacks: 2, expiresAtRound: null }] };
+    const first = v.sides.A.active[0]!;
+    v.sides.A.active[0] = { ...first, statuses: [{ id: 'mark', value: 0, stacks: 1, expiresAtRound: null }, { id: 'curse', value: 0, stacks: 1, expiresAtRound: null }] };
     const moon = applyEvent(v, ev({
-      type: 'bloodMoon', side: 'A', heroId: last.heroId, slot: null, reserveIndex: 2, cleansed: ['burn'],
+      type: 'bloodMoon', side: 'A',
+      heroes: [{ heroId: first.heroId, slot: 0, cleansed: ['curse'] }, { heroId: last.heroId, slot: null, reserveIndex: 2, cleansed: ['burn'] }],
     }, 'endRound'));
     expect(moon.sides.A.bloodMoon).toBe(true);
     expect(moon.sides.A.reserve[2]!.statuses).toEqual([]);
+    expect(moon.sides.A.active[0]!.statuses.map(s => s.id)).toEqual(['mark']);
   });
 
   it('applyBeat применяет все события бита по порядку', () => {
