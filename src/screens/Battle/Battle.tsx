@@ -2,6 +2,7 @@ import { MAX_ROUNDS } from '../../game/session';
 import { fmt, ru } from '../../i18n/ru';
 import { navigate } from '../../router';
 import { useStore } from '../../store';
+import { useHidden } from '../../store/tutorial';
 import { Button } from '../../ui/Button';
 import styles from './Battle.module.css';
 import { LogDrawer } from './LogDrawer';
@@ -14,6 +15,7 @@ export function Battle() {
   const openSheet = useStore((s) => s.openSheet);
   const sheet = useStore((s) => s.sheet);
   const before = useStore((s) => s.viewBeforePlayback);
+  const hidden = useHidden();
   const back = () => navigate({ name: 'menu' });
 
   if (!session) {
@@ -43,9 +45,13 @@ export function Battle() {
             })}
           </span>
         </span>
-        <Button variant="ghost" onClick={() => openSheet({ kind: 'log' })}>
-          {ru.battle.log}
-        </Button>
+        {hidden.includes('log') ? (
+          <span />
+        ) : (
+          <Button variant="ghost" onClick={() => openSheet({ kind: 'log' })}>
+            {ru.battle.log}
+          </Button>
+        )}
       </header>
       {phase === 'planning' && <Planning session={session} />}
       {phase === 'playback' && <Playback session={session} />}

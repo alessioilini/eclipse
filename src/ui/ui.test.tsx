@@ -279,4 +279,13 @@ describe('Overlay', () => {
     await userEvent.click(screen.getByRole('button', { name: ru.tutorial.next }));
     expect(onNext).toHaveBeenCalledTimes(1);
   });
+
+  it('без onNext — подсказка: текст без кнопки и без затемнения', () => {
+    const { container } = render(
+      <Overlay text={ru.battle.confirm} anchorRect={{ top: 10, left: 20, width: 100, height: 50 }} />,
+    );
+    expect(screen.getByRole('status')).toHaveTextContent(ru.battle.confirm);
+    expect(screen.queryByRole('button')).toBeNull();
+    expect(container.querySelectorAll('[style*="top: 0"]')).toHaveLength(0);
+  });
 });

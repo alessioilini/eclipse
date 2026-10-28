@@ -24,7 +24,7 @@ export function Result({ now = Date.now }: Props) {
   const result = state?.result ?? null;
 
   // Идемпотентность держит стор (resultRecordedFor): повторные рендеры и перемонтирование не удваивают счётчик.
-  // TODO(Task 15): в режиме обучения здесь же вызвать completeTutorial и открыть героинь.
+  // Бои обучения стор не засчитывает; их награды выдаёт экран обучения до перехода сюда.
   useEffect(() => {
     recordMatchResult();
   }, [session, recordMatchResult]);
@@ -53,6 +53,12 @@ export function Result({ now = Date.now }: Props) {
     : result.reason !== 'wipe' ? fmt(ru.result.byRounds, { n: state.round }) : null;
 
   const again = () => {
+    if (session.mode === 'tutorial' && session.tutorialId !== undefined) {
+      // «Ещё раз» в обучении — тот же бой сценария заново.
+      clearMatch();
+      navigate({ name: 'tutorial', id: session.tutorialId });
+      return;
+    }
     const seed = now();
     startMatch(session.playerDeck, { opponentDeck: opponentDeckFor(seed), seed, mode: 'free' });
     navigate({ name: 'battle' });

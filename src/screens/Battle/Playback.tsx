@@ -9,6 +9,7 @@ import type { MatchSession } from '../../game/session';
 import { ru } from '../../i18n/ru';
 import { navigate } from '../../router';
 import { useStore } from '../../store';
+import { useHidden } from '../../store/tutorial';
 import { Button } from '../../ui/Button';
 import { Hand } from '../../ui/Hand';
 import { HeroCard } from '../../ui/HeroCard';
@@ -37,6 +38,7 @@ export function Playback({ session }: { session: MatchSession }) {
   const advanceBeat = useStore((s) => s.advanceBeat);
   const skipPlayback = useStore((s) => s.skipPlayback);
   const finishPlayback = useStore((s) => s.finishPlayback);
+  const hidden = useHidden();
 
   const engineView = useMemo(() => playerView(session), [session]);
   const base = useMemo(() => before ?? viewFromPublic(engineView), [before, engineView]);
@@ -59,7 +61,9 @@ export function Playback({ session }: { session: MatchSession }) {
     if (!done || finished.current) return;
     finished.current = true;
     finishPlayback();
-    if (useStore.getState().phase === 'finished') navigate({ name: 'result' });
+    // Конец обучения обрабатывает экран обучения (награды или перезапуск).
+    const { phase, session: current } = useStore.getState();
+    if (phase === 'finished' && current?.mode !== 'tutorial') navigate({ name: 'result' });
   }, [done, finishPlayback]);
 
   const events = useMemo(() => beat?.events ?? [], [beat]);
@@ -96,15 +100,19 @@ export function Playback({ session }: { session: MatchSession }) {
           <CardFlights key={beatIndex} flights={flights} durationMs={ms} />
         </section>
         <section className={styles.row}>{row('A')}</section>
-        <section className={styles.reserveRow}>
-          {own.reserve.map((h, i) => (
-            <LayoutSlot key={h.heroId} id={`A-${h.heroId}`}>
-              <ReserveCard hero={h} side="A" index={i as Slot} />
-            </LayoutSlot>
-          ))}
-        </section>
+        {!hidden.includes('reserve') && (
+          <section className={styles.reserveRow}>
+            {own.reserve.map((h, i) => (
+              <LayoutSlot key={h.heroId} id={`A-${h.heroId}`}>
+                <ReserveCard hero={h} side="A" index={i as Slot} />
+              </LayoutSlot>
+            ))}
+          </section>
+        )}
         <ResourceBar energy={own.energy} energyMax={Math.max(own.energy, base.sides.A.energy)} spent={0} luna={own.luna} />
-        <Hand cards={hand} selectedIndex={null} costs={hand.map((c) => CARDS[c].cost)} onTap={noop} />
+        {!hidden.includes('cards') && (
+          <Hand cards={hand} selectedIndex={null} costs={hand.map((c) => CARDS[c].cost)} onTap={noop} />
+        )}
       </div>
       <div className={styles.confirm}>
         <Button variant="secondary" size="lg" testId="skip" onClick={skipPlayback}>

@@ -7,6 +7,7 @@ import { HeroDetail } from './screens/HeroDetail';
 import { Heroes } from './screens/Heroes';
 import { Menu } from './screens/Menu';
 import { Result } from './screens/Result';
+import { Tutorial } from './screens/Tutorial';
 
 export function App() {
   const route = useRoute();
@@ -14,6 +15,8 @@ export function App() {
     <div className="app">
       {route.name === 'menu' ? (
         <Menu />
+      ) : route.name === 'tutorial' ? (
+        <Tutorial key={route.id} id={route.id} />
       ) : route.name === 'battle' ? (
         <Battle />
       ) : route.name === 'result' ? (

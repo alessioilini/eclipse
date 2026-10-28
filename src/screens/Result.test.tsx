@@ -90,6 +90,18 @@ describe('экран результата', () => {
     expect(window.location.hash).toBe('#/battle');
   });
 
+  it('«Ещё раз» после боя обучения ведёт в тот же бой обучения', () => {
+    st().startMatch(deckA, { opponentDeck: deckB, seed: 11, mode: 'tutorial', tutorialId: 2 });
+    const session = st().session!;
+    const state = structuredClone(session.state);
+    state.result = { winner: 'A', reason: 'wipe' };
+    useStore.setState({ session: { ...session, state }, phase: 'finished' });
+    render(<Result />);
+    fireEvent.click(screen.getByRole('button', { name: ru.result.again }));
+    expect(st().session).toBeNull();
+    expect(window.location.hash).toBe('#/tutorial/2');
+  });
+
   it('«В меню» очищает матч и ведёт в меню', () => {
     finish({ winner: 'A', reason: 'wipe' });
     render(<Result />);

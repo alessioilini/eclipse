@@ -1,0 +1,22 @@
+.screen {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-16);
+  min-height: 100dvh;
+  padding: var(--sp-24) var(--sp-16);
+  text-align: center;
+}
+
+.title {
+  margin: 0;
+  font-size: var(--fs-28);
+  color: var(--danger);
+}
+
+.text {
+  margin: 0;
+  font-size: var(--fs-16);
+  color: var(--muted);
+}

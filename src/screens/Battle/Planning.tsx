@@ -8,9 +8,11 @@ import {
   draftEnergy, draftForEngine, draftIssues, draftToCommands, playerView, secondaryCandidates,
 } from '../../game/session';
 import type { Draft, MatchSession } from '../../game/session';
+import type { AllowSet } from '../../game/tutorial/runner';
 import { fmt, ru } from '../../i18n/ru';
 import { useStore } from '../../store';
 import type { Sheet } from '../../store';
+import { useAllowed, useHidden } from '../../store/tutorial';
 import { ActionSheet, type SheetItem } from '../../ui/ActionSheet';
 import { Button } from '../../ui/Button';
 import type { CardBlock } from '../../ui/CardView';
@@ -63,6 +65,17 @@ function highlightFor(sheet: Sheet | null, view: PublicState, display: ViewState
     default:
       return null;
   }
+}
+
+/** Обучение: подсветка сужается до целей и резерва, разрешённых текущим шагом. */
+function restrict(highlight: Highlight, allow: AllowSet | null): Highlight {
+  if (!highlight || !allow) return highlight;
+  const { targets, reserve } = allow;
+  return {
+    ...highlight,
+    heroes: targets === 'any' ? highlight.heroes : new Set(targets.map(refKey).filter(k => highlight.heroes.has(k))),
+    reserve: reserve === 'any' ? highlight.reserve : new Set(reserve.filter(i => highlight.reserve.has(i))),
+  };
 }
 
 function actionItems(view: PublicState, slot: Slot, draft: Draft): SheetItem[] {
@@ -158,6 +171,9 @@ export function Planning({ session }: { session: MatchSession }) {
   const confirm = useStore((s) => s.confirm);
   const openSheet = useStore((s) => s.openSheet);
   const closeSheet = useStore((s) => s.closeSheet);
+  // Обучение: что разрешает текущий шаг (null — свободный матч) и что скрыто сценарием.
+  const allow = useAllowed();
+  const hidden = useHidden();
 
   const view = useMemo(() => playerView(session), [session]);
   const display = useMemo(() => viewFromPublic(view), [view]);
@@ -166,9 +182,10 @@ export function Planning({ session }: { session: MatchSession }) {
   const foeView = view.sides.B as OpponentView;
   const hand = own.hand ?? [];
 
-  const highlight = highlightFor(sheet, view, display, draft);
+  const highlight = restrict(highlightFor(sheet, view, display, draft), allow);
   const energy = draftEnergy(session.state, draft);
-  const canConfirm = draftToCommands(draft) !== null && draftIssues(session.state, draft).length === 0;
+  const canConfirm = draftToCommands(draft) !== null && draftIssues(session.state, draft).length === 0
+    && (allow === null || allow.confirm);
   const cardPlays = hand.map((_, i) => legalCardPlays(view, 'A', i, draftForEngine(draft)));
   const cardBlocks = cardPlays.map(cardBlock);
 
@@ -196,6 +213,7 @@ export function Planning({ session }: { session: MatchSession }) {
       if (highlight.heroes.has(refKey(ref))) pickHero(ref);
       return;
     }
+    if (allow && !allow.slots.includes(ref.slot)) return;
     if (ref.side === 'A' && own.active[ref.slot]?.alive) openSheet({ kind: 'actions', slot: ref.slot });
   };
 
@@ -226,6 +244,7 @@ export function Planning({ session }: { session: MatchSession }) {
   };
 
   const onCardTap = (index: number) => {
+    if (allow && !allow.cards.includes(index)) return;
     if (draft.card?.handIndex === index) {
       setCard(null);
       closeSheet();
@@ -299,22 +318,24 @@ export function Planning({ session }: { session: MatchSession }) {
         })}
       </section>
 
-      <section className={styles.reserveRow}>
-        {own.reserve.map((h, i) => {
-          const on = highlight?.reserve.has(i) ?? false;
-          return (
-            <ReserveCard
-              key={i}
-              hero={h}
-              side="A"
-              index={i as Slot}
-              highlighted={on}
-              dimmed={highlight !== null && highlight.reserve.size > 0 && !on}
-              onTap={() => onReserveTap(i as Slot)}
-            />
-          );
-        })}
-      </section>
+      {!hidden.includes('reserve') && (
+        <section className={styles.reserveRow}>
+          {own.reserve.map((h, i) => {
+            const on = highlight?.reserve.has(i) ?? false;
+            return (
+              <ReserveCard
+                key={i}
+                hero={h}
+                side="A"
+                index={i as Slot}
+                highlighted={on}
+                dimmed={highlight !== null && highlight.reserve.size > 0 && !on}
+                onTap={() => onReserveTap(i as Slot)}
+              />
+            );
+          })}
+        </section>
+      )}
 
       <ResourceBar energy={energy.budget} energyMax={energy.budget} spent={energy.spent} luna={own.luna} />
 
@@ -327,13 +348,15 @@ export function Planning({ session }: { session: MatchSession }) {
         </div>
       )}
 
-      <Hand
-        cards={hand}
-        selectedIndex={selectedCard}
-        costs={cardPlays.map((p) => p.cost)}
-        blocked={cardBlocks}
-        onTap={onCardTap}
-      />
+      {!hidden.includes('cards') && (
+        <Hand
+          cards={hand}
+          selectedIndex={selectedCard}
+          costs={cardPlays.map((p) => p.cost)}
+          blocked={cardBlocks}
+          onTap={onCardTap}
+        />
+      )}
 
       <div className={styles.confirm}>
         <Button variant="primary" size="lg" testId="confirm" disabled={!canConfirm} onClick={confirm}>
@@ -343,7 +366,10 @@ export function Planning({ session }: { session: MatchSession }) {
 
       {sheet?.kind === 'actions' && (
         <ActionSheet
-          items={actionItems(view, sheet.slot, draft)}
+          items={actionItems(view, sheet.slot, draft).filter((item) =>
+            (allow === null || allow.actions.includes(item.key as AllowSet['actions'][number]))
+            && !(item.key === 'ultimate' && hidden.includes('ultimate'))
+            && !(item.key === 'swap' && hidden.includes('swap')))}
           onPick={(key) => onPickAction(sheet.slot, key)}
           onClose={closeSheet}
         />

@@ -13,6 +13,13 @@
   pointer-events: none;
 }
 
+.ring {
+  position: absolute;
+  border-radius: var(--r-8);
+  outline: var(--border) solid var(--accent);
+  pointer-events: none;
+}
+
 .block {
   position: absolute;
   pointer-events: auto;
@@ -37,6 +44,10 @@
   border-radius: var(--r-16);
   background: var(--surface);
   pointer-events: auto;
+}
+
+.hint {
+  pointer-events: none;
 }
 
 .top {
