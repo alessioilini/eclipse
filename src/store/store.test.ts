@@ -94,6 +94,18 @@ describe('колоды', () => {
     expect(useStore.getState().decks).toEqual([]);
     expect(useStore.getState().activeDeckId).toBeNull();
   });
+
+  it('удаление активной колоды делает активной первую оставшуюся (M7)', () => {
+    const s = useStore.getState();
+    s.upsertDeck({ id: 'd1', name: 'Первая', deck: playerDeck() });
+    s.upsertDeck({ id: 'd2', name: 'Вторая', deck: playerDeck() });
+    s.upsertDeck({ id: 'd3', name: 'Третья', deck: playerDeck() });
+    s.setActiveDeck('d2');
+    s.deleteDeck('d2');
+    expect(useStore.getState().activeDeckId).toBe('d1');
+    s.deleteDeck('d3');
+    expect(useStore.getState().activeDeckId).toBe('d1');
+  });
 });
 
 describe('сохранение стора', () => {

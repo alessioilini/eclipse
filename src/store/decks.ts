@@ -25,7 +25,9 @@ export const createDecksSlice: StateCreator<StoreState, [], [], DecksSlice> = (s
     },
     deleteDeck(id) {
       const { decks, activeDeckId } = get();
-      set({ decks: decks.filter(x => x.id !== id), activeDeckId: activeDeckId === id ? null : activeDeckId });
+      const rest = decks.filter(x => x.id !== id);
+      // Удалена активная колода — активной становится первая оставшаяся (или никакой).
+      set({ decks: rest, activeDeckId: activeDeckId === id ? rest[0]?.id ?? null : activeDeckId });
     },
     setActiveDeck(id) {
       set({ activeDeckId: id });
