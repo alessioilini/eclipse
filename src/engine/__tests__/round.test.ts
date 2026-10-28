@@ -126,17 +126,17 @@ describe('resolveRound: basic и swap', () => {
     expect(state.moon).toBe('waxing');
     const dmg = (att: SlotRef) => damageBy(events, att).map(e => [(e.target as SlotRef).side, (e.target as SlotRef).slot, e.dmg]);
     expect(dmg(ally(0))).toEqual([['B', 0, 8]]); // Нокта: 7 × 1.15 = 8.05 → 8
-    expect(dmg(ally(1))).toEqual([['B', 0, 4]]); // Мира: 4 × 1
+    expect(dmg(ally(1))).toEqual([['B', 0, 5]]); // Мира: 5 × 1
     expect(dmg(ally(2))).toEqual([['B', 0, 4]]); // Фенна: 4 × 1
     expect(dmg(enemy(0))).toEqual([['A', 0, 5]]); // Аврора: 4 × 1.15 = 4.6 → 5
     expect(dmg(enemy(1))).toEqual([['A', 1, 7]]); // Юстина → Мира: 7 × 1
     expect(dmg(enemy(2))).toEqual([['A', 2, 7]]); // Кира → Фенна: 7 × 1
-    expect(state.sides.B.active[0].hp).toBe(32 - 16);
+    expect(state.sides.B.active[0].hp).toBe(32 - 17);
     expect(state.sides.A.active.map(h => h.hp)).toEqual([15, 17, 17]);
-    expect(state.sides.A.damageDealt).toBe(16);
+    expect(state.sides.A.damageDealt).toBe(17);
     expect(state.sides.B.damageDealt).toBe(19);
     const nokta = damageBy(events, ally(0))[0]!;
-    expect(nokta).toMatchObject({ raw: 8, flat: 0, reductions: 0, dmg: 8, absorbed: 0, hpLoss: 8, hp: 32 - 4 - 8, shield: 0 }); // Мира (SPD 9) ударила раньше
+    expect(nokta).toMatchObject({ raw: 8, flat: 0, reductions: 0, dmg: 8, absorbed: 0, hpLoss: 8, hp: 32 - 5 - 8, shield: 0 }); // Мира (SPD 9) ударила раньше
   });
 
   it('бонус Луны: в Новолуние Dark +1 (Нокта по Авроре 9)', () => {

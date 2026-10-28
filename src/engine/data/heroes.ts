@@ -169,7 +169,7 @@ export const HEROES: Record<HeroId, HeroDef> = {
     },
   },
   mira: {
-    id: 'mira', name: 'Мира', element: 'star', role: 'support', rarity: 'rare', hp: 24, atk: 4, spd: 9,
+    id: 'mira', name: 'Мира', element: 'star', role: 'support', rarity: 'rare', hp: 24, atk: 5, spd: 9,
     passive: {
       name: 'Тактик',
       text: 'В нечётных раундах карта стороны стоит на 1 Energy меньше (не ниже 0).',

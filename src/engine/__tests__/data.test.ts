@@ -32,7 +32,7 @@ describe('данные движка', () => {
 
   it('числа из спеки', () => {
     expect([HEROES.aurora.hp, HEROES.aurora.atk, HEROES.aurora.spd]).toEqual([32, 4, 5]);
-    expect([HEROES.mira.hp, HEROES.mira.atk, HEROES.mira.spd]).toEqual([24, 4, 9]);
+    expect([HEROES.mira.hp, HEROES.mira.atk, HEROES.mira.spd]).toEqual([24, 5, 9]);
     expect(HEROES.zefira.spd).toBe(7);
     expect([HEROES.aira.hp, HEROES.aira.atk, HEROES.aira.spd]).toEqual([20, 6, 6]);
     expect([HEROES.kira.hp, HEROES.kira.atk, HEROES.kira.spd]).toEqual([24, 7, 6]);
