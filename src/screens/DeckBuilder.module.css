@@ -1,0 +1,303 @@
+.screen {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-16);
+  min-height: 100dvh;
+  padding: var(--sp-16);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-8);
+}
+
+.name {
+  flex: 1;
+  min-width: 0;
+  min-height: var(--tap);
+  padding: 0 var(--sp-12);
+  border: var(--border) solid var(--muted);
+  border-radius: var(--r-8);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: var(--fs-20);
+}
+
+.confirm {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-8);
+  padding: var(--sp-12);
+  border: var(--border) solid var(--danger);
+  border-radius: var(--r-16);
+  background: var(--surface);
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-8);
+}
+
+.heading {
+  margin: 0;
+  font-size: var(--fs-16);
+  color: var(--muted);
+}
+
+.heroes {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.heroRow {
+  display: flex;
+  align-items: stretch;
+  gap: var(--sp-4);
+}
+
+.reserveStart {
+  margin-top: var(--sp-8);
+}
+
+.slot,
+.card,
+.item {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-8);
+  min-height: var(--tap);
+  padding: var(--sp-4) var(--sp-8);
+  border: 1px solid var(--muted);
+  border-radius: var(--r-8);
+  background: var(--surface);
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.slot {
+  flex: 1;
+  min-width: 0;
+}
+
+.tag {
+  flex: none;
+  width: calc(var(--tap) + var(--sp-12));
+  font-size: var(--fs-12);
+  color: var(--muted);
+}
+
+.tagStart {
+  color: var(--accent);
+}
+
+.slotText {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.slotName {
+  font-size: var(--fs-14);
+  font-weight: 600;
+}
+
+.slotMeta {
+  font-size: var(--fs-12);
+  color: var(--muted);
+}
+
+.arrow {
+  flex: none;
+  width: var(--tap);
+  min-height: var(--tap);
+  border: 1px solid var(--muted);
+  border-radius: var(--r-8);
+  background: var(--bg);
+  color: var(--text);
+  font-size: var(--fs-14);
+  cursor: pointer;
+}
+
+.arrow:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.cards {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--sp-4);
+}
+
+.card {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0;
+}
+
+.cardHead {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--sp-4);
+}
+
+.cost {
+  flex: none;
+  font-size: var(--fs-14);
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-4);
+}
+
+.stat {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-4);
+  padding: var(--sp-4) var(--sp-8);
+  border-radius: var(--r-8);
+  background: var(--surface);
+  font-size: var(--fs-12);
+}
+
+.dot {
+  width: var(--dot);
+  height: var(--dot);
+  border-radius: 50%;
+}
+
+.curve {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--sp-8);
+  height: calc(var(--art-lg) + var(--sp-24));
+}
+
+.bar {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: center;
+  gap: var(--sp-4);
+  height: 100%;
+  font-size: var(--fs-12);
+}
+
+.barFill {
+  width: 100%;
+  max-height: var(--art-lg);
+  border-radius: var(--r-8) var(--r-8) 0 0;
+  background: var(--accent);
+}
+
+.barCount,
+.barLabel {
+  color: var(--muted);
+}
+
+.errors {
+  margin: 0;
+  padding-left: var(--sp-16);
+  color: var(--danger);
+  font-size: var(--fs-14);
+}
+
+.footer {
+  display: flex;
+  flex-direction: column;
+  margin-top: auto;
+}
+
+.sheetRoot {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+
+.backdrop {
+  position: absolute;
+  inset: 0;
+  background: var(--scrim);
+}
+
+.sheet {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-8);
+  width: 100%;
+  max-width: 480px;
+  max-height: 80dvh;
+  margin: 0 auto;
+  padding: var(--sp-16) var(--sp-16) calc(var(--sp-16) + env(safe-area-inset-bottom));
+  border-radius: var(--r-16) var(--r-16) 0 0;
+  background: var(--surface);
+}
+
+.sheetHead {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.sheetList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  overflow-y: auto;
+}
+
+.item {
+  background: var(--bg);
+}
+
+.itemOff {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.copies {
+  flex: none;
+  font-size: var(--fs-14);
+  color: var(--accent);
+}
+
+.reason {
+  font-size: var(--fs-12);
+  color: var(--danger);
+}
+
+.chip {
+  min-height: var(--tap);
+  padding: 0 var(--sp-12);
+  border: 1px solid var(--muted);
+  border-radius: var(--r-16);
+  background: var(--bg);
+  color: var(--text);
+  font-size: var(--fs-14);
+  cursor: pointer;
+}
+
+.chipOn {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--bg);
+}
