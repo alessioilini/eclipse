@@ -75,6 +75,27 @@ describe('кодек ссылки-вызова', () => {
     }
   });
 
+  it('убирает управляющие и форматирующие символы, ZWJ эмодзи сохраняет', () => {
+    expect(truncateName('Ан\u202Eя\tОля\n\u200B')).toBe('АняОля');
+    expect(truncateName('\u202E\u2066\u0000')).toBe('');
+    expect(truncateName('👩\u200D🚀')).toBe('👩\u200D🚀');
+    // До обрезки: невидимые символы не съедают предел в 16 символов.
+    expect(truncateName('\u202E'.repeat(5) + 'a'.repeat(20))).toBe('a'.repeat(16));
+    const c = { ...sample(), name: 'Ева\u202E\tЛуна' };
+    expect(decodeChallenge(encodeChallenge(c))?.name).toBe('ЕваЛуна');
+  });
+
+  it('код с U+202E в имени, собранный вручную, не разбирается', () => {
+    const code = encodeChallenge({ ...sample(), name: 'abc' });
+    const rlo = new TextEncoder().encode('\u202E');
+    expect(rlo.length).toBe(3);
+    const bad = patch(code, (b) => { b.set(rlo, b.length - 4); });
+    expect(decodeChallenge(bad)).toBeNull();
+    // Тот же код с обычным трёхбайтовым символом разбирается: отказ именно из-за U+202E.
+    const ok = patch(code, (b) => { b.set(new TextEncoder().encode('Ж').subarray(0, 2), b.length - 4); b[b.length - 2] = 0x61; });
+    expect(decodeChallenge(ok)?.name).toBe('Жa');
+  });
+
   it('1000 случайных колод: кодирование и декодирование обратимы, код короткий и в алфавите base64url', () => {
     const rng = createRng(20261028);
     for (let i = 0; i < 1000; i++) {

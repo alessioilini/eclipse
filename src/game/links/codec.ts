@@ -43,12 +43,18 @@ export function crc8(bytes: Uint8Array): number {
   return crc;
 }
 
-/** Не больше 16 символов (кодовых точек) и 32 байт UTF-8; режет по целым символам. */
+/**
+ * Управляющие (Cc) и форматирующие (Cf) символы: табуляция, переводы строк, переключатели направления
+ * письма (U+202E) и прочие невидимые. Исключение — ZWJ (U+200D): без него распадаются эмодзи-последовательности.
+ */
+const CONTROL_OR_FORMAT = /(?!\u200D)[\p{Cc}\p{Cf}]/gu;
+
+/** Без управляющих и форматирующих символов, не больше 16 символов (кодовых точек) и 32 байт UTF-8; режет по целым символам. */
 export function truncateName(name: string): string {
   let out = '';
   let bytes = 0;
   let chars = 0;
-  for (const ch of Array.from(name)) {
+  for (const ch of Array.from(name.replace(CONTROL_OR_FORMAT, ''))) {
     const n = encoder.encode(ch).length;
     if (chars + 1 > NAME_MAX_CHARS || bytes + n > NAME_MAX_BYTES) break;
     out += ch;
