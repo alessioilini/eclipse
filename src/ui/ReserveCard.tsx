@@ -1,5 +1,5 @@
-import { HEROES } from '../engine/data/heroes';
-import type { Side, Slot } from '../engine/types';
+import { HEROES } from '../engine';
+import type { Side, Slot } from '../engine';
 import type { ViewHero } from '../game/playback/types';
 import { HeroArt } from './HeroArt';
 import styles from './ReserveCard.module.css';

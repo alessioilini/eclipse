@@ -1,4 +1,4 @@
-import type { Deck, HeroId, MatchState } from '../../engine/types';
+import type { Deck, HeroId, MatchState } from '../../engine';
 
 export type SaveV1 = {
   version: 1;

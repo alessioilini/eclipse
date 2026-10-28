@@ -1,17 +1,12 @@
 import {
   chooseCommands, createMatch, createRng, eventsFor, HERO_IDS, resolveRound, startRound, validateCommands, viewFor,
+  actionEnergy, cardEnergy, energyBudget, isCoverGuardian, livingReserve, ownSide,
 } from '../engine';
 import type {
   CardPlay, Deck, EngineEvent, HeroAction, MatchState, PublicState, SideCommands, Slot, SlotRef, ValidationIssue,
+  PlanningState,
 } from '../engine';
 import { ARCHETYPE_KEYS, buildPreset } from './decks/presets';
-import {
-  actionEnergy, cardEnergy, energyBudget, isCoverGuardian, livingReserve, ownSide,
-} from '../engine/validate';
-import type { PlanningState } from '../engine/validate';
-
-/** Матч длится не больше 10 раундов (как `MAX_ROUNDS` в `engine/sim.ts`, который движок не экспортирует). */
-export const MAX_ROUNDS = 10;
 
 const SLOTS: Slot[] = [0, 1, 2];
 

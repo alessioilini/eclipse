@@ -1,8 +1,7 @@
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { CARDS } from '../engine/data/cards';
-import { HEROES } from '../engine/data/heroes';
+import { CARDS, HEROES } from '../engine';
 import type { ViewHero } from '../game/playback/types';
 import { ru } from '../i18n/ru';
 import { ActionSheet } from './ActionSheet';

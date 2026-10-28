@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { formatLog } from '../../engine/log';
+import { formatLog } from '../../engine';
 import type { MatchSession } from '../../game/session';
 import { ru } from '../../i18n/ru';
 import { useStore } from '../../store';

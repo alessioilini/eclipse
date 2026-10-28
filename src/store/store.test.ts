@@ -1,10 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { createRng, viewFor } from '../engine';
+import { createRng, viewFor, formatLog } from '../engine';
 import type { HeroAction, Slot } from '../engine';
 import { randomDeck } from '../engine/sim';
 import { defaultSave, type SaveV1 } from '../game/save/defaults';
 import { SAVE_KEY } from '../game/save/storage';
-import { formatLog } from '../engine/log';
 import { viewFromPublic } from '../game/playback/viewReducer';
 import { newMatch, playerView } from '../game/session';
 import { createRunner, current, dismissSay } from '../game/tutorial/runner';

@@ -1,5 +1,5 @@
-import { CARDS } from '../engine/data/cards';
-import type { CardId } from '../engine/types';
+import { CARDS } from '../engine';
+import type { CardId } from '../engine';
 import { CardView, type CardBlock } from './CardView';
 import styles from './Hand.module.css';
 

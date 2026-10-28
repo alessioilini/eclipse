@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from 'react';
-import type { HeroId } from './engine/types';
+import type { HeroId } from './engine';
 
 export type Route =
   | { name: 'menu' }

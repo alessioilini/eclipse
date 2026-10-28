@@ -1,5 +1,5 @@
 import { useId } from 'react';
-import type { MoonPhase } from '../engine/types';
+import type { MoonPhase } from '../engine';
 import { ru } from '../i18n/ru';
 import styles from './MoonWidget.module.css';
 

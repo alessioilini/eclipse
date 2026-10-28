@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type SyntheticEvent } from 'react';
-import { MAX_ROUNDS } from '../../game/session';
+import { MAX_ROUNDS } from '../../engine';
 import { fmt, ru } from '../../i18n/ru';
 import { navigate } from '../../router';
 import { useStore } from '../../store';

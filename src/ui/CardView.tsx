@@ -1,5 +1,5 @@
-import { CARDS } from '../engine/data/cards';
-import type { CardId } from '../engine/types';
+import { CARDS } from '../engine';
+import type { CardId } from '../engine';
 import { ru, type BlockReason } from '../i18n/ru';
 import styles from './CardView.module.css';
 import { cx } from './cx';

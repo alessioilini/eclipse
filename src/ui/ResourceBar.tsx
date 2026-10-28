@@ -1,4 +1,4 @@
-import { MAX_LUNA } from '../engine/types';
+import { MAX_LUNA } from '../engine';
 import { ru } from '../i18n/ru';
 import styles from './ResourceBar.module.css';
 import { cx } from './cx';

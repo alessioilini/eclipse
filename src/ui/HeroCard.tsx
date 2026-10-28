@@ -1,6 +1,6 @@
 import { useEffect, useRef, type CSSProperties } from 'react';
-import { HEROES } from '../engine/data/heroes';
-import type { HeroAction, Side, Slot } from '../engine/types';
+import { HEROES } from '../engine';
+import type { HeroAction, Side, Slot } from '../engine';
 import type { ViewHero } from '../game/playback/types';
 import { fmt, ru } from '../i18n/ru';
 import { HeroArt } from './HeroArt';

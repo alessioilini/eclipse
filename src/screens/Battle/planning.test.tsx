@@ -1,8 +1,7 @@
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { CARD_IDS, HEROES } from '../../engine';
-import { ECLIPSE_ROUND } from '../../engine/damage';
+import { CARD_IDS, HEROES, ECLIPSE_ROUND } from '../../engine';
 import type { CardId, Deck, HeroAction, MatchState, SlotRef } from '../../engine';
 import { defaultSave } from '../../game/save/defaults';
 import { emptyDraft } from '../../game/session';

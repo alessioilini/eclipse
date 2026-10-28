@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef } from 'react';
-import { CARDS } from '../../engine';
-import { ECLIPSE_ROUND } from '../../engine/damage';
+import { CARDS, ECLIPSE_ROUND } from '../../engine';
 import type { OpponentView, Side, Slot } from '../../engine';
 import { SPEED_FACTOR } from '../../game/playback/timings';
 import { applyBeat, viewFromPublic } from '../../game/playback/viewReducer';

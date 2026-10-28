@@ -1,4 +1,4 @@
-import type { CardId, HeroAction, HeroId, MoonPhase, Side, Status } from '../../engine/types';
+import type { CardId, HeroAction, HeroId, MoonPhase, Side, Status } from '../../engine';
 
 export type ViewHero = { heroId: HeroId; hp: number; maxHp: number; shield: number; statuses: Status[]; alive: boolean; chip?: HeroAction };
 

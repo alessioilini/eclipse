@@ -1,4 +1,4 @@
-import { BUFF_IDS, type Status } from '../engine/types';
+import { BUFF_IDS, type Status } from '../engine';
 import { ru } from '../i18n/ru';
 import styles from './StatusIcon.module.css';
 import { cx } from './cx';

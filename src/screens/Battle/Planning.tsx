@@ -1,6 +1,5 @@
 import { useMemo } from 'react';
-import { CARDS, HEROES, legalActions, legalCardPlays } from '../../engine';
-import { ECLIPSE_ROUND } from '../../engine/damage';
+import { CARDS, HEROES, legalActions, legalCardPlays, ECLIPSE_ROUND } from '../../engine';
 import type { LegalCardPlay, OpponentView, PublicState, Slot, SlotRef } from '../../engine';
 import { viewFromPublic } from '../../game/playback/viewReducer';
 import type { ViewState } from '../../game/playback/viewReducer';

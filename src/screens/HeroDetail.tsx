@@ -1,7 +1,6 @@
 import { useState } from 'react';
-import { HEROES, HERO_IDS } from '../engine';
+import { HEROES, HERO_IDS, ULTIMATE_ENERGY_COST } from '../engine';
 import type { HeroId } from '../engine';
-import { ULTIMATE_ENERGY_COST } from '../engine/validate';
 import { fmt, ru } from '../i18n/ru';
 import { navigate } from '../router';
 import { useStore } from '../store';

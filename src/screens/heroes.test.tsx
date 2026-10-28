@@ -1,7 +1,6 @@
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { HEROES, HERO_IDS } from '../engine';
-import { ULTIMATE_ENERGY_COST } from '../engine/validate';
+import { HEROES, HERO_IDS, ULTIMATE_ENERGY_COST } from '../engine';
 import { buildPreset } from '../game/decks/presets';
 import { defaultSave } from '../game/save/defaults';
 import { fmt, ru } from '../i18n/ru';

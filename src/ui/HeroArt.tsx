@@ -1,6 +1,6 @@
 import type { CSSProperties } from 'react';
-import { HEROES } from '../engine/data/heroes';
-import type { HeroId } from '../engine/types';
+import { HEROES } from '../engine';
+import type { HeroId } from '../engine';
 import styles from './HeroArt.module.css';
 import { cx } from './cx';
 
