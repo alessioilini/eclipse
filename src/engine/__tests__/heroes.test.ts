@@ -334,7 +334,7 @@ describe('хуки героинь', () => {
     expect(ofType(ctx.events, 'draw').map(e => e.side)).toEqual(['B']);
     expect(ctx.s.sides.B.hand.length).toBe(hand + 1);
 
-    // Повтор обычной карты появится в Task 11 (replayCard); здесь только Draw 2.
+    // Повтор обычной карты — cards.test.ts; здесь только Draw 2.
     for (const last of [null, { cardId: 'rewriteFate' as const }]) {
       const c = ctxFor(['aira', 'fenna', 'nerisa', 'tali', 'zefira', 'liraya'], b, x => {
         x.sides.B.luna = 3;

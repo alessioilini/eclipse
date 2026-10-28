@@ -1,21 +1,20 @@
-import { MAX_LUNA, MOON_ORDER } from '../types';
 import type { Ability, Condition, HeroAction, Primitive, SlotRef, TargetType } from '../types';
 import { HEROES } from '../data/heroes';
 import { directDamage } from '../damage';
-import { cleanse, hasStatus, isAlive, removeStatus } from '../status';
+import { hasStatus, isAlive, removeStatus } from '../status';
 import {
   aliveActive, findLowestHpEnemy, heroAt, interceptSingleHit, other, resolveTarget, sameRef, setHeroAt,
 } from '../targeting';
 import { ULTIMATE_ENERGY_COST, ultimateLunaCost } from '../validate';
 import type { Ctx } from './context';
-import { emit, nextAction } from './context';
-import { fire } from './triggers';
+import { emit, ENTERED_KEY, nextAction } from './context';
 import { HOOKS } from './hooks';
 import { drawCard } from './deck';
-import { applyStatusTo, dealHit, grantShield, healHero, isBuff, takeInterception } from './effects';
+import {
+  applyStatusTo, basicAttack, changeMoon, cleanseFrom, dealHit, gainLuna, grantShield, healHero, isBuff,
+  skipAction, takeInterception,
+} from './effects';
 import type { AbilityInterception } from './effects';
-
-const ENTERED_KEY = 'enteredRound';
 
 export type AbilityKind = 'skill' | 'ultimate';
 
@@ -115,31 +114,14 @@ export function runPrimitive(
       }
       return;
     case 'cleanse':
-      for (const t of whoTargets(ctx, actor, p.who, type, target)) {
-        const { hero, removed } = cleanse(heroAt(s, t), p.count);
-        setHeroAt(s, t, hero);
-        for (const status of removed) emit(ctx, { type: 'statusRemoved', target: t, status });
-      }
+      for (const t of whoTargets(ctx, actor, p.who, type, target)) cleanseFrom(ctx, t, p.count);
       return;
-    case 'moon': {
-      const from = s.moon;
-      const to = p.set ?? MOON_ORDER[(MOON_ORDER.indexOf(from) + (p.shift ?? 0) + MOON_ORDER.length) % MOON_ORDER.length]!;
-      if (to === from) return;
-      s.moon = to;
-      s.roundFlags.moonShifted = true;
-      emit(ctx, { type: 'moonChanged', from, to, by: actor });
-      fire(ctx, 'onMoonShift', { source: actor });
+    case 'moon':
+      changeMoon(ctx, p, actor);
       return;
-    }
-    case 'luna': {
-      const sd = s.sides[actor.side];
-      const before = sd.luna;
-      sd.luna = Math.max(0, Math.min(MAX_LUNA, sd.luna + p.amount));
-      if (sd.luna !== before) {
-        emit(ctx, { type: 'lunaChanged', side: actor.side, luna: sd.luna, delta: sd.luna - before, reason: 'ability' });
-      }
+    case 'luna':
+      gainLuna(ctx, actor.side, p.amount, 'ability');
       return;
-    }
     case 'draw':
       for (let i = 0; i < p.amount; i++) drawCard(ctx, actor.side);
       return;
@@ -193,7 +175,7 @@ export function runAbility(ctx: Ctx, actor: SlotRef, ability: Ability, target: S
   if (ability.target === 'ally' || ability.target === 'enemy') {
     const r = target ? resolveTarget(s, target) : null;
     if (r && target && !sameRef(r, target)) emit(ctx, { type: 'retarget', from: target, to: r });
-    if (!r) { skip(ctx, actor, 'no target'); return; }
+    if (!r) { skipAction(ctx, actor, 'no target'); return; }
     tgt = r;
   }
 
@@ -227,23 +209,10 @@ export function runAbility(ctx: Ctx, actor: SlotRef, ability: Ability, target: S
 // ---------------------------------------------------------------------------------------------
 // Hero actions.
 
-function skip(ctx: Ctx, ref: SlotRef, reason: string): void {
-  emit(ctx, { type: 'heroAction', side: ref.side, slot: ref.slot, heroId: heroAt(ctx.s, ref).id, action: 'skipped', reason });
-}
-
-/** Basic Attack (spec §2.3) on a planned enemy slot, retargeted if that slot is dead (spec §2.6). */
-function basicAttack(ctx: Ctx, ref: SlotRef, planned: SlotRef | undefined): void {
-  const t = planned ? resolveTarget(ctx.s, planned) : null;
-  if (t && planned && !sameRef(t, planned)) emit(ctx, { type: 'retarget', from: planned, to: t });
-  if (!t) { skip(ctx, ref, 'no target'); return; }
-  emit(ctx, { type: 'heroAction', side: ref.side, slot: ref.slot, heroId: heroAt(ctx.s, ref).id, action: 'basic', target: t });
-  dealHit(ctx, ref, t, 1, 0, { single: true });
-}
-
 function doSwap(ctx: Ctx, ref: SlotRef, reserveIndex: 0 | 1 | 2): void {
   const sd = ctx.s.sides[ref.side];
-  if (!isAlive(sd.reserve[reserveIndex])) { skip(ctx, ref, 'reserve dead'); return; }
-  if (sd.flags.swapBanned) { skip(ctx, ref, 'swap banned'); return; }
+  if (!isAlive(sd.reserve[reserveIndex])) { skipAction(ctx, ref, 'reserve dead'); return; }
+  if (sd.flags.swapBanned) { skipAction(ctx, ref, 'swap banned'); return; }
   const out = removeStatus(sd.active[ref.slot], 'taunt');
   const incoming = sd.reserve[reserveIndex];
   emit(ctx, { type: 'heroAction', side: ref.side, slot: ref.slot, heroId: out.id, action: 'swap' });
@@ -257,8 +226,8 @@ function doSwap(ctx: Ctx, ref: SlotRef, reserveIndex: 0 | 1 | 2): void {
 export function runHeroAction(ctx: Ctx, ref: SlotRef, action: HeroAction): void {
   nextAction(ctx);
   const hero = heroAt(ctx.s, ref);
-  if (!isAlive(hero)) { skip(ctx, ref, 'dead'); return; }
-  if (hero.once[ENTERED_KEY] === ctx.s.round) { skip(ctx, ref, 'entered'); return; }
+  if (!isAlive(hero)) { skipAction(ctx, ref, 'dead'); return; }
+  if (hero.once[ENTERED_KEY] === ctx.s.round) { skipAction(ctx, ref, 'entered'); return; }
   const def = HEROES[hero.id];
   switch (action.type) {
     case 'none':

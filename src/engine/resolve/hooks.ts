@@ -66,7 +66,7 @@ function singleHit(p: HookPayload): HitOpts {
 function directFromHook(ctx: Ctx, source: SlotRef, target: SlotRef, amount: number, reason: string): void {
   const dmg = directHit(ctx, source, target, amount);
   emit(ctx, { type: 'directDamage', source, target, dmg, hp: heroAt(ctx.s, target).hp, reason });
-  checkDeath(ctx, target);
+  checkDeath(ctx, target, source);
 }
 
 /**
@@ -104,7 +104,7 @@ function reviveLastFallen(ctx: Ctx, self: SlotRef): boolean {
   return false;
 }
 
-/** Named hero/card logic (spec §6.2, §4.1). Hero hooks: Tasks 9–10; card hooks: Task 11. */
+/** Named hero logic (spec §6.2, §4.1). Card hooks (`card.*`) live in cardHooks.ts. */
 export const HOOKS: Record<string, HookFn> = {
   /** Skill «Ларец бедствий»: Burn on the living enemy with the highest effective ATK (ties: lowest slot). */
   'aira.burnMaxAtk': (ctx, self) => {
@@ -170,7 +170,7 @@ export const HOOKS: Record<string, HookFn> = {
       if (!burn) continue;
       const dmg = directHit(ctx, self, t, burnTickAmount(ctx, t, burn.stacks));
       emit(ctx, { type: 'detonate', source: self, target: t, stacks: burn.stacks, dmg, hp: heroAt(ctx.s, t).hp });
-      checkDeath(ctx, t);
+      checkDeath(ctx, t, self);
     }
   },
 
@@ -292,7 +292,7 @@ export const HOOKS: Record<string, HookFn> = {
       for (let i = 0; i < MIRA_REPEAT_DRAW; i++) drawCard(ctx, self.side);
       return;
     }
-    replayCard(ctx, self.side, last.cardId, last.target);
+    replayCard(ctx, self.side, last.cardId, last.target, last.secondary);
   },
 
   /** Passive «Импульс» (onCardPlayed, payload.side): Selena's next hit this round +2. */

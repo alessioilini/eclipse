@@ -69,9 +69,10 @@ export type CardDef = { id: CardId; name: string; rarity: Rarity; cost: number; 
 
 export type HeroState = { id: HeroId; hp: number; maxHp: number; shield: number; shieldExpiresAtRound: number | null;
   statuses: Status[]; ultimateUsed: boolean; bloodMoon: boolean; once: Partial<Record<string, number>> };
-export type ArmedReaction = { cardId: CardId; target?: SlotRef; secondary?: SlotRef };
+/** An armed reaction waiting for its trigger; `heroId` is the heroine a targeted reaction protects. */
+export type ArmedReaction = { cardId: CardId; target?: SlotRef; heroId?: HeroId };
 export type SideState = { energy: number; maxEnergyBonus: number; luna: number;
-  hand: CardId[]; deck: CardId[]; discard: CardId[]; lastCardPlayed: { cardId: CardId; target?: SlotRef } | null;
+  hand: CardId[]; deck: CardId[]; discard: CardId[]; lastCardPlayed: { cardId: CardId; target?: SlotRef; secondary?: SlotRef | { reserveIndex: Slot } } | null;
   bloodMoonUsed: boolean; damageDealt: number; cardsPlayedThisRound: number;
   active: [HeroState, HeroState, HeroState]; reserve: [HeroState, HeroState, HeroState];
   armedReactions: ArmedReaction[];

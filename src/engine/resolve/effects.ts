@@ -1,19 +1,27 @@
-import { BUFF_IDS } from '../types';
-import type { Duration, Element, HeroState, MoonPhase, Side, Slot, SlotRef, StatusId } from '../types';
+import { BUFF_IDS, MAX_LUNA, MOON_ORDER } from '../types';
+import type { CardId, Duration, Element, HeroState, MoonPhase, Side, Slot, SlotRef, StatusId } from '../types';
 import { HEROES } from '../data/heroes';
 import { elementMultiplier } from '../data/elements';
 import {
   applyHeal, applyShield, applyToHero, computeDamage, healAmount, roundHalfUp, shieldAmount,
 } from '../damage';
-import { applyStatus, effectiveAtk, hasStatus, removeStatus, statusValue } from '../status';
-import { heroAt, interceptSingleHit, sameRef, setHeroAt } from '../targeting';
+import { applyStatus, cleanse, effectiveAtk, hasStatus, removeStatus, statusValue } from '../status';
+import { heroAt, interceptSingleHit, resolveTarget, sameRef, setHeroAt } from '../targeting';
 import type { Ctx } from './context';
 import { emit } from './context';
 import { checkDeath } from './endRound';
 import { fire } from './triggers';
 
-// Effects shared by primitives (actions.ts) and hooks (hooks.ts). `source` is the heroine causing
-// the effect. Kept apart from actions.ts so that hooks never import actions.ts (no cycle).
+// Effects shared by primitives (actions.ts), hooks (hooks.ts) and cards (cards.ts, cardHooks.ts).
+// `source` is the heroine causing the effect, or a card. Kept apart from actions.ts so that hooks
+// and cards never import actions.ts (no cycle).
+
+/** A tactic card as the source of an effect (it has no slot). */
+export type CardSource = { side: Side; card: CardId };
+/** Who causes an effect: a heroine in an active slot, or a card played by a side. */
+export type Source = SlotRef | CardSource;
+
+export const isSlotSource = (src: Source): src is SlotRef => 'slot' in src;
 
 const MARK_BONUS = 3;
 
@@ -119,7 +127,7 @@ export function dealHit(ctx: Ctx, attacker: SlotRef, target: SlotRef, mod: numbe
   s.sides[attacker.side].damageDealt += hpLoss;
   mirrorShield(ctx, attacker, tgt, absorbed);
   fire(ctx, 'afterDealDamage', { attacker, target: tgt, amount: { v: hpLoss }, killed: hit.hp === 0 });
-  checkDeath(ctx, tgt);
+  checkDeath(ctx, tgt, attacker);
   reflect(ctx, attacker, tgt);
 }
 
@@ -161,14 +169,14 @@ function reflect(ctx: Ctx, attacker: SlotRef, target: SlotRef): void {
   const dmg = directHit(ctx, holder, attacker, REFLECT_DAMAGE);
   emit(ctx, { type: 'reflect', from: holder, to: attacker, dmg, charges, hp: heroAt(s, attacker).hp });
   if (charges <= 0) emit(ctx, { type: 'statusRemoved', target: holder, status: 'reflect' });
-  checkDeath(ctx, attacker);
+  checkDeath(ctx, attacker, holder);
 }
 
 /**
- * Direct HP loss caused by a heroine (spec §3.1: no element, shield or reductions), counted in
- * her side's `damageDealt`. Returns the HP lost. The caller emits its own event and runs checkDeath.
+ * Direct HP loss caused by a heroine or a card (spec §3.1: no element, shield or reductions), counted
+ * in the source side's `damageDealt`. Returns the HP lost. The caller emits its own event and runs checkDeath.
  */
-export function directHit(ctx: Ctx, source: SlotRef, target: SlotRef, amount: number): number {
+export function directHit(ctx: Ctx, source: Source, target: SlotRef, amount: number): number {
   const s = ctx.s;
   const hero = heroAt(s, target);
   const hpLoss = Math.max(0, Math.min(amount, hero.hp));
@@ -177,14 +185,20 @@ export function directHit(ctx: Ctx, source: SlotRef, target: SlotRef, amount: nu
   return hpLoss;
 }
 
-/** Applies a status, emits `statusApplied`; a buff fires `onEnemyBuffed` (Justina checks the side). */
+/**
+ * Applies a status, emits `statusApplied`; a buff fires `onEnemyBuffed` (Justina checks the side).
+ * Only a heroine is stored as the status `source` (redirectTo, mirrorShield need a slot).
+ */
 export function applyStatusTo(
-  ctx: Ctx, source: SlotRef, target: SlotRef, id: StatusId, value: number, duration: Duration,
+  ctx: Ctx, source: Source, target: SlotRef, id: StatusId, value: number, duration: Duration,
 ): void {
   const s = ctx.s;
-  setHeroAt(s, target, applyStatus(heroAt(s, target), { id, value, duration, round: s.round, source }));
+  const slotSource = isSlotSource(source) ? source : undefined;
+  setHeroAt(s, target, applyStatus(heroAt(s, target), {
+    id, value, duration, round: s.round, ...(slotSource ? { source: slotSource } : {}),
+  }));
   emit(ctx, { type: 'statusApplied', source, target, status: id, value });
-  if (isBuff(id, value)) fire(ctx, 'onEnemyBuffed', { source, target });
+  if (isBuff(id, value)) fire(ctx, 'onEnemyBuffed', slotSource ? { source: slotSource, target } : { target });
 }
 
 /** Removes every instance of a status (if present) and emits `statusRemoved`. */
@@ -196,10 +210,10 @@ export function removeStatusFrom(ctx: Ctx, target: SlotRef, id: StatusId): void 
 }
 
 /** Spec §3.3. `onHeal` fires first with a mutable base amount (Fenna's +2), then curse/eclipse/moon apply. */
-export function healHero(ctx: Ctx, source: SlotRef, target: SlotRef, base: number): void {
+export function healHero(ctx: Ctx, source: Source, target: SlotRef, base: number): void {
   const s = ctx.s;
   const box = { v: base };
-  fire(ctx, 'onHeal', { source, target, amount: box });
+  fire(ctx, 'onHeal', isSlotSource(source) ? { source, target, amount: box } : { target, amount: box });
   const hero = heroAt(s, target);
   const amount = healAmount(box.v, hero, s.moon, s.round);
   const { hero: next, healed } = applyHeal(hero, amount);
@@ -241,4 +255,49 @@ export function burnTickAmount(ctx: Ctx, ref: SlotRef, stacks: number): number {
   const amount = { v: BURN_PER_STACK * stacks };
   fire(ctx, 'burnTick', { target: ref, amount });
   return amount.v;
+}
+
+/** Cleanse `count` debuffs (spec §3.4 order) from `target`; `statusRemoved` per removed status. */
+export function cleanseFrom(ctx: Ctx, target: SlotRef, count: number): void {
+  const { hero, removed } = cleanse(heroAt(ctx.s, target), count);
+  setHeroAt(ctx.s, target, hero);
+  for (const status of removed) emit(ctx, { type: 'statusRemoved', target, status });
+}
+
+/**
+ * Moon shift by ±1 phase or to a set phase (spec §2.4). A change sets `roundFlags.moonShifted`,
+ * emits `moonChanged` and fires `onMoonShift`; the same phase is not a shift (ruling R20).
+ */
+export function changeMoon(ctx: Ctx, change: { shift?: -1 | 1; set?: MoonPhase }, by: Source): void {
+  const s = ctx.s;
+  const from = s.moon;
+  const to = change.set
+    ?? MOON_ORDER[(MOON_ORDER.indexOf(from) + (change.shift ?? 0) + MOON_ORDER.length) % MOON_ORDER.length]!;
+  if (to === from) return;
+  s.moon = to;
+  s.roundFlags.moonShifted = true;
+  emit(ctx, { type: 'moonChanged', from, to, by });
+  fire(ctx, 'onMoonShift', isSlotSource(by) ? { source: by } : { side: by.side });
+}
+
+/** Luna ± `amount` for `side`, clamped to 0..5; `lunaChanged` when it changed. */
+export function gainLuna(ctx: Ctx, side: Side, amount: number, reason: string): void {
+  const sd = ctx.s.sides[side];
+  const before = sd.luna;
+  sd.luna = Math.max(0, Math.min(MAX_LUNA, sd.luna + amount));
+  if (sd.luna !== before) emit(ctx, { type: 'lunaChanged', side, luna: sd.luna, delta: sd.luna - before, reason });
+}
+
+/** `heroAction` with `action: 'skipped'` for the heroine in `ref`. */
+export function skipAction(ctx: Ctx, ref: SlotRef, reason: string): void {
+  emit(ctx, { type: 'heroAction', side: ref.side, slot: ref.slot, heroId: heroAt(ctx.s, ref).id, action: 'skipped', reason });
+}
+
+/** Basic Attack (spec §2.3) on a planned enemy slot, retargeted if that slot is dead (spec §2.6). */
+export function basicAttack(ctx: Ctx, ref: SlotRef, planned: SlotRef | undefined): void {
+  const t = planned ? resolveTarget(ctx.s, planned) : null;
+  if (t && planned && !sameRef(t, planned)) emit(ctx, { type: 'retarget', from: planned, to: t });
+  if (!t) { skipAction(ctx, ref, 'no target'); return; }
+  emit(ctx, { type: 'heroAction', side: ref.side, slot: ref.slot, heroId: heroAt(ctx.s, ref).id, action: 'basic', target: t });
+  dealHit(ctx, ref, t, 1, 0, { single: true });
 }

@@ -6,6 +6,7 @@ import { roundStart } from './roundStart';
 import { actionOrder } from './order';
 import { runHeroAction } from './actions';
 import { endRound } from './endRound';
+import { armReactions, playStandard, playSwift, revealCards } from './cards';
 
 type Result = { state: MatchState; events: GameEvent[] };
 
@@ -44,18 +45,19 @@ export function resolveRound(state: MatchState, cmds: Record<Side, SideCommands>
   const ctx = makeCtx(state, 'reveal');
   ctx.s.awaitingCommands = false;
   emit(ctx, { type: 'reveal', commands: structuredClone(cmds) });
+  revealCards(ctx, cmds);
 
   ctx.phase = 'swift';
-  // TODO(Task 11): playSwift(ctx, cmds)
+  playSwift(ctx);
 
   ctx.phase = 'reactions';
-  // TODO(Task 11): armReactions(ctx, cmds)
+  armReactions(ctx);
 
   ctx.phase = 'heroes';
   for (const { ref, action } of actionOrder(ctx, cmds)) runHeroAction(ctx, ref, action);
 
   ctx.phase = 'standard';
-  // TODO(Task 11): playStandard(ctx, cmds)
+  playStandard(ctx);
 
   endRound(ctx);
   return closeCtx(ctx);

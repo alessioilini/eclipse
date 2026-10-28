@@ -1,4 +1,3 @@
-import { MAX_LUNA } from '../types';
 import type { HeroState, Side, Slot, SlotRef } from '../types';
 import { getWinner } from '../match';
 import { cleanse, expireStatuses, isAlive } from '../status';
@@ -6,7 +5,8 @@ import { directDamage } from '../damage';
 import { heroAt, setHeroAt } from '../targeting';
 import type { Ctx } from './context';
 import { emit } from './context';
-import { burnTickAmount } from './effects';
+import { burnTickAmount, gainLuna } from './effects';
+import { triggerReactions } from './reactions';
 
 const SIDES: Side[] = ['A', 'B'];
 const SLOTS: Slot[] = [0, 1, 2];
@@ -14,22 +14,23 @@ const SLOTS: Slot[] = [0, 1, 2];
 export const DEATH_KEY = 'deathRecorded';
 
 /**
- * Records a death the moment an active heroine's HP reaches 0 (idempotent):
- * `death` event, entry in `deaths`, Luna +1 (cap 5) to the heroine's own side.
+ * Records a death the moment an active heroine's HP reaches 0 (idempotent): first the armed
+ * `onDeath` reactions of her side run (ruling R16) — «Переписать судьбу» cancels the death —
+ * then `death` event, entry in `deaths`, Luna +1 (cap 5) to her own side, and finally the
+ * reactions' follow-ups («Последнее слово» hits `killer`). `killer` is the heroine whose hit or
+ * direct damage brought the HP to 0 (none for Burn ticks and cards).
  */
-export function checkDeath(ctx: Ctx, ref: SlotRef): void {
+export function checkDeath(ctx: Ctx, ref: SlotRef, killer?: SlotRef): void {
   const hero = heroAt(ctx.s, ref);
   if (hero.hp > 0 || hero.once[DEATH_KEY] === 1) return;
-  // TODO(Task 11): triggerReactions('onDeath') runs here, before the death is recorded.
-  hero.once[DEATH_KEY] = 1;
-  emit(ctx, { type: 'death', side: ref.side, slot: ref.slot, heroId: hero.id });
-  ctx.s.deaths.push({ side: ref.side, heroId: hero.id, round: ctx.s.round });
-  const sd = ctx.s.sides[ref.side];
-  const before = sd.luna;
-  sd.luna = Math.min(MAX_LUNA, sd.luna + 1);
-  if (sd.luna !== before) {
-    emit(ctx, { type: 'lunaChanged', side: ref.side, luna: sd.luna, delta: sd.luna - before, reason: 'death' });
-  }
+  const reactions = triggerReactions(ctx, 'onDeath', { target: ref, ...(killer ? { attacker: killer } : {}) });
+  if (reactions.survived) return;
+  const dead = heroAt(ctx.s, ref);
+  dead.once[DEATH_KEY] = 1;
+  emit(ctx, { type: 'death', side: ref.side, slot: ref.slot, heroId: dead.id });
+  ctx.s.deaths.push({ side: ref.side, heroId: dead.id, round: ctx.s.round });
+  gainLuna(ctx, ref.side, 1, 'death');
+  reactions.after();
 }
 
 /**

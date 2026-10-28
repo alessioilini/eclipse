@@ -105,7 +105,9 @@ export function validateCommands(state: MatchState, side: Side, cmds: SideComman
   });
 
   let budget = energyBudget(state, side);
-  if (cmds.card) {
+  if (Array.isArray(cmds.card)) {
+    errors.push('one card per round'); // spec §2.5: at most one card per side per round
+  } else if (cmds.card) {
     const cardId = s.hand[cmds.card.handIndex];
     if (cardId === undefined) {
       errors.push('card not in hand');
