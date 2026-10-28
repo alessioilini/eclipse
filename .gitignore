@@ -5,3 +5,5 @@ dist
 test-results/
 playwright-report/
 lighthouse.json
+art/out/
+.tmp-dist/
