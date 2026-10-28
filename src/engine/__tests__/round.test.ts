@@ -271,14 +271,14 @@ describe('resolveRound: конец раунда', () => {
     expect(state.result).toBeNull();
   });
 
-  it('Blood Moon: последняя из шести → +2 SPD, maxEnergyBonus 1, событие bloodMoon, повторно не срабатывает', () => {
+  it('Blood Moon: последняя против шести (разрыв 5) → +2 SPD, maxEnergyBonus 1, одно событие bloodMoon, повторно не срабатывает', () => {
     const s = killAllBut(makeMatch(), 'B', 0);
     s.sides.B.active[0].statuses = [{ id: 'curse', value: 0, stacks: 1, expiresAtRound: null }];
     const bCmd = () => cmd(basic(0, ally(0)), none(), none());
     const r1 = playRound(s, aDefault(), bCmd());
     const aurora1 = r1.state.sides.B.active[0];
     expect(ofType(r1.events, 'bloodMoon')).toEqual([
-      { type: 'bloodMoon', round: 1, phase: 'endRound', side: 'B', slot: 0, heroId: 'aurora', cleansed: ['curse'] },
+      { type: 'bloodMoon', round: 1, phase: 'endRound', side: 'B', heroes: [{ heroId: 'aurora', slot: 0, cleansed: ['curse'] }] },
     ]);
     expect(aurora1.bloodMoon).toBe(true);
     expect(aurora1.statuses).toEqual([]);
@@ -295,6 +295,73 @@ describe('resolveRound: конец раунда', () => {
     expect(r2.state.sides.B.maxEnergyBonus).toBe(1);
     expect(damageBy(r2.events, enemy(0)).map(e => e.dmg)).toEqual([5]); // 4 × 1.2 = 4.8 → 5
     expect(r2.state.sides.B.active[0].hp).toBe(32 - 14 - 14); // Айра 6 + Фенна 4 + Нериса 4 за раунд
+  });
+
+  it('Blood Moon: разрыв ровно 3 (три живые против шести) → охватывает всех живых стороны, по одному дебаффу с каждой', () => {
+    const s = structuredClone(makeMatch());
+    s.sides.B.reserve.forEach(h => { h.hp = 0; });
+    s.sides.B.active[0].statuses = [{ id: 'curse', value: 0, stacks: 1, expiresAtRound: null }];
+    s.sides.B.active[1].statuses = [
+      { id: 'burn', value: 0, stacks: 1, expiresAtRound: null },
+      { id: 'mark', value: 0, stacks: 1, expiresAtRound: null },
+    ];
+    const { state, events } = playRound(s, aDefault(), bDefault());
+    expect(ofType(events, 'bloodMoon')).toEqual([{
+      type: 'bloodMoon', round: 1, phase: 'endRound', side: 'B',
+      heroes: [
+        { heroId: 'aurora', slot: 0, cleansed: ['curse'] },
+        { heroId: 'justina', slot: 1, cleansed: ['burn'] },
+        { heroId: 'nokta', slot: 2 },
+      ],
+    }]);
+    expect(state.sides.B.active.map(h => h.bloodMoon)).toEqual([true, true, true]);
+    expect(state.sides.B.active.map(effectiveSpd)).toEqual([5 + 2, 8 + 2, 7 + 2]);
+    expect(state.sides.B.active[1].statuses.map(st => st.id)).toEqual(['mark']);
+    expect(state.sides.B.maxEnergyBonus).toBe(1);
+    expect(state.sides.B.bloodMoonUsed).toBe(true);
+    expect(state.sides.A.bloodMoonUsed).toBe(false);
+    expect(state.result).toBeNull();
+  });
+
+  it('Blood Moon не срабатывает при разрыве в две героини (три против пяти)', () => {
+    const s = structuredClone(makeMatch());
+    s.sides.B.reserve.forEach(h => { h.hp = 0; });
+    s.sides.A.reserve[0].hp = 0;
+    const { state, events } = playRound(s, aDefault(), bDefault());
+    expect(ofType(events, 'bloodMoon')).toEqual([]);
+    expect(state.sides.B.bloodMoonUsed).toBe(false);
+    expect(state.sides.B.active.every(h => !h.bloodMoon)).toBe(true);
+  });
+
+  it('Blood Moon не срабатывает у последней героини против двух (правило «последняя из шести» отменено, §12)', () => {
+    const s = killAllBut(makeMatch(), 'A', 0);
+    s.sides.B.reserve.forEach(h => { h.hp = 0; });
+    s.sides.B.active[2].hp = 0;
+    const { state, events } = playRound(s, cmd(basic(0, enemy(0)), none(), none()), cmd(basic(0, ally(0)), basic(1, ally(0)), none()));
+    expect(state.result).toBeNull();
+    expect(ofType(events, 'bloodMoon')).toEqual([]);
+    expect(state.sides.A.bloodMoonUsed).toBe(false);
+    expect(state.sides.A.active[0].bloodMoon).toBe(false);
+  });
+
+  it('Blood Moon у героини в резерве указывает reserveIndex (R13), автозамена идёт после неё', () => {
+    // У B жива только Аврора (1 HP) в слоте 0 и Кира в резерве; Айра добивает Аврору, в End Round у B одна живая — в резерве.
+    const s = structuredClone(makeMatch());
+    s.sides.B.active[0].hp = 1;
+    s.sides.B.active[1].hp = 0;
+    s.sides.B.active[2].hp = 0;
+    s.sides.B.reserve[1].hp = 0;
+    s.sides.B.reserve[2].hp = 0;
+    const { state, events } = playRound(s, aDefault(), cmd(basic(0, ally(0)), none(), none()));
+    expect(ofType(events, 'death').map(e => e.heroId)).toEqual(['aurora']);
+    expect(ofType(events, 'bloodMoon')).toEqual([
+      { type: 'bloodMoon', round: 1, phase: 'endRound', side: 'B', heroes: [{ heroId: 'kira', slot: null, reserveIndex: 0 }] },
+    ]);
+    expect(ofType(events, 'autoFill')).toEqual([{ type: 'autoFill', round: 1, phase: 'endRound', side: 'B', slot: 0, reserveIndex: 0, in: 'kira' }]);
+    expect(events.findIndex(e => e.type === 'bloodMoon')).toBeLessThan(events.findIndex(e => e.type === 'autoFill'));
+    expect(state.sides.B.active[0]).toMatchObject({ id: 'kira', bloodMoon: true });
+    expect(effectiveSpd(state.sides.B.active[0])).toBe(6 + 2);
+    expect(state.result).toBeNull();
   });
 
   it('раунд 9: урон ×1.25', () => {

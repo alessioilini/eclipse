@@ -4,7 +4,7 @@ import type {
 
 // Typed engine events (engine spec §6.3): one member per event type, with exactly the fields the
 // resolver emits. `round` and `phase` are stamped by `emit` (resolve/context.ts) on every event.
-// A type with two shapes (fizzle, shield, revive, bloodMoon) marks the other shape's fields `?: never`,
+// A type with two shapes (fizzle, shield, revive, BloodMoonHero) marks the other shape's fields `?: never`,
 // so `ev.slot` / `ev.target` can be read and tested on either shape.
 
 /** Resolution phase in which an event was emitted. */
@@ -107,9 +107,11 @@ export type DeathEvent = { type: 'death'; side: Side; slot: Slot; heroId: HeroId
 /** The heroine comes back where she lies: an active `slot` or a `reserveIndex`. */
 export type ReviveEvent = { type: 'revive'; side: Side; heroId: HeroId; hp: number }
   & ({ slot: Slot; reserveIndex?: never } | { slot?: never; reserveIndex: Slot });
-/** `slot: null` + `reserveIndex` when the last heroine stands in reserve; `cleansed` only if a debuff was removed. */
-export type BloodMoonEvent = { type: 'bloodMoon'; side: Side; heroId: HeroId; cleansed?: StatusId[] }
+/** One heroine under Blood Moon: `slot: null` + `reserveIndex` when she stands in reserve; `cleansed` only if a debuff was removed. */
+export type BloodMoonHero = { heroId: HeroId; cleansed?: StatusId[] }
   & ({ slot: Slot; reserveIndex?: never } | { slot: null; reserveIndex: Slot });
+/** Spec §2.7: Blood Moon rises over a side; `heroes` are her living heroines, actives first, then reserve. */
+export type BloodMoonEvent = { type: 'bloodMoon'; side: Side; heroes: BloodMoonHero[] };
 
 /** Every event payload, before `round` and `phase` are stamped. */
 export type EventPayload =

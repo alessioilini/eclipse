@@ -1,4 +1,5 @@
-import type { HeroState, Side, Slot, SlotRef } from '../types';
+import type { HeroState, Side, SideState, Slot, SlotRef } from '../types';
+import type { BloodMoonHero } from '../events';
 import { getWinner } from '../match';
 import { cleanse, expireStatuses, isAlive } from '../status';
 import { directDamage } from '../damage';
@@ -77,25 +78,36 @@ function expireActive(ctx: Ctx, ref: SlotRef): void {
   setHeroAt(ctx.s, ref, expireStatuses(hero, round));
 }
 
+/** Spec §2.7 (balance pass 2, §12): Blood Moon rises when the opponent has this many more living heroines. */
+export const BLOOD_MOON_DEFICIT = 3;
+
+const livingOf = (sd: SideState): HeroState[] => [...sd.active, ...sd.reserve].filter(isAlive);
+
+/**
+ * Blood Moon for `side`, once per match: when the opponent has at least `BLOOD_MOON_DEFICIT` more living
+ * heroines, every living heroine of the side gets the flag (+2 SPD, ×1.2 damage) and loses one debuff,
+ * and the side's max Energy grows by 1. One event lists them, actives first (slot), then reserve.
+ */
 function bloodMoon(ctx: Ctx, side: Side): void {
   const sd = ctx.s.sides[side];
   if (sd.bloodMoonUsed) return;
-  const living = [...sd.active, ...sd.reserve].filter(isAlive);
-  if (living.length !== 1) return;
-  const activeSlot = sd.active.findIndex(isAlive);
-  const reserveIndex = sd.reserve.findIndex(isAlive);
-  const hero = living[0]!;
-  const { hero: cleansed, removed } = cleanse(hero, 1);
-  const next: HeroState = { ...cleansed, bloodMoon: true };
-  if (activeSlot >= 0) sd.active[activeSlot] = next;
-  else sd.reserve[reserveIndex] = next;
+  const living = livingOf(sd);
+  if (living.length === 0 || livingOf(ctx.s.sides[other(side)]).length - living.length < BLOOD_MOON_DEFICIT) return;
+  const heroes: BloodMoonHero[] = [];
+  const rise = (hero: HeroState, where: { slot: Slot } | { reserveIndex: Slot }): HeroState => {
+    const { hero: cleansed, removed } = cleanse(hero, 1);
+    heroes.push({
+      heroId: hero.id,
+      ...('slot' in where ? { slot: where.slot } : { slot: null, reserveIndex: where.reserveIndex }),
+      ...(removed.length > 0 ? { cleansed: removed } : {}),
+    });
+    return { ...cleansed, bloodMoon: true };
+  };
+  for (const slot of SLOTS) if (isAlive(sd.active[slot])) sd.active[slot] = rise(sd.active[slot], { slot });
+  for (const i of SLOTS) if (isAlive(sd.reserve[i])) sd.reserve[i] = rise(sd.reserve[i], { reserveIndex: i });
   sd.maxEnergyBonus += 1;
   sd.bloodMoonUsed = true;
-  emit(ctx, {
-    type: 'bloodMoon', side, heroId: hero.id,
-    ...(activeSlot >= 0 ? { slot: activeSlot as Slot } : { slot: null, reserveIndex: reserveIndex as Slot }),
-    ...(removed.length > 0 ? { cleansed: removed } : {}),
-  });
+  emit(ctx, { type: 'bloodMoon', side, heroes });
 }
 
 function autoFill(ctx: Ctx, side: Side): void {
