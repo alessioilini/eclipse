@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { isFinished, opponentDeckFor } from '../game/session';
 import { fmt, ru } from '../i18n/ru';
 import { navigate } from '../router';
@@ -11,9 +12,26 @@ type Props = {
   now?: () => number;
 };
 
+/** Задержка подгрузки чанка боя там, где нет `requestIdleCallback`. */
+const WARM_FALLBACK_MS = 2000;
+
+/** Подгружает чанк экрана боя в простое браузера; без `requestIdleCallback` (Safari) — по таймеру. */
+function warmBattleChunk(): () => void {
+  const load = () => { void import('./Battle/Battle'); };
+  if (typeof window.requestIdleCallback === 'function') {
+    const id = window.requestIdleCallback(load);
+    return () => window.cancelIdleCallback?.(id);
+  }
+  const id = window.setTimeout(load, WARM_FALLBACK_MS);
+  return () => window.clearTimeout(id);
+}
+
 /** Главное меню (спека §2): логотип с Луной, «Играть», входы в разделы, счётчик побед. */
 export function Menu({ now = Date.now }: Props) {
   const wins = useStore((s) => s.stats.wins);
+
+  // Пока игрок в меню, в простое подгружаем чанк боя: «Играть» откроет его без ожидания сети.
+  useEffect(() => warmBattleChunk(), []);
   const tutorialStep = useStore((s) => s.tutorialStep);
 
   const play = () => {

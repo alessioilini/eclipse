@@ -21,6 +21,7 @@ beforeEach(() => {
 describe('экран боя: «Назад» и сдача', () => {
   it('«Назад» спрашивает подтверждение; «Да» сдаёт матч и ведёт на результат с поражением', async () => {
     render(<App />);
+    await screen.findByTestId('battle'); // экраны боя грузятся лениво
     fireEvent.click(screen.getByRole('button', { name: ru.battle.back }));
     expect(screen.getByText(ru.battle.surrenderConfirm)).toBeInTheDocument();
     expect(window.location.hash).toBe('#/battle');
@@ -32,8 +33,9 @@ describe('экран боя: «Назад» и сдача', () => {
     expect(screen.getByTestId('result-reason')).toHaveTextContent(ru.result.surrender);
   });
 
-  it('«Нет» закрывает подтверждение, матч продолжается', () => {
+  it('«Нет» закрывает подтверждение, матч продолжается', async () => {
     render(<App />);
+    await screen.findByTestId('battle'); // экраны боя грузятся лениво
     const session = st().session;
     fireEvent.click(screen.getByRole('button', { name: ru.battle.back }));
     fireEvent.click(screen.getByRole('button', { name: ru.battle.no }));
@@ -43,10 +45,11 @@ describe('экран боя: «Назад» и сдача', () => {
     expect(st().stats.losses).toBe(0);
   });
 
-  it('в обучении «Назад» ведёт в меню без сдачи', () => {
+  it('в обучении «Назад» ведёт в меню без сдачи', async () => {
     hydrate(defaultSave());
     window.location.hash = '#/tutorial/1';
     render(<App />);
+    await screen.findByTestId('battle'); // экраны боя грузятся лениво
     const session = st().session!;
     expect(session.mode).toBe('tutorial');
     fireEvent.click(screen.getByRole('button', { name: ru.battle.back }));
@@ -58,6 +61,7 @@ describe('экран боя: «Назад» и сдача', () => {
   it('под открытым подтверждением поле не нажимается: тап по hero-A-0 не открывает лист', async () => {
     const user = userEvent.setup({ pointerEventsCheck: 0 });
     render(<App />);
+    await screen.findByTestId('battle'); // экраны боя грузятся лениво
     fireEvent.click(screen.getByRole('button', { name: ru.battle.back }));
     expect(screen.getByRole('alertdialog')).toHaveAttribute('aria-modal', 'true');
     expect(screen.getByTestId('battle-body')).toHaveAttribute('inert');
@@ -71,8 +75,9 @@ describe('экран боя: «Назад» и сдача', () => {
     expect(st().sheet).not.toBeNull();
   });
 
-  it('во время проигрывания «Назад» неактивна и журнала нет', () => {
+  it('во время проигрывания «Назад» неактивна и журнала нет', async () => {
     render(<App />);
+    await screen.findByTestId('battle'); // экраны боя грузятся лениво
     act(() => {
       for (const slot of [0, 1, 2] as const) st().setAction(slot, { type: 'basic', target: { side: 'B', slot } });
       st().confirm();

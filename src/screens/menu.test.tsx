@@ -1,5 +1,5 @@
 import { fireEvent, render, screen } from '@testing-library/react';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { HERO_IDS } from '../engine';
 import { App } from '../App';
 import { buildPreset } from '../game/decks/presets';
@@ -27,6 +27,21 @@ beforeEach(() => {
 });
 
 describe('главное меню', () => {
+  it('в простое подгружает чанк боя и отменяет подгрузку при уходе', () => {
+    const ric = vi.fn(() => 7);
+    const cancel = vi.fn();
+    vi.stubGlobal('requestIdleCallback', ric);
+    vi.stubGlobal('cancelIdleCallback', cancel);
+    try {
+      const { unmount } = render(<Menu />);
+      expect(ric).toHaveBeenCalledTimes(1);
+      unmount();
+      expect(cancel).toHaveBeenCalledWith(7);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it('при tutorialStep 0 «Играть» ведёт в первый бой обучения', () => {
     render(<Menu />);
     play();

@@ -1,17 +1,20 @@
-import { useEffect } from 'react';
+import { Suspense, lazy, useEffect } from 'react';
 import { ru } from './i18n/ru';
 import { navigate, toHash, useRoute } from './router';
-import { Battle } from './screens/Battle/Battle';
 import { Crashed } from './screens/Crashed';
-import { DeckBuilder } from './screens/DeckBuilder';
 import { Decks } from './screens/Decks';
-import { HeroDetail } from './screens/HeroDetail';
-import { Heroes } from './screens/Heroes';
 import { Menu } from './screens/Menu';
-import { Result } from './screens/Result';
-import { Tutorial } from './screens/Tutorial';
 import { useStore } from './store';
 import { ErrorBoundary } from './ui/ErrorBoundary';
+
+// Меню и список колод — в основном чанке (первый экран); остальные экраны грузятся по маршруту:
+// бой с framer-motion и проигрыванием не задерживает первую отрисовку меню (критерий 6 спеки).
+const Battle = lazy(() => import('./screens/Battle/Battle').then((m) => ({ default: m.Battle })));
+const Tutorial = lazy(() => import('./screens/Tutorial').then((m) => ({ default: m.Tutorial })));
+const DeckBuilder = lazy(() => import('./screens/DeckBuilder').then((m) => ({ default: m.DeckBuilder })));
+const Heroes = lazy(() => import('./screens/Heroes').then((m) => ({ default: m.Heroes })));
+const HeroDetail = lazy(() => import('./screens/HeroDetail').then((m) => ({ default: m.HeroDetail })));
+const Result = lazy(() => import('./screens/Result').then((m) => ({ default: m.Result })));
 
 export function App() {
   const route = useRoute();
@@ -24,25 +27,27 @@ export function App() {
   return (
     <div className="app">
       <ErrorBoundary resetKey={toHash(route)} fallback={(reset) => <Crashed onDone={reset} />}>
-        {route.name === 'menu' ? (
-          <Menu />
-        ) : route.name === 'tutorial' ? (
-          <Tutorial key={route.id} id={route.id} />
-        ) : route.name === 'battle' ? (
-          redirect === null && <Battle />
-        ) : route.name === 'result' ? (
-          <Result />
-        ) : route.name === 'decks' ? (
-          <Decks />
-        ) : route.name === 'deck' ? (
-          <DeckBuilder key={route.id} id={route.id} />
-        ) : route.name === 'heroes' ? (
-          <Heroes />
-        ) : route.name === 'hero' ? (
-          <HeroDetail key={route.id} id={route.id} />
-        ) : (
-          <p style={{ padding: 'var(--sp-24)' }}>{ru.common.soon}</p>
-        )}
+        <Suspense fallback={<div className="app" />}>
+          {route.name === 'menu' ? (
+            <Menu />
+          ) : route.name === 'tutorial' ? (
+            <Tutorial key={route.id} id={route.id} />
+          ) : route.name === 'battle' ? (
+            redirect === null && <Battle />
+          ) : route.name === 'result' ? (
+            <Result />
+          ) : route.name === 'decks' ? (
+            <Decks />
+          ) : route.name === 'deck' ? (
+            <DeckBuilder key={route.id} id={route.id} />
+          ) : route.name === 'heroes' ? (
+            <Heroes />
+          ) : route.name === 'hero' ? (
+            <HeroDetail key={route.id} id={route.id} />
+          ) : (
+            <p style={{ padding: 'var(--sp-24)' }}>{ru.common.soon}</p>
+          )}
+        </Suspense>
       </ErrorBoundary>
     </div>
   );

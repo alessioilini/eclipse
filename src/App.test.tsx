@@ -49,7 +49,7 @@ describe('App', () => {
     useStore.getState().surrender();
     window.location.hash = '#/result';
     render(<App />);
-    const placeholder = screen.getByTestId('result');
+    const placeholder = await screen.findByTestId('result');
     expect(placeholder).toHaveTextContent(ru.result.loss);
     await userEvent.click(screen.getByRole('button', { name: ru.result.menu }));
     expect(useStore.getState().session).toBeNull();
