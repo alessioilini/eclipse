@@ -69,6 +69,19 @@ describe('gen-art', () => {
     expect(c.calls).toHaveLength(0);
   });
 
+  it('--variants N пишет кандидатов v1..N и не трогает основной файл', async () => {
+    const outDir = tempDir();
+    writeFileSync(join(outDir, 'aira-portrait.png'), 'old');
+    const { fetch, calls } = fakeFetch(() => ok('x'));
+    const { done, lines } = harness(['--only', 'aira', '--kind', 'portrait', '--variants', '3'], { OPENAI_API_KEY: KEY }, fetch, outDir);
+    expect(await done).toBe(0);
+    expect(calls).toHaveLength(3);
+    expect(readFileSync(join(outDir, 'aira-portrait.png'), 'utf8')).toBe('old');
+    for (const n of [1, 2, 3]) expect(existsSync(join(outDir, `aira-portrait-v${n}.png`))).toBe(true);
+    expect(lines.join('\n')).toMatch(/выберите вариант/);
+    expect(await harness(['--only', 'aira', '--variants', '9'], { OPENAI_API_KEY: KEY }, fetch, outDir).done).toBe(1);
+  });
+
   it('без OPENAI_API_KEY выходит с подсказкой и не ходит в сеть', async () => {
     const { fetch, calls } = fakeFetch(() => ok('x'));
     const { done, lines } = harness([], {}, fetch, tempDir());

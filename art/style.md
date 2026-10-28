@@ -19,24 +19,24 @@
   огонь #ff7a45, вода #4cc3ff, ветер #7ee787, свет #ffe08a, тьма #b48cff, звёзды #ff9ad5.
 - **Палитра:** единая для всех двенадцати — тёплая светлая кожа с лёгким румянцем, тонкие
   тёмно-сливовые линии контура, живописная заливка без жёсткого cel-shading.
-- **Героиня:** взрослая девушка, одна в кадре, сильный узнаваемый силуэт. У каждой четыре фирменных
+- **Героиня:** взрослая девушка, одна в кадре, сильный узнаваемый силуэт, женственная фигура, у всех открытое декольте (видна верхняя часть груди) в элегантной, а не вульгарной подаче. У каждой четыре фирменных
   элемента (волосы, деталь костюма, парящий предмет или эффект, знак стихии), которые должны совпадать
   между портретом и артом в рост и в любых будущих картинках.
-- **Руки:** анатомически верные, ровно пять пальцев; позы простые: расслаблены, частично спрятаны в рукавах или за телом, без растопыренных пальцев и жестов (чем меньше видно кисть, тем меньше брака); предметы
-  парят рядом с героиней, а не зажаты в кулаке (у моделей это главный источник брака).
+- **Руки:** видны у всех, анатомически верные, ровно пять пальцев, пальцы раздельные, позы естественные и у каждой героини свои; предметы парят рядом с героиней, а не зажаты в кулаке. Негативного промпта в Images API нет, поэтому запреты «no extra fingers, no fused fingers» входят в текст; брак лечится перегенерацией одной картинки или выбором из вариантов (`--variants`).
 - **Запрещено:** текст, буквы, цифры, логотипы, водяные знаки, элементы интерфейса, рамки карточек,
-  чиби и мультяшные пропорции, фотореализм, откровенные наряды, оружие крупным планом (щит допустим
+  чиби и мультяшные пропорции, фотореализм, нагота и фетиш-костюмы, оружие крупным планом (щит допустим
   только целиком и вторым планом), другие персонажи. Негативного промпта в Images API нет, поэтому
   запреты входят в текст словами «no …».
-- **Кадр:** портрет — по грудь, взгляд в камеру, лицо в верхней трети, перспектива 85 мм, камера на
-  уровне глаз; в рост — стоя, поворот около 20°, одна нога чуть вперёд, вся фигура с запасом сверху и
-  снизу, обувь видна, ничего не обрезано, камера на уровне груди, вертикаль 2:3 (низ кадра в игре
-  перекрывается градиентом стихии).
+- **Кадр и позы:** портрет — по грудь с декольте в кадре, взгляд в камеру, лицо в верхней трети, перспектива
+  85 мм, камера на уровне глаз; в рост — стоя, лёгкий поворот, вся фигура с запасом сверху и снизу, обувь и
+  обе руки видны, ничего не обрезано, камера на уровне груди, вертикаль 2:3 (низ кадра в игре перекрывается
+  градиентом стихии). У каждой героини свой поворот головы и своя стойка (`art/prompts.ts`), двенадцать не
+  стоят одинаково.
 
 ## STYLE (английский блок для промптов)
 
 ```
-Premium anime dark-fantasy key art for a collectible mobile RPG, in the style of high-end Japanese and Korean gacha splash art: sophisticated semi-realistic rendering, controlled anime proportions, beautiful clean facial rendering, sharp expressive eyes, highly detailed materials, elegant fabric, realistic metal reflections, extremely polished professional concept art. Night setting: soft painted moonlight key light from the top-left, cool blue-violet shadows, a very subtle rim light in the element colour from behind, detailed face lighting, strong separation between hair, outfit and background. Minimal premium studio-like background: smooth dark gradient from deep navy #0b0e1f to #161a33 with a few softly glowing atmospheric particles, no landscape, no interior, nothing that competes with the character. One consistent palette for the whole roster: warm fair skin with a light blush, thin dark plum line art, painterly shading without hard cel-shading. A single adult young woman as the only subject, correct human anatomy, anatomically correct hands with exactly five fingers each, hands kept simple: relaxed, partly hidden in sleeves or behind the body, never spread or gesturing, strong recognizable silhouette. Forbidden: no text, no letters, no numbers, no logos, no watermark, no UI, no card frame, no chibi, no cartoon proportions, no photorealism, no revealing outfits, no close-up weapons, no other characters.
+Premium anime dark-fantasy key art for a collectible mobile RPG, in the style of high-end Japanese and Korean gacha splash art: sophisticated semi-realistic rendering, controlled anime proportions, beautiful clean facial rendering, sharp expressive eyes, highly detailed materials, elegant fabric, realistic metal reflections, extremely polished professional concept art. Night setting: soft painted moonlight key light from the top-left, cool blue-violet shadows, a very subtle rim light in the element colour from behind, detailed face lighting, strong separation between hair, outfit and background. Minimal premium studio-like background: smooth dark gradient from deep navy #0b0e1f to #161a33 with a few softly glowing atmospheric particles, no landscape, no interior, nothing that competes with the character. One consistent palette for the whole roster: warm fair skin with a light blush, thin dark plum line art, painterly shading without hard cel-shading. A single adult young woman as the only subject, an attractive feminine figure with an elegant open neckline showing the upper chest, tasteful and refined rather than vulgar, correct human anatomy, both hands fully visible and drawn carefully with exactly five fingers each, fingers clearly separated and naturally proportioned, natural relaxed hand poses, strong recognizable silhouette. Forbidden: no text, no letters, no numbers, no logos, no watermark, no UI, no card frame, no chibi, no cartoon proportions, no photorealism, no nudity, no fetish outfits, no close-up weapons, no other characters, no extra fingers, no fused fingers, no deformed hands.
 ```
 
 ## Структура промпта героини
