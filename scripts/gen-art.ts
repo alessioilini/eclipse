@@ -10,7 +10,9 @@ import { HERO_IDS } from '../src/engine';
 import type { HeroId } from '../src/engine';
 
 const API = 'https://api.openai.com/v1/images';
-const MODEL = 'gpt-image-1';
+/** `gpt-image-1` отключена OpenAI 23 октября 2026. Основная модель Sunburst (точнее держит лицо в edits),
+ * альтернатива `gpt-image-2.5-flare`; переопределяется `--model` или переменной `OPENAI_IMAGE_MODEL`. */
+export const DEFAULT_MODEL = 'gpt-image-2.5-sunburst';
 const QUALITY = 'medium';
 const PORTRAIT_SIZE = '1024x1024';
 const FULL_SIZE = '1024x1536';
@@ -40,18 +42,18 @@ async function errorDetail(res: Response): Promise<string | null> {
 }
 
 /** One Images API call; returns the PNG bytes of `data[0].b64_json`. */
-export async function callImages(fetchImpl: typeof fetch, apiKey: string, req: ImageRequest): Promise<Buffer> {
+export async function callImages(fetchImpl: typeof fetch, apiKey: string, req: ImageRequest, model = DEFAULT_MODEL): Promise<Buffer> {
   const auth = { Authorization: `Bearer ${apiKey}` };
   let res: Response;
   if (req.endpoint === 'generations') {
     res = await fetchImpl(`${API}/generations`, {
       method: 'POST',
       headers: { ...auth, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model: MODEL, prompt: req.prompt, size: req.size, quality: QUALITY, n: 1 }),
+      body: JSON.stringify({ model, prompt: req.prompt, size: req.size, quality: QUALITY, n: 1 }),
     });
   } else {
     const form = new FormData();
-    form.append('model', MODEL);
+    form.append('model', model);
     // Blob takes ArrayBuffer-backed views; a Buffer is typed as possibly SharedArrayBuffer-backed, so copy it.
     form.append('image', new Blob([new Uint8Array(req.image)], { type: 'image/png' }), 'portrait.png');
     form.append('prompt', req.prompt);
@@ -72,13 +74,18 @@ interface Options {
   ids: HeroId[];
   kinds: ArtKind[];
   force: boolean;
+  model: string | null;
 }
 
 function parseArgs(argv: string[]): Options | string {
-  const opts: Options = { ids: [...HERO_IDS], kinds: ['portrait', 'full'], force: false };
+  const opts: Options = { ids: [...HERO_IDS], kinds: ['portrait', 'full'], force: false, model: null };
   for (let i = 0; i < argv.length; i++) {
     const [flag, inline] = (argv[i] ?? '').split('=');
-    if (flag === '--force') {
+    if (flag === '--model') {
+      const model = inline ?? argv[++i];
+      if (!model) return '--model требует имя модели, например gpt-image-2.5-flare';
+      opts.model = model;
+    } else if (flag === '--force') {
       opts.force = true;
     } else if (flag === '--only') {
       const id = inline ?? argv[++i];
@@ -128,6 +135,8 @@ export async function run(argv: string[], deps: RunDeps): Promise<number> {
     log(opts);
     return 1;
   }
+  const model = opts.model ?? env.OPENAI_IMAGE_MODEL ?? DEFAULT_MODEL;
+  log(`модель: ${model}`);
   mkdirSync(outDir, { recursive: true });
 
   let failed = 0;
@@ -143,19 +152,19 @@ export async function run(argv: string[], deps: RunDeps): Promise<number> {
       try {
         let png: Buffer;
         if (kind === 'portrait') {
-          png = await callImages(fetchImpl, apiKey, { endpoint: 'generations', prompt: text, size: PORTRAIT_SIZE });
+          png = await callImages(fetchImpl, apiKey, { endpoint: 'generations', prompt: text, size: PORTRAIT_SIZE }, model);
         } else if (existsSync(portraitPath)) {
           // The portrait is the reference, so the face and the costume match.
           try {
             const image = readFileSync(portraitPath);
-            png = await callImages(fetchImpl, apiKey, { endpoint: 'edits', prompt: text, size: FULL_SIZE, image });
+            png = await callImages(fetchImpl, apiKey, { endpoint: 'edits', prompt: text, size: FULL_SIZE, image }, model);
           } catch (e) {
             log(`${id} full: edits — ${describeError(e)}, генерация без референса`);
-            png = await callImages(fetchImpl, apiKey, { endpoint: 'generations', prompt: text, size: FULL_SIZE });
+            png = await callImages(fetchImpl, apiKey, { endpoint: 'generations', prompt: text, size: FULL_SIZE }, model);
           }
         } else {
           log(`${id} full: нет портрета, генерация без референса`);
-          png = await callImages(fetchImpl, apiKey, { endpoint: 'generations', prompt: text, size: FULL_SIZE });
+          png = await callImages(fetchImpl, apiKey, { endpoint: 'generations', prompt: text, size: FULL_SIZE }, model);
         }
         writeFileSync(file, png);
         log(`${id} ${kind}: готово`);

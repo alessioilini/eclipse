@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { prompt } from '../art/prompts';
-import { callImages, run } from './gen-art';
+import { DEFAULT_MODEL, callImages, run } from './gen-art';
 
 const KEY = 'sk-test-secret-123';
 const dirs: string[] = [];
@@ -45,6 +45,17 @@ describe('gen-art', () => {
     expect(lines.join('\n')).toMatch(/недопустимые символы/);
   });
 
+  it('--model и OPENAI_IMAGE_MODEL переопределяют модель, по умолчанию sunburst', async () => {
+    const outDir = tempDir();
+    const a = fakeFetch(() => ok('x'));
+    expect(await harness(['--only', 'aira', '--kind', 'portrait', '--model', 'gpt-image-2.5-flare'], { OPENAI_API_KEY: KEY }, a.fetch, outDir).done).toBe(0);
+    expect(JSON.parse(a.calls[0]!.init.body as string).model).toBe('gpt-image-2.5-flare');
+    const b = fakeFetch(() => ok('x'));
+    expect(await harness(['--only', 'aira', '--kind', 'portrait', '--force'], { OPENAI_API_KEY: KEY, OPENAI_IMAGE_MODEL: 'gpt-image-2' }, b.fetch, outDir).done).toBe(0);
+    expect(JSON.parse(b.calls[0]!.init.body as string).model).toBe('gpt-image-2');
+    expect(DEFAULT_MODEL).toBe('gpt-image-2.5-sunburst');
+  });
+
   it('без OPENAI_API_KEY выходит с подсказкой и не ходит в сеть', async () => {
     const { fetch, calls } = fakeFetch(() => ok('x'));
     const { done, lines } = harness([], {}, fetch, tempDir());
@@ -69,7 +80,7 @@ describe('gen-art', () => {
     expect(calls).toHaveLength(1);
     expect(calls[0]!.url).toBe('https://api.openai.com/v1/images/generations');
     expect(JSON.parse(String(calls[0]!.init.body))).toEqual({
-      model: 'gpt-image-1', prompt: prompt('aira', 'portrait'), size: '1024x1024', quality: 'medium', n: 1,
+      model: DEFAULT_MODEL, prompt: prompt('aira', 'portrait'), size: '1024x1024', quality: 'medium', n: 1,
     });
     expect(new Headers(calls[0]!.init.headers).get('authorization')).toBe(`Bearer ${KEY}`);
     expect(readFileSync(join(outDir, 'aira-portrait.png'), 'utf8')).toBe('PORTRAIT');
@@ -108,7 +119,7 @@ describe('gen-art', () => {
     ]);
     const form = calls[0]!.init.body as FormData;
     expect(form).toBeInstanceOf(FormData);
-    expect(form.get('model')).toBe('gpt-image-1');
+    expect(form.get('model')).toBe(DEFAULT_MODEL);
     expect(form.get('prompt')).toBe(prompt('nerisa', 'full'));
     expect(form.get('size')).toBe('1024x1536');
     expect(form.get('n')).toBe('1');
@@ -118,7 +129,7 @@ describe('gen-art', () => {
     expect(Buffer.from(await image.arrayBuffer()).toString('utf8')).toBe('PORTRAIT-BYTES');
 
     expect(JSON.parse(String(calls[1]!.init.body))).toMatchObject({
-      model: 'gpt-image-1', prompt: prompt('nerisa', 'full'), size: '1024x1536', n: 1,
+      model: DEFAULT_MODEL, prompt: prompt('nerisa', 'full'), size: '1024x1536', n: 1,
     });
     expect(readFileSync(join(outDir, 'nerisa-full.png'), 'utf8')).toBe('FULL');
     expect(lines.join('\n')).toMatch(/nerisa.*400/);
