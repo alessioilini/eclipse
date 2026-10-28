@@ -1,9 +1,9 @@
-import type { SlotRef } from '../types';
-import { isAlive, removeStatus } from '../status';
+import type { Slot, SlotRef } from '../types';
+import { isAlive } from '../status';
 import { heroAt, setHeroAt } from '../targeting';
 import type { Ctx } from './context';
-import { emit, ENTERED_KEY } from './context';
-import { directHit, gainLuna } from './effects';
+import { emit } from './context';
+import { directHit, gainLuna, swapIn } from './effects';
 import { checkDeath } from './endRound';
 
 // Armed reactions (spec §2.5 step 5). «Защитный круг», «Отложенная смерть» and «Прикрытие» put
@@ -71,18 +71,7 @@ function lastWordHit(ctx: Ctx, fallen: SlotRef, killer: SlotRef): void {
  * no living reserve she stays in her slot.
  */
 function rewriteFate(ctx: Ctx, ref: SlotRef): void {
-  const sd = ctx.s.sides[ref.side];
-  const saved = { ...heroAt(ctx.s, ref), hp: REWRITE_FATE_HP };
-  const reserveIndex = sd.reserve.findIndex(isAlive);
-  if (reserveIndex < 0) {
-    setHeroAt(ctx.s, ref, saved);
-    return;
-  }
-  const incoming = sd.reserve[reserveIndex]!;
-  incoming.once[ENTERED_KEY] = ctx.s.round;
-  sd.active[ref.slot] = incoming;
-  sd.reserve[reserveIndex] = removeStatus(saved, 'taunt');
-  emit(ctx, {
-    type: 'swap', side: ref.side, slot: ref.slot, reserveIndex, out: saved.id, in: incoming.id, reason: 'rewriteFate',
-  });
+  setHeroAt(ctx.s, ref, { ...heroAt(ctx.s, ref), hp: REWRITE_FATE_HP });
+  const reserveIndex = ctx.s.sides[ref.side].reserve.findIndex(isAlive);
+  if (reserveIndex >= 0) swapIn(ctx, ref.side, ref.slot, reserveIndex as Slot, 'rewriteFate');
 }

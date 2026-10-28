@@ -1,11 +1,11 @@
 import type { CardId, Side, Slot, SlotRef } from '../types';
 import { directDamage } from '../damage';
-import { removeBuffs, removeStatus } from '../status';
+import { removeBuffs } from '../status';
 import { aliveActive, heroAt, other, REDIRECT_COVER, setHeroAt } from '../targeting';
 import type { Ctx } from './context';
-import { emit, ENTERED_KEY } from './context';
+import { emit } from './context';
 import { checkDeath } from './endRound';
-import { applyStatusTo, basicAttack, changeMoon, directHit, isBuff } from './effects';
+import { applyStatusTo, basicAttack, changeMoon, directHit, isBuff, swapIn } from './effects';
 import type { CardSource } from './effects';
 
 /** A card being resolved: its id and the targets already checked by cards.ts (alive, enemy retargeted). */
@@ -36,23 +36,15 @@ export const CARD_HOOKS: Record<string, CardHookFn> = {
    * «Экстренная замена»: swap of the own slot with a reserve heroine without spending the slot's
    * action. The incoming heroine at once makes a Basic Attack on the enemy planned for the slot
    * (basic/skill/ultimate with an enemy target), otherwise nothing; the slot's planned action is
-   * cancelled (she is marked as entered this round, so runHeroAction skips the slot).
+   * cancelled (swapIn marks her as entered this round, so runHeroAction skips the slot).
    */
   'card.emergencySwap': (ctx, side, { target, secondary }) => {
     if (!target || !secondary || !('reserveIndex' in secondary)) return;
-    const s = ctx.s;
-    const sd = s.sides[side];
-    const reserveIndex = secondary.reserveIndex;
-    const out = removeStatus(sd.active[target.slot], 'taunt');
-    const incoming = sd.reserve[reserveIndex];
-    sd.active[target.slot] = incoming;
-    sd.reserve[reserveIndex] = out;
-    emit(ctx, { type: 'swap', side, slot: target.slot, reserveIndex, out: out.id, in: incoming.id, reason: 'emergencySwap' });
+    swapIn(ctx, side, target.slot, secondary.reserveIndex, 'emergencySwap');
     const planned = ctx.cmds?.[side].actions[target.slot];
     const enemyTarget = planned && (planned.type === 'basic' || planned.type === 'skill' || planned.type === 'ultimate')
       && planned.target && planned.target.side !== side ? planned.target : undefined;
     if (enemyTarget) basicAttack(ctx, target, enemyTarget);
-    heroAt(s, target).once[ENTERED_KEY] = s.round;
   },
 
   /** «Прикрытие»: the next single hit on the ally goes to the chosen Guardian this round (R8/R10). */

@@ -3,7 +3,7 @@ import { resolveRound, startRound } from '../resolve/round';
 import { makeCtx } from '../resolve/context';
 import { runAbility } from '../resolve/actions';
 import { playStandard, playSwift, revealCards } from '../resolve/cards';
-import { ultimateLunaCost, validateCommands } from '../validate';
+import { cardCost, ultimateLunaCost, validateCommands } from '../validate';
 import { HEROES } from '../data/heroes';
 import type { CardId, CardPlay, GameEvent, HeroAction, HeroId, MatchState, Side, SideCommands, Slot, SlotRef, Status } from '../types';
 import { makeMatch, cmd, basic, skill, ult, swap, enemy, ally, setRound } from './helpers';
@@ -222,6 +222,19 @@ describe('Swift-карты', () => {
     expect(hero(r.state, enemy(0)).ultimateUsed).toBe(false);
   });
 
+  it('eclipse: при Luna 4 ульта противника проходит и стоит 4 Luna', () => {
+    const r = round(aCmd(play()), cmd(ult(0, ally(0)), basic(1, ally(1)), basic(2, ally(1))), s => {
+      setCards(s, 'A', ['eclipse']);
+      s.sides.B.luna = 4;
+    }, setRound(makeMatch({ a: A_TEAM, b: B_TEAM }), 1));
+    expect(ofType(r.events, 'fizzle')).toEqual([]);
+    expect(ofType(r.events, 'lunaChanged').filter(e => e.side === 'B').map(e => [e.reason, e.delta])).toEqual([['ultimate', -4]]);
+    // «Разрушение»: 7 × 2.2 = 15.4 → 15, +1 Dark в Новолуние = 16.
+    expect(hitsBy(r.events, enemy(0)).map(e => [e.target, e.dmg])).toEqual([[ally(0), 16]]);
+    expect(r.state.sides.B.luna).toBe(0);
+    expect(hero(r.state, enemy(0)).ultimateUsed).toBe(true);
+  });
+
   it('sealBreak: щит и баффы сняты, 2 урона', () => {
     const ctx = ctxFor(s => {
       setCards(s, 'A', ['sealBreak']);
@@ -294,9 +307,37 @@ describe('Reaction-карты', () => {
       .toEqual([['lastWord', 1], ['death', 1]]);
     // Luna: 2 (раунд 1) + 1 (lastWord) + 1 (смерть) = 4; урон в сторону A.
     expect(r.state.sides.A.luna).toBe(4);
-    expect(r.state.sides.A.damageDealt).toBeGreaterThanOrEqual(4);
+    // Урон стороны A: Лирая 6 + Айра 7 (Fire → Light ×1) + «Последнее слово» 4 = 17.
+    expect(r.state.sides.A.damageDealt).toBe(17);
     // Затем Лирая бьёт Нокту ещё на 6: 16 − 6 = 10.
     expect(hero(r.state, enemy(1)).hp).toBe(10);
+  });
+
+  it('lastWord при смерти от Burn: убийцы нет — только Luna +1, без ответного урона', () => {
+    const r = round(aCmd(play(ally(0))), bCmd(undefined, ally(2), ally(1), ally(1)), s => {
+      setCards(s, 'A', ['lastWord']);
+      s.sides.A.active[0].hp = 2;
+      s.sides.A.active[0].statuses.push(st('burn'));
+    });
+    expect(ofType(r.events, 'burn').map(e => [e.target, e.dmg, e.hp])).toEqual([[ally(0), 2, 0]]);
+    expect(ofType(r.events, 'reactionTriggered').map(e => [e.cardId, e.target, e.phase])).toEqual([['lastWord', ally(0), 'endRound']]);
+    expect(ofType(r.events, 'directDamage')).toEqual([]);
+    expect(ofType(r.events, 'lunaChanged').filter(e => e.side === 'A' && e.phase === 'endRound').map(e => [e.reason, e.delta]))
+      .toEqual([['lastWord', 1], ['death', 1]]);
+    expect(r.state.sides.A.luna).toBe(4);
+  });
+
+  it('Taunt и «Прикрытие» на одной стороне: Taunt приоритетнее (§2.6)', () => {
+    const team: HeroId[] = ['tali', 'liraya', 'nerisa', 'fenna', 'aira', 'zefira'];
+    const r = round(aCmd(play(ally(0), ally(2))), bCmd(undefined, ally(0), ally(0), ally(1)), s => {
+      setCards(s, 'A', ['cover']);
+      s.sides.A.active[1].statuses.push(st('taunt', 0, 2));
+    }, makeMatch({ a: team, b: B_TEAM }));
+    // Оба удара по Тали уходят в Лираю с Taunt, «Прикрытие» не срабатывает.
+    expect(ofType(r.events, 'redirect').map(e => [e.from, e.to, e.reason])).toEqual([[ally(0), ally(1), 'taunt'], [ally(0), ally(1), 'taunt']]);
+    expect(hitsBy(r.events, enemy(1)).map(e => e.target)).toEqual([ally(1)]);
+    expect(hitsBy(r.events, enemy(0)).map(e => e.target)).toEqual([ally(1)]);
+    expect(hitsOn(r.events, ally(2))).toEqual([]);
   });
 
   it('rewriteFate: смерть отменена, 1 HP, обмен с резервом; при мёртвом резерве остаётся в слоте', () => {
@@ -434,7 +475,9 @@ describe('карты: общие правила', () => {
     expect(r.state.sides.B.discard).toEqual(['fieldKit']);
     expect(r.state.sides.B.energy).toBe(1);
     expect(r.state.sides.B.lastCardPlayed).toBeNull();
-    expect(r.state.sides.B.nextCardCostUp).toEqual({ value: 1, untilRound: 2 });
+    // R28: одна ульта Авроры наказывает одну попытку карты — повышение израсходовано и при fizzle.
+    expect(r.state.sides.B.nextCardCostUp).toBeNull();
+    expect(cardCost(startRound(r.state).state, 'B', 'fieldKit')).toBe(1);
   });
 
   it('Мира «Повторение»: последняя карта разыгрывается ещё раз бесплатно с той же целью', () => {

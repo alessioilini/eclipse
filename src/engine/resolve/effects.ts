@@ -8,7 +8,7 @@ import {
 import { applyStatus, cleanse, effectiveAtk, hasStatus, removeStatus, statusValue } from '../status';
 import { heroAt, interceptSingleHit, resolveTarget, sameRef, setHeroAt } from '../targeting';
 import type { Ctx } from './context';
-import { emit } from './context';
+import { emit, ENTERED_KEY } from './context';
 import { checkDeath } from './endRound';
 import { fire } from './triggers';
 
@@ -300,4 +300,19 @@ export function basicAttack(ctx: Ctx, ref: SlotRef, planned: SlotRef | undefined
   if (!t) { skipAction(ctx, ref, 'no target'); return; }
   emit(ctx, { type: 'heroAction', side: ref.side, slot: ref.slot, heroId: heroAt(ctx.s, ref).id, action: 'basic', target: t });
   dealHit(ctx, ref, t, 1, 0, { single: true });
+}
+
+/**
+ * Exchanges the active heroine in `slot` with reserve heroine `reserveIndex` (spec §2.6): the
+ * outgoing one loses Taunt, the incoming one is marked as entered this round (she does not act),
+ * event `swap` (with `reason` for card swaps). Callers check that the reserve heroine is alive.
+ */
+export function swapIn(ctx: Ctx, side: Side, slot: Slot, reserveIndex: Slot, reason?: string): void {
+  const sd = ctx.s.sides[side];
+  const out = removeStatus(sd.active[slot], 'taunt');
+  const incoming = sd.reserve[reserveIndex];
+  incoming.once[ENTERED_KEY] = ctx.s.round;
+  sd.active[slot] = incoming;
+  sd.reserve[reserveIndex] = out;
+  emit(ctx, { type: 'swap', side, slot, reserveIndex, out: out.id, in: incoming.id, ...(reason ? { reason } : {}) });
 }

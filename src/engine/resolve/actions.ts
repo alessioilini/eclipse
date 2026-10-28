@@ -1,7 +1,7 @@
 import type { Ability, Condition, HeroAction, Primitive, SlotRef, TargetType } from '../types';
 import { HEROES } from '../data/heroes';
 import { directDamage } from '../damage';
-import { hasStatus, isAlive, removeStatus } from '../status';
+import { hasStatus, isAlive } from '../status';
 import {
   aliveActive, findLowestHpEnemy, heroAt, interceptSingleHit, other, resolveTarget, sameRef, setHeroAt,
 } from '../targeting';
@@ -12,7 +12,7 @@ import { HOOKS } from './hooks';
 import { drawCard } from './deck';
 import {
   applyStatusTo, basicAttack, changeMoon, cleanseFrom, dealHit, gainLuna, grantShield, healHero, isBuff,
-  skipAction, takeInterception,
+  skipAction, swapIn, takeInterception,
 } from './effects';
 import type { AbilityInterception } from './effects';
 
@@ -213,13 +213,8 @@ function doSwap(ctx: Ctx, ref: SlotRef, reserveIndex: 0 | 1 | 2): void {
   const sd = ctx.s.sides[ref.side];
   if (!isAlive(sd.reserve[reserveIndex])) { skipAction(ctx, ref, 'reserve dead'); return; }
   if (sd.flags.swapBanned) { skipAction(ctx, ref, 'swap banned'); return; }
-  const out = removeStatus(sd.active[ref.slot], 'taunt');
-  const incoming = sd.reserve[reserveIndex];
-  emit(ctx, { type: 'heroAction', side: ref.side, slot: ref.slot, heroId: out.id, action: 'swap' });
-  incoming.once[ENTERED_KEY] = ctx.s.round;
-  sd.active[ref.slot] = incoming;
-  sd.reserve[reserveIndex] = out;
-  emit(ctx, { type: 'swap', side: ref.side, slot: ref.slot, reserveIndex, out: out.id, in: incoming.id });
+  emit(ctx, { type: 'heroAction', side: ref.side, slot: ref.slot, heroId: sd.active[ref.slot].id, action: 'swap' });
+  swapIn(ctx, ref.side, ref.slot, reserveIndex);
 }
 
 /** Runs the planned action of the heroine standing in `ref` now (spec §2.5 step 6, §2.6). */

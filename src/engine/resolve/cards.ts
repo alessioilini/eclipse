@@ -82,10 +82,11 @@ export function cardSideOrder(ctx: Ctx): Side[] {
 
 /**
  * Plays one revealed card (one action, R24). The card goes to the discard pile. Its cost is
- * recomputed now (R12): unaffordable → `fizzle` (reason 'energy'), no effect. A target that can no
- * longer be used → `fizzle` too ('target dead', 'reserve dead', 'no target'). Otherwise: Energy is
- * paid, a pending `nextCardCostUp` is consumed, `lastCardPlayed` / `cardsPlayedThisRound` are
- * updated, `cardPlayed` is emitted, `onCardPlayed` fires ({ side, card }, R23) and the effects run.
+ * recomputed now (R12) and a pending `nextCardCostUp` is consumed by this attempt, played or not
+ * (ruling R28: one Aurora ultimate punishes one card). Unaffordable → `fizzle` (reason 'energy'),
+ * no effect. A target that can no longer be used → `fizzle` too ('target dead', 'reserve dead',
+ * 'no target', 'no guardian'). Otherwise: Energy is paid, `lastCardPlayed` / `cardsPlayedThisRound`
+ * are updated, `cardPlayed` is emitted, `onCardPlayed` fires ({ side, card }, R23) and the effects run.
  */
 export function playCard(ctx: Ctx, side: Side, card: PlannedCard): void {
   nextAction(ctx);
@@ -93,6 +94,7 @@ export function playCard(ctx: Ctx, side: Side, card: PlannedCard): void {
   const sd = ctx.s.sides[side];
   sd.discard.push(cardId);
   const cost = cardCost(ctx.s, side, cardId);
+  sd.nextCardCostUp = null;
   if (sd.energy < cost) {
     emit(ctx, { type: 'fizzle', side, card: cardId, reason: 'energy' });
     return;
@@ -104,7 +106,6 @@ export function playCard(ctx: Ctx, side: Side, card: PlannedCard): void {
   }
 
   sd.energy -= cost;
-  sd.nextCardCostUp = null;
   sd.lastCardPlayed = {
     cardId, ...(play.target ? { target: play.target } : {}), ...(play.secondary ? { secondary: play.secondary } : {}),
   };
