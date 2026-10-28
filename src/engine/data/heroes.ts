@@ -65,7 +65,8 @@ export const HEROES: Record<HeroId, HeroDef> = {
     },
     ultimate: {
       name: 'Прилив', cost: 2, target: 'enemies',
-      effects: [{ op: 'damage', mod: 0.9, aoe: true }, { op: 'hook', name: 'tali.tide' }],
+      // The hook deals the 90% AoE itself: who already had Soak is read before the hits.
+      effects: [{ op: 'hook', name: 'tali.tide' }],
     },
   },
   zefira: {

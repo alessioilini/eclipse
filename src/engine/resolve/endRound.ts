@@ -11,7 +11,8 @@ const SIDES: Side[] = ['A', 'B'];
 const SLOTS: Slot[] = [0, 1, 2];
 const MAX_LUNA = 5;
 const BURN_PER_STACK = 2;
-const DEATH_KEY = 'deathRecorded';
+/** `hero.once` key set when a death is recorded; Fenna's revive clears it. */
+export const DEATH_KEY = 'deathRecorded';
 
 /**
  * Records a death the moment an active heroine's HP reaches 0 (idempotent):
@@ -51,10 +52,12 @@ function burnTick(ctx: Ctx): void {
       const hero = heroAt(ctx.s, ref);
       const burn = hero.statuses.find(st => st.id === 'burn');
       if (!isAlive(hero) || !burn) continue;
-      const { hero: next, hpLoss } = directDamage(hero, BURN_PER_STACK * burn.stacks);
+      // `burnTick` fires before the tick with a mutable amount (Aira's «Жар» +1).
+      const amount = { v: BURN_PER_STACK * burn.stacks };
+      fire(ctx, 'burnTick', { target: ref, amount });
+      const { hero: next, hpLoss } = directDamage(heroAt(ctx.s, ref), amount.v);
       setHeroAt(ctx.s, ref, next);
       emit(ctx, { type: 'burn', target: ref, stacks: burn.stacks, dmg: hpLoss, hp: next.hp });
-      fire(ctx, 'burnTick', { target: ref, amount: { v: hpLoss } });
       checkDeath(ctx, ref);
     }
   }

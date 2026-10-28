@@ -56,7 +56,8 @@ export function takeInterception(box: AbilityInterception): { reduction: number 
  * already intercepted) → `beforeDealDamage` (passives add to `flat`) → `beforeTakeDamage`
  * (passives add to `reductions`, seen with the final target) → one-shot statuses (attacker's
  * Pierce / NextHitBonus, victim's DamageReduction, Mark on single hits) and the lunar bonus →
- * computeDamage → applyToHero → `damage` event → `afterDealDamage` → death check.
+ * computeDamage → applyToHero → `damage` event → Mirror Shield → `afterDealDamage` → death check
+ * → Reflect.
  */
 export function dealHit(ctx: Ctx, attacker: SlotRef, target: SlotRef, mod: number, flat: number, opts: HitOpts): void {
   const s = ctx.s;
@@ -118,8 +119,44 @@ export function dealHit(ctx: Ctx, attacker: SlotRef, target: SlotRef, mod: numbe
     dmg, absorbed, hpLoss, hp: hit.hp, shield: hit.shield,
   });
   s.sides[attacker.side].damageDealt += hpLoss;
+  mirrorShield(ctx, attacker, tgt, absorbed);
   fire(ctx, 'afterDealDamage', { attacker, target: tgt, amount: { v: hpLoss }, killed: hit.hp === 0 });
   checkDeath(ctx, tgt);
+  reflect(ctx, attacker, tgt);
+}
+
+/** Zefira's skill: a hit that absorbed shield and left it at 0 breaks the Mirror Shield → Mark on the attacker. */
+function mirrorShield(ctx: Ctx, attacker: SlotRef, target: SlotRef, absorbed: number): void {
+  const victim = heroAt(ctx.s, target);
+  const mirror = victim.statuses.find(st => st.id === 'mirrorShield');
+  if (!mirror || absorbed <= 0 || victim.shield > 0) return;
+  setHeroAt(ctx.s, target, removeStatus(victim, 'mirrorShield'));
+  emit(ctx, { type: 'statusRemoved', target, status: 'mirrorShield' });
+  applyStatusTo(ctx, mirror.source ?? target, attacker, 'mark', 0, 'permanent');
+}
+
+const REFLECT_DAMAGE = 2;
+
+/**
+ * Zefira's ultimate: a hit by an enemy on the side of a living active heroine holding `reflect`
+ * (value = charges left) returns 2 direct damage to the attacker and spends one charge.
+ */
+function reflect(ctx: Ctx, attacker: SlotRef, target: SlotRef): void {
+  const s = ctx.s;
+  if (attacker.side === target.side || heroAt(s, attacker).hp <= 0) return;
+  const holder = ([0, 1, 2] as const)
+    .map(slot => ({ side: target.side, slot }))
+    .find(ref => heroAt(s, ref).hp > 0 && statusValue(heroAt(s, ref), 'reflect') > 0);
+  if (!holder) return;
+  const h = heroAt(s, holder);
+  const charges = statusValue(h, 'reflect') - 1;
+  setHeroAt(s, holder, charges > 0
+    ? { ...h, statuses: h.statuses.map(st => (st.id === 'reflect' ? { ...st, value: charges } : { ...st })) }
+    : removeStatus(h, 'reflect'));
+  const dmg = directHit(ctx, holder, attacker, REFLECT_DAMAGE);
+  emit(ctx, { type: 'reflect', from: holder, to: attacker, dmg, charges, hp: heroAt(s, attacker).hp });
+  if (charges <= 0) emit(ctx, { type: 'statusRemoved', target: holder, status: 'reflect' });
+  checkDeath(ctx, attacker);
 }
 
 /**

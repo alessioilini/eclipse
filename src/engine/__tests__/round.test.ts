@@ -228,7 +228,8 @@ describe('resolveRound: basic и swap', () => {
     expect(state.sides.B.luna).toBe(3);
     expect(ofType(events, 'lunaChanged').filter(e => e.reason === 'death'))
       .toEqual([expect.objectContaining({ side: 'B', luna: 3, delta: 1 })]);
-    expect(state.sides.A.active[2].hp).toBe(31 - 4 - 7); // Нокта мертва и не ударила
+    // Нокта мертва и не ударила; первый урон Нерисы в раунде −3 (пассивка, Task 10): Юстина 7 − 3, Аврора 4.
+    expect(state.sides.A.active[2].hp).toBe(31 - 4 - 4);
   });
 });
 
@@ -309,7 +310,7 @@ describe('resolveRound: конец раунда', () => {
     expect(dmgs(ally(2))).toEqual([5]);  // Нериса: 4 × 1.25 = 5
     expect(dmgs(enemy(0))).toEqual([5]); // Аврора → Айра: 4 × 1.25 = 5
     expect(dmgs(enemy(1))).toEqual([9]); // Юстина → Фенна: 7 × 1.25 → 9
-    expect(dmgs(enemy(2))).toEqual([9]); // Нокта → Нериса: 7 × 1.25 → 9
+    expect(dmgs(enemy(2))).toEqual([6]); // Нокта → Нериса: 7 × 1.25 → 9, −3 первый урон Нерисы (пассивка)
     expect(state.sides.B.active[0].hp).toBe(32 - 19);
     expect(state.result).toBeNull();
   });
@@ -320,8 +321,9 @@ describe('resolveRound: конец раунда', () => {
 
     const r = playRound(setRound(makeMatch(), 9), aDefault(), bDefault());
     expect(r.state.round).toBe(10);
-    // Total Eclipse; живых 6:6; A потеряла 23/31 HP Нерисы, B — 19/32 HP Авроры → у B выше сумма % HP.
-    expect(r.state.sides.A.active[2].hp).toBe(31 - 23);
+    // Total Eclipse; живых 6:6; A потеряла 20/31 HP Нерисы (9 + 9 + 5, первый урон −3), B — 19/32 HP Авроры
+    // → у B выше сумма % HP.
+    expect(r.state.sides.A.active[2].hp).toBe(31 - 20);
     expect(r.state.sides.B.active[0].hp).toBe(32 - 19);
     expect(r.state.result).toEqual({ winner: 'B', reason: 'hpPct' });
     expect(r.events.at(-1)).toEqual({ type: 'matchEnd', round: 10, phase: 'endRound', winner: 'B', reason: 'hpPct' });
