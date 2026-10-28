@@ -7,7 +7,7 @@ import {
   CODEC_V1_CARDS, CODEC_V1_HEROES, crc8, decodeChallenge, encodeChallenge, truncateName,
 } from './codec';
 import type { Challenge } from './codec';
-import { buildChallengeUrl, parseStartParam } from './url';
+import { buildChallengeUrl } from './url';
 
 const NAMES = [
   'Alice',
@@ -183,13 +183,5 @@ describe('адреса вызова', () => {
     const cfg = { TG_BOT: 'eclipse_bot', TG_APP: 'play', SITE_URL: 'https://example.org/x/' };
     expect(buildChallengeUrl(code, fakePlatform('telegram'), cfg)).toBe(`https://t.me/eclipse_bot/play?startapp=${code}`);
     expect(buildChallengeUrl(code, fakePlatform('web'), cfg)).toBe(`https://example.org/x/#/c/${code}`);
-  });
-
-  it('parseStartParam: корректный код возвращается, мусор → null', () => {
-    expect(parseStartParam(code)).toBe(code);
-    expect(parseStartParam(null)).toBeNull();
-    expect(parseStartParam('')).toBeNull();
-    expect(parseStartParam('hello-world')).toBeNull();
-    expect(parseStartParam('ref_12345')).toBeNull();
   });
 });

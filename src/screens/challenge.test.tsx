@@ -173,6 +173,9 @@ describe('результат матча-вызова', () => {
 });
 
 describe('startParam при запуске', () => {
+  beforeEach(() => window.sessionStorage.clear());
+  afterEach(() => window.sessionStorage.clear());
+
   it('код вызова в startParam ведёт на #/c/<код> и показывает вызов', async () => {
     window.location.hash = '';
     setPlatformForTests({ ...createWebPlatform(window), startParam: CODE });
@@ -181,11 +184,32 @@ describe('startParam при запуске', () => {
     expect(await screen.findByTestId('accept')).toBeInTheDocument();
   });
 
-  it('мусорный startParam оставляет меню', () => {
+  it('мусорный startParam ведёт на экран «ссылка повреждена»', async () => {
     window.location.hash = '';
     setPlatformForTests({ ...createWebPlatform(window), startParam: 'garbage!!' });
     render(<App />);
+    expect(window.location.hash).toBe('#/c/garbage!!');
+    expect(await screen.findByText(ru.challenge.invalid)).toBeInTheDocument();
+  });
+
+  it('пустой startParam оставляет меню', () => {
+    window.location.hash = '';
+    setPlatformForTests({ ...createWebPlatform(window), startParam: '' });
+    render(<App />);
     expect(window.location.hash).toBe('');
     expect(screen.getByRole('button', { name: ru.menu.play })).toBeInTheDocument();
+  });
+
+  it('повторный запуск в той же сессии (перезагрузка) с тем же параметром не уводит на вызов', async () => {
+    window.location.hash = '';
+    setPlatformForTests({ ...createWebPlatform(window), startParam: CODE });
+    const first = render(<App />);
+    expect(window.location.hash).toBe(`#/c/${CODE}`);
+    await screen.findByTestId('accept');
+    first.unmount();
+
+    window.location.hash = '#/decks';
+    render(<App />);
+    expect(window.location.hash).toBe('#/decks');
   });
 });

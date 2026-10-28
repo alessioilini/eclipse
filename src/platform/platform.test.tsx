@@ -1,7 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createWebPlatform } from './web';
 import { createTelegramPlatform } from './telegram';
-import { createPlatform, getPlatform, isTelegramLaunch, setPlatformForTests } from './index';
+import {
+  START_PARAM_KEY, TG_SESSION_KEY, createPlatform, getPlatform, isTelegramLaunch, setPlatformForTests, takeStartParam,
+} from './index';
 import type { Platform } from './types';
 
 const SCRIPT_SRC = 'https://telegram.org/js/telegram-web-app.js';
@@ -88,8 +90,16 @@ describe('web-платформа', () => {
     expect(writeText).toHaveBeenCalledWith('Вызов! https://x.test/#/duel');
   });
 
-  it('отмена navigator.share (AbortError) падает в буфер обмена', async () => {
+  it('отмена navigator.share (AbortError) — cancelled, без буфера обмена', async () => {
     const share = vi.fn().mockRejectedValue(new DOMException('cancel', 'AbortError'));
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    const p = createWebPlatform(fakeWin({ share, clipboard: { writeText } }));
+    await expect(p.share('t', 'u')).resolves.toBe('cancelled');
+    expect(writeText).not.toHaveBeenCalled();
+  });
+
+  it('другой отказ navigator.share падает в буфер обмена', async () => {
+    const share = vi.fn().mockRejectedValue(new DOMException('denied', 'NotAllowedError'));
     const writeText = vi.fn().mockResolvedValue(undefined);
     const p = createWebPlatform(fakeWin({ share, clipboard: { writeText } }));
     await expect(p.share('t', 'u')).resolves.toBe('clipboard');
@@ -233,6 +243,56 @@ describe('isTelegramLaunch', () => {
   it('без маркера — не Telegram', () => {
     expect(isTelegramLaunch(at('#/duel?d=abc', '?x=1'))).toBe(false);
   });
+
+  const withSession = (hash: string, initial: Record<string, string> = {}) => {
+    const map = new Map(Object.entries(initial));
+    const sessionStorage = {
+      getItem: (k: string) => map.get(k) ?? null,
+      setItem: (k: string, v: string) => { map.set(k, v); },
+    };
+    return { map, win: { location: { hash, search: '' }, sessionStorage } as unknown as Window };
+  };
+
+  it('запуск с маркером запоминает флаг eclipse.tg в sessionStorage', () => {
+    const { map, win } = withSession('#tgWebAppPlatform=ios');
+    expect(isTelegramLaunch(win)).toBe(true);
+    expect(map.get(TG_SESSION_KEY)).toBe('1');
+  });
+
+  it('после перезагрузки без маркера: флаг eclipse.tg или __telegram__initParams — Telegram', () => {
+    expect(isTelegramLaunch(withSession('#/battle', { [TG_SESSION_KEY]: '1' }).win)).toBe(true);
+    expect(isTelegramLaunch(withSession('', { __telegram__initParams: '{"tgWebAppPlatform":"ios"}' }).win)).toBe(true);
+    expect(isTelegramLaunch(withSession('#/battle').win)).toBe(false);
+  });
+
+  it('недоступный sessionStorage не ломает определение', () => {
+    const win = {
+      location: { hash: '#tgWebAppPlatform=ios', search: '' },
+      get sessionStorage(): Storage { throw new DOMException('denied', 'SecurityError'); },
+    } as unknown as Window;
+    expect(isTelegramLaunch(win)).toBe(true);
+    const bare = { location: { hash: '', search: '' }, get sessionStorage(): Storage { throw new Error('denied'); } };
+    expect(isTelegramLaunch(bare as unknown as Window)).toBe(false);
+  });
+});
+
+describe('takeStartParam', () => {
+  const platform = (startParam: string | null): Platform => ({ ...createWebPlatform(fakeWin({})), startParam });
+  afterEach(() => window.sessionStorage.clear());
+
+  it('отдаёт startParam один раз за сессию вкладки и запоминает его', () => {
+    expect(takeStartParam(platform('abc'), window)).toBe('abc');
+    expect(window.sessionStorage.getItem(START_PARAM_KEY)).toBe('abc');
+    expect(takeStartParam(platform('abc'), window)).toBeNull();
+    // Новый параметр (другая ссылка) снова отдаётся.
+    expect(takeStartParam(platform('xyz'), window)).toBe('xyz');
+  });
+
+  it('пустой или отсутствующий параметр — null', () => {
+    expect(takeStartParam(platform(null), window)).toBeNull();
+    expect(takeStartParam(platform(''), window)).toBeNull();
+    expect(window.sessionStorage.getItem(START_PARAM_KEY)).toBeNull();
+  });
 });
 
 describe('createPlatform', () => {
@@ -242,6 +302,7 @@ describe('createPlatform', () => {
     delete winTg.Telegram;
     injectedScripts().forEach((s) => s.remove());
     window.location.hash = '';
+    window.sessionStorage.clear();
   });
 
   it('без маркера возвращает web и не грузит скрипт Telegram', async () => {
@@ -265,7 +326,27 @@ describe('createPlatform', () => {
     expect(getPlatform()).toBe(p);
   });
 
-  it('если WebApp уже есть, скрипт не вставляется повторно', async () => {
+  it('перезагрузка внутри Telegram: без маркера в адресе, но с флагом сессии — снова telegram', async () => {
+    window.location.hash = '#tgWebAppPlatform=ios';
+    const first = createPlatform(window);
+    winTg.Telegram = { WebApp: makeFakeWebApp() };
+    injectedScripts()[0]!.dispatchEvent(new Event('load'));
+    expect((await first).kind).toBe('telegram');
+    expect(window.sessionStorage.getItem(TG_SESSION_KEY)).toBe('1');
+
+    // Перезагрузка: хеш — маршрут приложения, объекта Telegram ещё нет, скрипт грузится заново.
+    delete winTg.Telegram;
+    injectedScripts().forEach((s) => s.remove());
+    window.location.hash = '#/battle';
+    const second = createPlatform(window);
+    const scripts = injectedScripts();
+    expect(scripts).toHaveLength(1);
+    winTg.Telegram = { WebApp: makeFakeWebApp() };
+    scripts[0]!.dispatchEvent(new Event('load'));
+    expect((await second).kind).toBe('telegram');
+  });
+
+    it('если WebApp уже есть, скрипт не вставляется повторно', async () => {
     window.location.hash = '#tgWebAppPlatform=ios';
     winTg.Telegram = { WebApp: makeFakeWebApp() };
     const p = await createPlatform(window);

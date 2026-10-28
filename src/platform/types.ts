@@ -5,7 +5,8 @@ export type CloudStorage = {
 };
 
 export type HapticKind = 'light' | 'medium' | 'success' | 'error';
-export type ShareResult = 'telegram' | 'native' | 'clipboard' | 'none';
+/** `cancelled`: the user closed the native share sheet — not a failure, no fallback. */
+export type ShareResult = 'telegram' | 'native' | 'clipboard' | 'cancelled' | 'none';
 
 export type Platform = {
   kind: 'telegram' | 'web';

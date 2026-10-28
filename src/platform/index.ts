@@ -10,10 +10,53 @@ const POLL_MS = 50;
 
 let current: Platform | null = null;
 
-/** Telegram launches carry `tgWebAppPlatform` in the hash (or, rarely, the query). */
+/** Our sessionStorage flag: this tab was launched by Telegram (survives reloads, which drop the hash). */
+export const TG_SESSION_KEY = 'eclipse.tg';
+/** Where telegram-web-app.js keeps the launch params for the session. */
+const TG_INIT_PARAMS_KEY = '__telegram__initParams';
+/** The start param already consumed in this tab (see takeStartParam). */
+export const START_PARAM_KEY = 'eclipse.startParam';
+
+function sessionGet(win: Window, key: string): string | null {
+  try {
+    return win.sessionStorage.getItem(key);
+  } catch {
+    return null; // no sessionStorage, or blocked
+  }
+}
+
+function sessionSet(win: Window, key: string, value: string): void {
+  try {
+    win.sessionStorage.setItem(key, value);
+  } catch {
+    // no sessionStorage, or blocked: detection then relies on the hash only
+  }
+}
+
+/**
+ * Telegram launches carry `tgWebAppPlatform` in the hash (or, rarely, the query); a launch marker is
+ * remembered in sessionStorage. After a reload inside Telegram the hash is gone, so our flag or
+ * Telegram's own `__telegram__initParams` in sessionStorage also count.
+ */
 export function isTelegramLaunch(win: Window): boolean {
   const { hash, search } = win.location;
-  return hash.includes('tgWebAppPlatform') || search.includes('tgWebAppPlatform');
+  if (hash.includes('tgWebAppPlatform') || search.includes('tgWebAppPlatform')) {
+    sessionSet(win, TG_SESSION_KEY, '1');
+    return true;
+  }
+  return sessionGet(win, TG_SESSION_KEY) === '1' || sessionGet(win, TG_INIT_PARAMS_KEY) !== null;
+}
+
+/**
+ * The platform's start param, once per tab session: the consumed value is remembered in sessionStorage,
+ * so a reload (e.g. mid-battle) does not jump back to the challenge screen. Empty/absent → null.
+ */
+export function takeStartParam(platform: Platform, win: Window = window): string | null {
+  const param = platform.startParam;
+  if (!param) return null;
+  if (sessionGet(win, START_PARAM_KEY) === param) return null;
+  sessionSet(win, START_PARAM_KEY, param);
+  return param;
 }
 
 /** Injects the Telegram script once and resolves true when WebApp appears, false on error/timeout. */

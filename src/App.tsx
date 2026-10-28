@@ -1,7 +1,6 @@
 import { Suspense, lazy, useEffect } from 'react';
 import { ru } from './i18n/ru';
-import { parseStartParam } from './game/links/url';
-import { getPlatform } from './platform';
+import { getPlatform, takeStartParam } from './platform';
 import { navigate, toHash, useRoute } from './router';
 import { Crashed } from './screens/Crashed';
 import { Decks } from './screens/Decks';
@@ -21,9 +20,10 @@ const Challenge = lazy(() => import('./screens/Challenge').then((m) => ({ defaul
 
 export function App() {
   const route = useRoute();
-  // Запуск по ссылке-вызову в Telegram (`startapp=<код>`): один раз при старте ведём на #/c/<код> (спека §4.2).
+  // Запуск по ссылке-вызову в Telegram (`startapp=<код>`): один раз за сессию вкладки ведём на #/c/<код>
+  // (спека §4.2); перезагрузка посреди боя туда не возвращает. Негодный код покажет экран «ссылка повреждена».
   useEffect(() => {
-    const code = parseStartParam(getPlatform().startParam);
+    const code = takeStartParam(getPlatform());
     if (code !== null) navigate({ name: 'challenge', code });
   }, []);
   // Бой обучения живёт только на #/tutorial/:id (оверлей, награды); #/battle с ним перенаправляется туда.

@@ -50,6 +50,7 @@ export function useShare(now: () => number): ShareFlow {
       setNotice(null);
       const result = await platform.share(shareText({ name: who, moment }), link);
       if (!mounted.current) return;
+      // native / telegram / cancelled (лист шаринга закрыт) — без подсказки.
       if (result === 'clipboard') setNotice('copied');
       else if (result === 'none') setNotice('shareFailed');
     } finally {

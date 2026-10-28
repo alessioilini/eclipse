@@ -29,8 +29,9 @@ export function createWebPlatform(win: Window): WebPlatform {
         try {
           await nav.share({ text, url });
           return 'native';
-        } catch {
-          // Cancelled (AbortError) or refused — fall back to the clipboard.
+        } catch (e) {
+          // The user closed the share sheet: nothing to report. Other refusals fall back to the clipboard.
+          if ((e as { name?: unknown } | null)?.name === 'AbortError') return 'cancelled';
         }
       }
       try {

@@ -116,6 +116,18 @@ describe('«Поделиться» на экране результата', () =
     expect(st().notice).toBeNull();
   });
 
+  it('результат «cancelled» (лист шаринга закрыт) — без подсказки', async () => {
+    usePlatform('cancelled');
+    st().setName('Оля');
+    finish();
+    render(<Result />);
+    fireEvent.click(screen.getByTestId('share'));
+    await waitFor(() => expect(share).toHaveBeenCalledTimes(1));
+    await act(async () => {});
+    expect(screen.queryByRole('status')).toBeNull();
+    expect(st().notice).toBeNull();
+  });
+
   it('два быстрых нажатия — один вызов platform.share', async () => {
     let resolve!: (r: ShareResult) => void;
     share.mockImplementation(() => new Promise<ShareResult>((r) => { resolve = r; }));
