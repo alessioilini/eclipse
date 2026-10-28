@@ -54,6 +54,8 @@ export function hydrate(save: SaveV1): StoreState {
         session,
         draft: emptyDraft(session.state),
         phase: isFinished(session) ? 'finished' : 'planning',
+        // Завершённый матч уже был засчитан при завершении: после перезагрузки повторно не считаем.
+        resultRecordedFor: isFinished(session) ? session.state : null,
         tutorialStepIndex: m?.tutorialStepIndex ?? null,
       }
       : {}),

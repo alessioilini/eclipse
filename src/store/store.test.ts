@@ -284,6 +284,24 @@ describe('матч в сторе', () => {
     expect(s.phase).toBe('finished');
   });
 
+  it('recordMatchResult засчитывает матч один раз', () => {
+    useStore.getState().startMatch(playerDeck(), opts());
+    useStore.getState().surrender();
+    useStore.getState().recordMatchResult();
+    useStore.getState().recordMatchResult();
+    expect(useStore.getState().stats).toEqual({ wins: 0, losses: 1, draws: 0 });
+  });
+
+  it('восстановленный завершённый матч не засчитывается повторно', () => {
+    useStore.getState().startMatch(playerDeck(), opts());
+    useStore.getState().surrender();
+    useStore.getState().recordMatchResult();
+    const saved = toSave(useStore.getState());
+    hydrate(saved);
+    useStore.getState().recordMatchResult();
+    expect(useStore.getState().stats).toEqual({ wins: 0, losses: 1, draws: 0 });
+  });
+
   it('clearMatch сбрасывает матч', () => {
     useStore.getState().startMatch(playerDeck(), opts());
     fillDraft();
