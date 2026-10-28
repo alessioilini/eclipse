@@ -1,5 +1,6 @@
 import { Suspense, lazy, useEffect } from 'react';
 import { ru } from './i18n/ru';
+import { parseStartParam } from './game/links/url';
 import { getPlatform } from './platform';
 import { navigate, toHash, useRoute } from './router';
 import { Crashed } from './screens/Crashed';
@@ -16,9 +17,15 @@ const DeckBuilder = lazy(() => import('./screens/DeckBuilder').then((m) => ({ de
 const Heroes = lazy(() => import('./screens/Heroes').then((m) => ({ default: m.Heroes })));
 const HeroDetail = lazy(() => import('./screens/HeroDetail').then((m) => ({ default: m.HeroDetail })));
 const Result = lazy(() => import('./screens/Result').then((m) => ({ default: m.Result })));
+const Challenge = lazy(() => import('./screens/Challenge').then((m) => ({ default: m.Challenge })));
 
 export function App() {
   const route = useRoute();
+  // Запуск по ссылке-вызову в Telegram (`startapp=<код>`): один раз при старте ведём на #/c/<код> (спека §4.2).
+  useEffect(() => {
+    const code = parseStartParam(getPlatform().startParam);
+    if (code !== null) navigate({ name: 'challenge', code });
+  }, []);
   // Бой обучения живёт только на #/tutorial/:id (оверлей, награды); #/battle с ним перенаправляется туда.
   const tutorialId = useStore((s) => (s.session?.mode === 'tutorial' ? s.session.tutorialId ?? null : null));
   const redirect = route.name === 'battle' ? tutorialId : null;
@@ -57,6 +64,8 @@ export function App() {
             <Heroes />
           ) : route.name === 'hero' ? (
             <HeroDetail key={route.id} id={route.id} />
+          ) : route.name === 'challenge' ? (
+            <Challenge key={route.code} code={route.code} />
           ) : (
             <p style={{ padding: 'var(--sp-24)' }}>{ru.common.soon}</p>
           )}

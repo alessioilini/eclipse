@@ -74,6 +74,14 @@ export function Result({ now = Date.now }: Props) {
       navigate({ name: 'tutorial', id: session.tutorialId });
       return;
     }
+    if (session.challenge) {
+      // Матч-вызов: тот же призрак — колода и seed отправителя (спека §4.3).
+      startMatch(session.playerDeck, {
+        opponentDeck: session.opponentDeck, seed: session.botSeed, mode: 'free', challenge: session.challenge,
+      });
+      navigate({ name: 'battle' });
+      return;
+    }
     // seed матча — uint32 (Date.now() не помещается в генератор без потерь, I5).
     const seed = now() >>> 0;
     startMatch(session.playerDeck, { opponentDeck: opponentDeckFor(seed), seed, mode: 'free' });
@@ -91,6 +99,9 @@ export function Result({ now = Date.now }: Props) {
   return (
     <main className={styles.screen} data-testid="result">
       <h1 className={cx(styles.title, result.winner === 'B' && styles.lost)}>{title}</h1>
+      {session.challenge && (
+        <p className={styles.vs} data-testid="result-vs">{fmt(ru.challenge.resultVs, { name: session.challenge.name })}</p>
+      )}
       {reason && <p className={styles.reason} data-testid="result-reason">{reason}</p>}
       <p className={styles.rounds}>{fmt(ru.result.rounds, { n: state.round })}</p>
       <p className={styles.moment} data-testid="key-moment">{moment.text}</p>
@@ -99,6 +110,12 @@ export function Result({ now = Date.now }: Props) {
         <Button variant={next ? 'secondary' : 'primary'} size={next ? 'md' : 'lg'} onClick={again}>
           {ru.result.again}
         </Button>
+        {session.challenge && (
+          // «Ответный вызов» подключается вместе с «Поделиться» (Task 6); пока отключён.
+          <Button variant="secondary" disabled title={ru.challenge.soon} onClick={() => {}}>
+            {ru.challenge.counter}
+          </Button>
+        )}
         <Button variant="secondary" onClick={toMenu}>{ru.result.menu}</Button>
       </div>
     </main>

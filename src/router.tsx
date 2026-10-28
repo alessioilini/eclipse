@@ -9,7 +9,8 @@ export type Route =
   | { name: 'heroes' }
   | { name: 'hero'; id: HeroId }
   | { name: 'decks' }
-  | { name: 'deck'; id: string };
+  | { name: 'deck'; id: string }
+  | { name: 'challenge'; code: string };
 
 const MENU: Route = { name: 'menu' };
 
@@ -48,6 +49,9 @@ export function parseHash(hash: string): Route {
     case 'decks':
       if (arg === undefined) return { name: 'decks' };
       return arg === '' ? MENU : withId(arg, (id) => ({ name: 'deck', id }));
+    case 'c':
+      // Код не проверяется здесь: битый код экран вызова показывает сообщением.
+      return arg === undefined || arg === '' ? MENU : withId(arg, (code) => ({ name: 'challenge', code }));
     default:
       return MENU;
   }
@@ -71,6 +75,8 @@ export function toHash(route: Route): string {
       return '#/decks';
     case 'deck':
       return `#/decks/${encodeURIComponent(route.id)}`;
+    case 'challenge':
+      return `#/c/${encodeURIComponent(route.code)}`;
   }
 }
 

@@ -9,9 +9,11 @@ export type ButtonProps = {
   onClick: () => void;
   children: ReactNode;
   testId?: string;
+  /** Подсказка (атрибут `title`), например у отключённой кнопки. */
+  title?: string;
 };
 
-export function Button({ variant, size = 'md', disabled, onClick, children, testId }: ButtonProps) {
+export function Button({ variant, size = 'md', disabled, onClick, children, testId, title }: ButtonProps) {
   return (
     <button
       type="button"
@@ -19,6 +21,7 @@ export function Button({ variant, size = 'md', disabled, onClick, children, test
       disabled={disabled}
       onClick={onClick}
       data-testid={testId}
+      title={title}
     >
       {children}
     </button>

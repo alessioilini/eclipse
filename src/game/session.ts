@@ -25,6 +25,8 @@ export type MatchSession = {
   opponentDeck: Deck;
   enemy?: (round: number, view: PublicState) => SideCommands;
   surrendered?: true;
+  /** Матч-вызов (спека §4.3): имя отправителя и код ссылки; противник — бот с его колодой и seed. */
+  challenge?: { name: string; code: string };
 };
 
 export type NewMatchOpts = {
@@ -35,6 +37,8 @@ export type NewMatchOpts = {
   enemy?: (round: number, view: PublicState) => SideCommands;
   /** Стартовое HP героинь противника в порядке `opponentDeck.heroes` (раненые противницы обучения). */
   opponentHp?: number[];
+  /** Матч-вызов: переносится в `MatchSession.challenge`. */
+  challenge?: { name: string; code: string };
 };
 
 /** Ставит героиням B стартовое HP из `hp` (по порядку колоды), в пределах 1..maxHp. */
@@ -66,6 +70,7 @@ export function openMatch(playerDeck: Deck, opts: NewMatchOpts): { session: Matc
     playerDeck,
     opponentDeck: opts.opponentDeck,
     ...(opts.enemy ? { enemy: opts.enemy } : {}),
+    ...(opts.challenge ? { challenge: { ...opts.challenge } } : {}),
   };
   return { session, events: eventsFor(events, 'A') };
 }

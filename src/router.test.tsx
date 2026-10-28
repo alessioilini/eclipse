@@ -32,6 +32,14 @@ describe('parseHash', () => {
     expect(parseHash('#/decks/%E0%A4%A')).toEqual({ name: 'menu' });
   });
 
+  it('разбирает вызов #/c/<код>; без кода — меню', () => {
+    expect(parseHash('#/c/AQIDBA-_x')).toEqual({ name: 'challenge', code: 'AQIDBA-_x' });
+    expect(parseHash('#/c')).toEqual({ name: 'menu' });
+    expect(parseHash('#/c/')).toEqual({ name: 'menu' });
+    expect(parseHash('#/c/%')).toEqual({ name: 'menu' });
+    expect(parseHash('#/c/a/b')).toEqual({ name: 'menu' });
+  });
+
   it('неизвестный путь ведёт в меню', () => {
     expect(parseHash('#/nope')).toEqual({ name: 'menu' });
     expect(parseHash('#/battle/extra')).toEqual({ name: 'menu' });
@@ -49,6 +57,7 @@ describe('toHash', () => {
     { name: 'hero', id: 'aira' },
     { name: 'decks' },
     { name: 'deck', id: 'd1' },
+    { name: 'challenge', code: 'AQIDBA-_x' },
   ];
 
   it('обратим вместе с parseHash', () => {
@@ -58,6 +67,7 @@ describe('toHash', () => {
   it('пишет ожидаемые хэши', () => {
     expect(toHash({ name: 'menu' })).toBe('#/');
     expect(toHash({ name: 'hero', id: 'aira' })).toBe('#/heroes/aira');
+    expect(toHash({ name: 'challenge', code: 'AQIDBA-_x' })).toBe('#/c/AQIDBA-_x');
   });
 });
 

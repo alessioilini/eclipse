@@ -56,6 +56,7 @@ export function hydrate(save: SaveV1): StoreState {
       ...(m.tutorialId !== undefined ? { tutorialId: m.tutorialId } : {}),
       playerDeck: m.playerDeck, opponentDeck: m.opponentDeck,
       ...(script ? { enemy: script.enemy } : {}),
+      ...(m.challenge ? { challenge: m.challenge } : {}),
     }
     : null;
   // Матч восстанавливается в планировании текущего раунда с пустым черновиком: исполнитель на том же
@@ -105,6 +106,7 @@ export function toSave(state: StoreState): SaveV1 {
         ...(s.tutorialId !== undefined ? { tutorialId: s.tutorialId } : {}),
         ...(state.tutorialStepIndex !== null ? { tutorialStepIndex: state.tutorialStepIndex } : {}),
         playerDeck: s.playerDeck, opponentDeck: s.opponentDeck,
+        ...(s.challenge ? { challenge: s.challenge } : {}),
         engineVersion: ENGINE_VERSION,
       }
       : null,

@@ -113,6 +113,15 @@ export const ru = {
     surrender: 'Вы сдались',
     rounds: 'Раундов: {n}',
   },
+  challenge: {
+    title: 'Вызов от {name}',
+    invalid: 'Ссылка-вызов повреждена или устарела',
+    accept: 'Принять вызов',
+    menu: 'В меню',
+    resultVs: 'против {name}',
+    counter: 'Ответный вызов',
+    soon: 'скоро',
+  },
   heroes: {
     title: 'Героини',
     locked: 'Закрыта',

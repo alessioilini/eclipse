@@ -19,6 +19,11 @@
   color: var(--danger);
 }
 
+.vs {
+  margin: 0;
+  font-size: var(--fs-20);
+}
+
 .reason,
 .rounds {
   margin: 0;
