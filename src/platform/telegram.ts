@@ -23,6 +23,8 @@ export type TelegramWebApp = {
 };
 
 export const CLOUD_VALUE_MAX = 4096;
+/** Допустимый ключ CloudStorage Telegram: `A-Z a-z 0-9 _ -`, 1–128 символов. */
+export const CLOUD_KEY_PATTERN = /^[A-Za-z0-9_-]{1,128}$/;
 
 export function getTelegramWebApp(win: Window): TelegramWebApp | undefined {
   return (win as unknown as { Telegram?: { WebApp?: TelegramWebApp } }).Telegram?.WebApp;
@@ -44,19 +46,27 @@ function call<T>(fn: ((cb: Callback<T>) => void) | undefined): Promise<T | undef
   });
 }
 
+/** Неверный ключ отвергается до вызова Telegram: так поддельное облако в тестах и настоящее ведут себя одинаково. */
+function checkKey(key: string): void {
+  if (!CLOUD_KEY_PATTERN.test(key)) throw new Error(`invalid cloud key: ${key}`);
+}
+
 function wrapCloud(cs: NonNullable<TelegramWebApp['CloudStorage']>): CloudStorage {
   return {
     async getItem(key) {
+      checkKey(key);
       const v = await call<string>(cs.getItem && ((cb) => cs.getItem!(key, cb)));
       // Telegram returns '' for a missing key.
       return v == null || v === '' ? null : v;
     },
     async setItem(key, value) {
+      checkKey(key);
       // UTF-16 length: a conservative stand-in for Telegram's 4096-char limit.
       if (value.length > CLOUD_VALUE_MAX) throw new Error('cloud value too long');
       await call<boolean>(cs.setItem && ((cb) => cs.setItem!(key, value, cb)));
     },
     async removeItem(key) {
+      checkKey(key);
       await call<boolean>(cs.removeItem && ((cb) => cs.removeItem!(key, cb)));
     },
   };

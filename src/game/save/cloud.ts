@@ -1,11 +1,14 @@
 import type { CloudStorage } from '../../platform/types';
 import type { SaveV1 } from './defaults';
 
-/** Ключи облака Telegram (спека §6): матч в облако не попадает, он живёт только в localStorage. */
+/**
+ * Ключи облака Telegram (спека §6): матч в облако не попадает, он живёт только в localStorage.
+ * CloudStorage принимает только `A-Z a-z 0-9 _ -` длиной 1–128, поэтому разделитель — `_`, не точка.
+ */
 export const CLOUD_KEYS = {
-  profile: 'eclipse.profile',
-  decks: 'eclipse.decks',
-  settings: 'eclipse.settings',
+  profile: 'eclipse_profile',
+  decks: 'eclipse_decks',
+  settings: 'eclipse_settings',
 } as const;
 
 /** Предел длины значения в CloudStorage Telegram (4096 символов); `length` считает кодовые единицы UTF-16. */
@@ -95,43 +98,55 @@ export type CloudWriter = { write(save: SaveV1): void; flush(): Promise<void> };
  * Отложенная запись в облако: записи в пределах `delayMs` сливаются в одну (таймер не перезапускается),
  * отправляются только разделы, чья строка изменилась с последней успешной записи. Значение длиннее
  * 4096 символов пропускается с предупреждением; отказ setItem предупреждается один раз на писателя,
- * игра продолжает жить на localStorage. Записи выполняются по очереди.
+ * игра продолжает жить на localStorage. Записи выполняются по очереди. `onSynced` вызывается после
+ * записи, в которой все разделы оказались в облаке (ни пропуска по размеру, ни отказа), если за это
+ * время не появилось новой отложенной записи.
  */
-export function createCloudWriter(cloud: CloudStorage, delayMs = 1000): CloudWriter {
+export function createCloudWriter(cloud: CloudStorage, delayMs = 1000, onSynced?: () => void): CloudWriter {
   const written = new Map<string, string>();
   let pending: SaveV1 | null = null;
   let timer: ReturnType<typeof setTimeout> | null = null;
   let chain: Promise<void> = Promise.resolve();
   let rejectWarned = false;
 
-  async function perform(save: SaveV1): Promise<void> {
+  /** true — все разделы записаны (или уже были в облаке). */
+  async function perform(save: SaveV1): Promise<boolean> {
     let tooLongWarned = false;
-    await Promise.all(sections(save).map(async ([key, value]) => {
-      if (written.get(key) === value) return;
+    const results = await Promise.all(sections(save).map(async ([key, value]) => {
+      if (written.get(key) === value) return true;
       if (value.length > CLOUD_VALUE_LIMIT) {
         if (!tooLongWarned) {
           tooLongWarned = true;
           console.warn(`[cloud] ${key}: ${value.length} символов больше предела ${CLOUD_VALUE_LIMIT}, раздел не записан`);
         }
-        return;
+        return false;
       }
       try {
         await cloud.setItem(key, value);
         written.set(key, value);
+        return true;
       } catch (e) {
         if (!rejectWarned) {
           rejectWarned = true;
           console.warn('[cloud] не удалось записать в облако, сохранение остаётся в localStorage', e);
         }
+        return false;
       }
     }));
+    return results.every(Boolean);
   }
 
   function run(): Promise<void> {
     timer = null;
     const save = pending;
     pending = null;
-    if (save) chain = chain.then(() => perform(save));
+    if (save) {
+      chain = chain.then(async () => {
+        const ok = await perform(save);
+        // Новая запись пришла во время этой: облако ещё не догнало локальное сохранение.
+        if (ok && pending === null) onSynced?.();
+      });
+    }
     return chain;
   }
 

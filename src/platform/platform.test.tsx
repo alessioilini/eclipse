@@ -198,6 +198,19 @@ describe('telegram-платформа', () => {
     await expect(p.cloud!.setItem('k', 'x'.repeat(4096))).resolves.toBeUndefined();
   });
 
+  it('cloud отвергает недопустимый ключ, не вызывая Telegram', async () => {
+    for (const key of ['eclipse.profile', '', 'k'.repeat(129), 'ключ']) {
+      await expect(p.cloud!.getItem(key)).rejects.toThrow(Error);
+      await expect(p.cloud!.setItem(key, 'v')).rejects.toThrow('invalid cloud key');
+      await expect(p.cloud!.removeItem(key)).rejects.toThrow('invalid cloud key');
+    }
+    expect(app.CloudStorage.getItem).not.toHaveBeenCalled();
+    expect(app.CloudStorage.setItem).not.toHaveBeenCalled();
+    expect(app.CloudStorage.removeItem).not.toHaveBeenCalled();
+    await expect(p.cloud!.setItem('eclipse_profile-1', 'v')).resolves.toBeUndefined();
+    await expect(p.cloud!.setItem('k'.repeat(128), 'v')).resolves.toBeUndefined();
+  });
+
   it('старый клиент без CloudStorage и HapticFeedback: cloud null, haptic не бросает', () => {
     const old = createTelegramPlatform(
       tgWin(makeFakeWebApp({ CloudStorage: undefined, HapticFeedback: undefined, enableClosingConfirmation: undefined })),

@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { CLOUD_KEYS } from './game/save/cloud';
 import { defaultSave } from './game/save/defaults';
-import { SAVE_KEY } from './game/save/storage';
-import { boot, CLOUD_BOOT_TIMEOUT_MS } from './main';
+import { SAVE_KEY, UNSYNCED_KEY } from './game/save/storage';
+import { boot, CLOUD_BOOT_TIMEOUT_MS, onPageHide } from './main';
 import type { CloudStorage, Platform } from './platform';
 import { createWebPlatform } from './platform/web';
 import { useStore } from './store';
@@ -160,5 +160,81 @@ describe('запуск приложения', () => {
     }
     expect(cloud.setItem).not.toHaveBeenCalled();
     expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it('метка «облако отстаёт» + облако со старым профилем → локальный профиль, он уходит в облако, метка снята', async () => {
+    const local = localSave();
+    const storage = fakeStorage({ [SAVE_KEY]: JSON.stringify(local), [UNSYNCED_KEY]: '1' });
+    const olderProfile = { ...defaultSave().profile, stats: { wins: 2, losses: 0, draws: 0 } };
+    const cloud = fakeCloud({ [CLOUD_KEYS.profile]: JSON.stringify(olderProfile) });
+    const detach = await boot(storage, withCloud(cloud));
+    try {
+      expect(useStore.getState().stats.wins).toBe(7);
+      expect(useStore.getState().tutorialStep).toBe(2);
+      await vi.waitFor(() => expect(storage.getItem(UNSYNCED_KEY)).toBeNull());
+      expect(cloud.setItem).toHaveBeenCalledWith(CLOUD_KEYS.profile, JSON.stringify(local.profile));
+      expect(cloud.setItem).toHaveBeenCalledWith(CLOUD_KEYS.decks, JSON.stringify({ decks: local.decks, activeDeckId: local.activeDeckId }));
+      expect(cloud.setItem).toHaveBeenCalledWith(CLOUD_KEYS.settings, JSON.stringify(local.settings));
+    } finally {
+      detach();
+    }
+  });
+
+  it('метка остаётся, если отправка локального в облако не удалась', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const storage = fakeStorage({ [SAVE_KEY]: JSON.stringify(localSave()), [UNSYNCED_KEY]: '1' });
+    const cloud = fakeCloud({ [CLOUD_KEYS.profile]: JSON.stringify(defaultSave().profile) });
+    cloud.setItem.mockRejectedValue(new Error('нет сети'));
+    const detach = await boot(storage, withCloud(cloud));
+    detach();
+    await vi.waitFor(() => expect(cloud.setItem).toHaveBeenCalled());
+    await new Promise((r) => setTimeout(r, 0));
+    expect(storage.getItem(UNSYNCED_KEY)).toBe('1');
+  });
+
+  it('победа при недоступном облаке оставляет метку; следующий запуск с облаком сохраняет её и отправляет в облако', async () => {
+    vi.useFakeTimers();
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const storage = fakeStorage({ [SAVE_KEY]: JSON.stringify(localSave()) });
+    const staleProfile = JSON.stringify(localSave().profile); // облако знает 7 побед
+    const silent = fakeCloud({ [CLOUD_KEYS.profile]: staleProfile });
+    silent.getItem.mockImplementation(() => new Promise<string | null>(() => {}));
+    const booting = boot(storage, withCloud(silent));
+    await vi.advanceTimersByTimeAsync(CLOUD_BOOT_TIMEOUT_MS);
+    const detachFirst = await booting;
+    useStore.getState().recordResult('win');
+    detachFirst();
+    vi.useRealTimers();
+    expect(storage.getItem(UNSYNCED_KEY)).toBe('1');
+    expect(JSON.parse(storage.getItem(SAVE_KEY)!).profile.stats.wins).toBe(8);
+
+    // Следующий запуск: облако отвечает, но в нём старый профиль.
+    const cloud = fakeCloud({ [CLOUD_KEYS.profile]: staleProfile });
+    const detach = await boot(storage, withCloud(cloud));
+    try {
+      expect(useStore.getState().stats.wins).toBe(8);
+      await vi.waitFor(() => expect(JSON.parse(cloud.map.get(CLOUD_KEYS.profile)!).stats.wins).toBe(8));
+      await vi.waitFor(() => expect(storage.getItem(UNSYNCED_KEY)).toBeNull());
+    } finally {
+      detach();
+    }
+  });
+
+  it('onPageHide: pagehide и переход во hidden вызывают обработчик, отписка снимает оба', () => {
+    const cb = vi.fn();
+    const off = onPageHide(window, document)(cb);
+    window.dispatchEvent(new Event('pagehide'));
+    expect(cb).toHaveBeenCalledTimes(1);
+    const visibility = vi.spyOn(document, 'visibilityState', 'get');
+    visibility.mockReturnValue('visible');
+    document.dispatchEvent(new Event('visibilitychange'));
+    expect(cb).toHaveBeenCalledTimes(1);
+    visibility.mockReturnValue('hidden');
+    document.dispatchEvent(new Event('visibilitychange'));
+    expect(cb).toHaveBeenCalledTimes(2);
+    off();
+    window.dispatchEvent(new Event('pagehide'));
+    document.dispatchEvent(new Event('visibilitychange'));
+    expect(cb).toHaveBeenCalledTimes(2);
   });
 });

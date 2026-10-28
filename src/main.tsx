@@ -1,9 +1,9 @@
 import { createRoot } from 'react-dom/client';
 import { App } from './App';
-import { createCloudWriter, loadCloud, type CloudSections } from './game/save/cloud';
-import { loadSave } from './game/save/storage';
+import { loadCloud, type CloudSections } from './game/save/cloud';
+import { isUnsynced, loadSave } from './game/save/storage';
 import { createPlatform, type Platform } from './platform';
-import { attachPersistence, hydrate } from './store';
+import { attachPersistence, hydrate, type PersistenceHooks } from './store';
 import './styles/tokens.css';
 import './styles/global.css';
 
@@ -22,12 +22,35 @@ function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
 }
 
 /**
+ * Уход страницы в фон: `pagehide` окна и `visibilitychange` в состояние hidden. Возвращает отписку.
+ * Telegram и мобильные браузеры могут выгрузить страницу без `beforeunload`, поэтому облако досылается здесь.
+ */
+export function onPageHide(win: Window, doc: Document): (cb: () => void) => () => void {
+  return (cb) => {
+    const onVisibility = () => {
+      if (doc.visibilityState === 'hidden') cb();
+    };
+    win.addEventListener('pagehide', cb);
+    doc.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      win.removeEventListener('pagehide', cb);
+      doc.removeEventListener('visibilitychange', onVisibility);
+    };
+  };
+}
+
+/**
  * Загружает сохранение в стор и подключает его запись; возвращает отписку записи. С облаком Telegram
  * (спека §6) профиль, колоды и настройки берутся из облака поверх localStorage; пустое облако
- * получает локальный прогресс. Отказ облака при чтении или молчание дольше `CLOUD_BOOT_TIMEOUT_MS` —
- * предупреждение, облако на этот запуск отключено.
+ * получает локальный прогресс. Если локальное сохранение помечено как не дошедшее до облака
+ * (`isUnsynced`: прошлый запуск писал без облака или не успел дослать), берётся локальное и
+ * отправляется в облако. Компромисс: с меткой локальное побеждает даже более новое облако с другого
+ * устройства. Отказ облака при чтении или молчание дольше `CLOUD_BOOT_TIMEOUT_MS` — предупреждение,
+ * облако на этот запуск отключено (метка при этом остаётся и ставится заново при каждой записи).
  */
-export async function boot(storage?: SaveStorage, platform?: Platform): Promise<() => void> {
+export async function boot(
+  storage?: SaveStorage, platform?: Platform, hooks: Pick<PersistenceHooks, 'onHide'> = {},
+): Promise<() => void> {
   const local = loadSave(storage);
   let cloud = platform?.cloud ?? null;
   let fromCloud: CloudSections | null = null;
@@ -39,23 +62,22 @@ export async function boot(storage?: SaveStorage, platform?: Platform): Promise<
       cloud = null;
     }
   }
-  const save = fromCloud ? { ...local, ...fromCloud } : local;
-  if (cloud && !fromCloud) {
-    // Первый запуск в Telegram: переносим локальный прогресс в облако, не задерживая запуск
-    // (отказ записи писатель сам предупреждает).
-    const writer = createCloudWriter(cloud);
-    writer.write(save);
-    void writer.flush();
-  }
+  // Облако пусто (первый запуск в Telegram) или отстаёт от локального: локальное в облако, не задерживая
+  // запуск (отказ записи писатель сам предупреждает, метка тогда остаётся до следующего раза).
+  const pushLocal = cloud !== null && (fromCloud === null || isUnsynced(storage));
+  const save = fromCloud && !pushLocal ? { ...local, ...fromCloud } : local;
   hydrate(save);
-  return attachPersistence(storage, cloud ?? undefined);
+  return attachPersistence(storage, cloud ?? undefined, { ...hooks, pushNow: pushLocal });
 }
 
 const root = document.getElementById('root');
 if (root) {
-  // Платформа (Telegram или web) создаётся до загрузки и отрисовки: экраны берут её через getPlatform().
-  const platform = await createPlatform();
-  platform.ready();
-  await boot(undefined, platform);
-  createRoot(root).render(<App />);
+  // Без top-level await: сборка остаётся на целевых браузерах Vite по умолчанию.
+  void (async () => {
+    // Платформа (Telegram или web) создаётся до загрузки и отрисовки: экраны берут её через getPlatform().
+    const platform = await createPlatform();
+    platform.ready();
+    await boot(undefined, platform, { onHide: onPageHide(window, document) });
+    createRoot(root).render(<App />);
+  })();
 }

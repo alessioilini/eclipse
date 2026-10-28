@@ -3,7 +3,8 @@ import { ENGINE_VERSION, createRng, formatLog, viewFor } from '../engine';
 import type { HeroAction, Slot } from '../engine';
 import { randomDeck } from '../engine/sim';
 import { defaultSave, type SaveV1 } from '../game/save/defaults';
-import { SAVE_KEY } from '../game/save/storage';
+import { CLOUD_KEYS } from '../game/save/cloud';
+import { SAVE_KEY, UNSYNCED_KEY } from '../game/save/storage';
 import { viewFromPublic } from '../game/playback/viewReducer';
 import { newMatch, playerView } from '../game/session';
 import { createRunner, current, dismissSay } from '../game/tutorial/runner';
@@ -20,6 +21,16 @@ function fakeStorage(initial: Record<string, string> = {}): FakeStorage & { setI
     getItem: (k) => (map.has(k) ? (map.get(k) as string) : null),
     setItem: vi.fn((k: string, v: string) => { map.set(k, v); }),
     removeItem: (k) => { map.delete(k); },
+  };
+}
+
+function fakeCloud() {
+  const map = new Map<string, string>();
+  return {
+    map,
+    getItem: vi.fn(async (k: string) => map.get(k) ?? null),
+    setItem: vi.fn(async (k: string, v: string) => { map.set(k, v); }),
+    removeItem: vi.fn(async (k: string) => { map.delete(k); }),
   };
 }
 
@@ -49,7 +60,7 @@ function makeNextRoundFinal(): void {
 let detach: (() => void) | null = null;
 
 beforeEach(() => { hydrate(defaultSave()); });
-afterEach(() => { detach?.(); detach = null; vi.restoreAllMocks(); });
+afterEach(() => { detach?.(); detach = null; vi.restoreAllMocks(); vi.useRealTimers(); });
 
 describe('профиль', () => {
   it('hydrate(defaultSave()) открывает четырёх героинь', () => {
@@ -130,7 +141,7 @@ describe('сохранение стора', () => {
     const storage = fakeStorage();
     detach = attachPersistence(storage);
     useStore.getState().upsertDeck({ id: 'd1', name: 'Первая', deck: playerDeck() });
-    expect(storage.setItem).toHaveBeenCalledTimes(1);
+    expect(storage.setItem.mock.calls.filter(([k]) => k === SAVE_KEY)).toHaveLength(1);
     expect(JSON.parse(storage.getItem(SAVE_KEY) as string).decks[0].id).toBe('d1');
   });
 
@@ -160,6 +171,83 @@ describe('сохранение стора', () => {
     attachPersistence(storage)();
     useStore.getState().setSpeed('fast');
     expect(storage.setItem).not.toHaveBeenCalled();
+  });
+
+  it('каждая запись ставит метку «облако отстаёт»; без облака она не снимается', () => {
+    const storage = fakeStorage();
+    detach = attachPersistence(storage);
+    expect(storage.getItem(UNSYNCED_KEY)).toBeNull();
+    useStore.getState().setSpeed('fast');
+    expect(storage.getItem(UNSYNCED_KEY)).toBe('1');
+  });
+
+  it('с облаком полная запись в облако снимает метку', async () => {
+    const storage = fakeStorage();
+    const cloud = fakeCloud();
+    detach = attachPersistence(storage, cloud);
+    useStore.getState().setSpeed('fast');
+    expect(storage.getItem(UNSYNCED_KEY)).toBe('1');
+    detach();
+    detach = null;
+    await vi.waitFor(() => expect(storage.getItem(UNSYNCED_KEY)).toBeNull());
+    expect(cloud.setItem).toHaveBeenCalledWith(CLOUD_KEYS.settings, JSON.stringify({ speed: 'fast', sound: true }));
+  });
+
+  it('отказ облака оставляет метку', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const storage = fakeStorage();
+    const cloud = fakeCloud();
+    cloud.setItem.mockRejectedValue(new Error('нет сети'));
+    detach = attachPersistence(storage, cloud);
+    useStore.getState().setSpeed('fast');
+    detach();
+    detach = null;
+    await vi.waitFor(() => expect(cloud.setItem).toHaveBeenCalled());
+    await new Promise((r) => setTimeout(r, 0));
+    expect(storage.getItem(UNSYNCED_KEY)).toBe('1');
+  });
+
+  it('уход страницы в фон досылает облачную запись до истечения задержки 1000 мс', async () => {
+    vi.useFakeTimers();
+    const storage = fakeStorage();
+    const cloud = fakeCloud();
+    let hidden: (() => void) | null = null;
+    const off = vi.fn();
+    const onHide = vi.fn((cb: () => void) => { hidden = cb; return off; });
+    detach = attachPersistence(storage, cloud, { onHide });
+    expect(onHide).toHaveBeenCalledTimes(1);
+    useStore.getState().setSpeed('fast');
+    await vi.advanceTimersByTimeAsync(10);
+    expect(cloud.setItem).not.toHaveBeenCalled();
+    hidden!();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(cloud.setItem).toHaveBeenCalledWith(CLOUD_KEYS.settings, JSON.stringify({ speed: 'fast', sound: true }));
+    expect(storage.getItem(UNSYNCED_KEY)).toBeNull();
+    detach();
+    detach = null;
+    expect(off).toHaveBeenCalledTimes(1);
+  });
+
+  it('без облака уход в фон не подписывается', () => {
+    const onHide = vi.fn(() => () => {});
+    detach = attachPersistence(fakeStorage(), undefined, { onHide });
+    expect(onHide).not.toHaveBeenCalled();
+  });
+
+  it('hydrate: вызов неверной формы в матче отбрасывается', () => {
+    const session = newMatch(playerDeck(), opts());
+    const save = {
+      ...defaultSave(),
+      match: {
+        state: session.state, botSeed: 5, mode: 'free', playerDeck: session.playerDeck,
+        opponentDeck: session.opponentDeck, engineVersion: ENGINE_VERSION, challenge: { name: 5 },
+      },
+    } as unknown as SaveV1;
+    const s = hydrate(save);
+    expect(s.session).not.toBeNull();
+    expect(s.session).not.toHaveProperty('challenge');
+    const ok = hydrate({ ...save, match: { ...save.match!, challenge: { name: 'Вера', code: 'abc' } } });
+    expect(ok.session?.challenge).toEqual({ name: 'Вера', code: 'abc' });
   });
 
   it('Review Focus 1: сохранение во время проигрывания восстанавливается в планирование того же раунда', () => {

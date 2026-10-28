@@ -34,6 +34,12 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
+describe('ключи облака', () => {
+  it('каждый ключ допустим для CloudStorage Telegram: A-Z a-z 0-9 _ -, 1–128 символов', () => {
+    for (const key of Object.values(CLOUD_KEYS)) expect(key).toMatch(/^[A-Za-z0-9_-]{1,128}$/);
+  });
+});
+
 describe('loadCloud', () => {
   it('пустое облако → null', async () => {
     expect(await loadCloud(fakeCloud())).toBeNull();
@@ -48,7 +54,7 @@ describe('loadCloud', () => {
     expect(c).toEqual({ profile: save.profile });
   });
 
-  it('eclipse.decks распаковывается в decks и activeDeckId', async () => {
+  it('eclipse_decks распаковывается в decks и activeDeckId', async () => {
     const save = sampleSave();
     const c = await loadCloud(fakeCloud({
       [CLOUD_KEYS.decks]: JSON.stringify({ decks: save.decks, activeDeckId: save.activeDeckId }),
@@ -167,5 +173,57 @@ describe('createCloudWriter', () => {
     expect(cloud.map.has(CLOUD_KEYS.profile)).toBe(true);
     expect(cloud.map.has(CLOUD_KEYS.decks)).toBe(true);
     expect(warn).toHaveBeenCalledTimes(1);
+  });
+
+  it('onSynced: после записи всех разделов; повтор без изменений тоже синхронен', async () => {
+    const cloud = fakeCloud();
+    const onSynced = vi.fn();
+    const writer = createCloudWriter(cloud, 1000, onSynced);
+    const save = sampleSave();
+    writer.write(save);
+    await writer.flush();
+    expect(onSynced).toHaveBeenCalledTimes(1);
+    // Ничего не изменилось: все разделы уже в облаке.
+    writer.write(save);
+    await writer.flush();
+    expect(cloud.setItem).toHaveBeenCalledTimes(3);
+    expect(onSynced).toHaveBeenCalledTimes(2);
+  });
+
+  it('onSynced не вызывается при отказе setItem или пропуске по размеру', async () => {
+    const rejecting = fakeCloud();
+    rejecting.setItem.mockRejectedValueOnce(new Error('quota'));
+    const onRejected = vi.fn();
+    const w1 = createCloudWriter(rejecting, 1000, onRejected);
+    w1.write(sampleSave());
+    await w1.flush();
+    expect(onRejected).not.toHaveBeenCalled();
+
+    const onTooLong = vi.fn();
+    const w2 = createCloudWriter(fakeCloud(), 1000, onTooLong);
+    const big = sampleSave();
+    big.decks = Array.from({ length: 60 }, (_, i) => ({ ...big.decks[0]!, id: `d${i}`, name: 'Очень длинное имя колоды '.repeat(4) }));
+    w2.write(big);
+    await w2.flush();
+    expect(onTooLong).not.toHaveBeenCalled();
+  });
+
+  it('onSynced не вызывается, если во время записи пришла новая', async () => {
+    vi.useFakeTimers();
+    const cloud = fakeCloud();
+    let release!: () => void;
+    cloud.setItem.mockImplementationOnce(() => new Promise<void>((r) => { release = r; }));
+    const onSynced = vi.fn();
+    const writer = createCloudWriter(cloud, 1000, onSynced);
+    const save = sampleSave();
+    writer.write(save);
+    const first = writer.flush();
+    await vi.advanceTimersByTimeAsync(0); // первая запись дошла до setItem и ждёт
+    writer.write({ ...save, settings: { speed: 'normal', sound: false } });
+    release();
+    await first;
+    expect(onSynced).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(onSynced).toHaveBeenCalledTimes(1);
   });
 });

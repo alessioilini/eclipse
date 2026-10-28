@@ -3,7 +3,7 @@ import { ENGINE_VERSION } from '../engine';
 import { truncateName } from '../game/links/codec';
 import { createCloudWriter } from '../game/save/cloud';
 import type { SaveV1 } from '../game/save/defaults';
-import { writeSave } from '../game/save/storage';
+import { clearUnsynced, markUnsynced, writeSave } from '../game/save/storage';
 import { emptyDraft, isFinished } from '../game/session';
 import type { MatchSession } from '../game/session';
 import { createRunner } from '../game/tutorial/runner';
@@ -51,6 +51,12 @@ function savedName(raw: unknown): string | null {
   return name === '' ? null : name;
 }
 
+/** migrate не проверяет `match.challenge`: берём его, только если имя и код — строки. */
+function isChallengeRef(raw: unknown): raw is { name: string; code: string } {
+  const c = raw as { name?: unknown; code?: unknown } | null | undefined;
+  return typeof c?.name === 'string' && typeof c?.code === 'string';
+}
+
 /**
  * Загружает сохранение в стор и возвращает новое состояние. Матч восстанавливается в планирование
  * текущего раунда: в сохранении всегда состояние после `startRound` (или завершённый матч).
@@ -65,7 +71,7 @@ export function hydrate(save: SaveV1): StoreState {
       ...(m.tutorialId !== undefined ? { tutorialId: m.tutorialId } : {}),
       playerDeck: m.playerDeck, opponentDeck: m.opponentDeck,
       ...(script ? { enemy: script.enemy } : {}),
-      ...(m.challenge ? { challenge: m.challenge } : {}),
+      ...(isChallengeRef(m.challenge) ? { challenge: { name: m.challenge.name, code: m.challenge.code } } : {}),
     }
     : null;
   // Матч восстанавливается в планировании текущего раунда с пустым черновиком: исполнитель на том же
@@ -136,12 +142,21 @@ function persisted(s: StoreState): unknown[] {
   ];
 }
 
+export type PersistenceHooks = {
+  /** Подписка на уход страницы в фон; возвращает отписку. С облаком по уходу отложенная запись досылается сразу. */
+  onHide?(cb: () => void): () => void;
+  /** Сразу отправить текущее состояние в облако (перенос локального прогресса при запуске, спека §6). */
+  pushNow?: boolean;
+};
+
 /**
- * Подписывает запись сохранения на изменения сохраняемых полей; возвращает отписку. С облаком каждая
- * запись идёт и в localStorage, и (отложенно, без матча) в облако; отписка досылает отложенную запись.
+ * Подписывает запись сохранения на изменения сохраняемых полей; возвращает отписку. Каждая запись идёт
+ * в localStorage и ставит метку «облако отстаёт» (`markUnsynced`); с облаком она же уходит (отложенно,
+ * без матча) в облако, а запись, после которой облако догнало локальное сохранение, метку снимает.
+ * Уход страницы в фон и отписка досылают отложенную облачную запись.
  */
-export function attachPersistence(storage?: SaveStorage, cloud?: CloudStorage): () => void {
-  const writer = cloud ? createCloudWriter(cloud) : null;
+export function attachPersistence(storage?: SaveStorage, cloud?: CloudStorage, hooks: PersistenceHooks = {}): () => void {
+  const writer = cloud ? createCloudWriter(cloud, undefined, () => clearUnsynced(storage)) : null;
   let prev = persisted(useStore.getState());
   const unsubscribe = useStore.subscribe((state) => {
     const next = persisted(state);
@@ -149,10 +164,17 @@ export function attachPersistence(storage?: SaveStorage, cloud?: CloudStorage): 
     prev = next;
     const save = toSave(state);
     writeSave(save, storage);
+    markUnsynced(storage);
     writer?.write(save);
   });
+  const detachHide = writer && hooks.onHide ? hooks.onHide(() => void writer.flush()) : null;
+  if (writer && hooks.pushNow) {
+    writer.write(toSave(useStore.getState()));
+    void writer.flush();
+  }
   return () => {
     unsubscribe();
+    detachHide?.();
     if (writer) void writer.flush();
   };
 }

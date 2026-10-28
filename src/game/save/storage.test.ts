@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { loadSave, writeSave, SAVE_KEY } from './storage';
+import { clearUnsynced, isUnsynced, loadSave, markUnsynced, writeSave, SAVE_KEY, UNSYNCED_KEY } from './storage';
 import { defaultSave } from './defaults';
 import { ENGINE_VERSION } from '../../engine';
 import { newMatch, opponentDeckFor } from '../session';
@@ -121,5 +121,30 @@ describe('сохранение', () => {
     expect(loaded.profile.stats.wins).toBe(4);
     expect(warn).toHaveBeenCalledTimes(1);
     expect(String(warn.mock.calls[0]?.[0])).toContain('[save]');
+  });
+});
+
+describe('метка несинхронизированного сохранения', () => {
+  it('markUnsynced ставит метку, clearUnsynced снимает', () => {
+    const storage = fakeStorage();
+    expect(isUnsynced(storage)).toBe(false);
+    markUnsynced(storage);
+    expect(storage.getItem(UNSYNCED_KEY)).toBe('1');
+    expect(isUnsynced(storage)).toBe(true);
+    clearUnsynced(storage);
+    expect(storage.getItem(UNSYNCED_KEY)).toBeNull();
+    expect(isUnsynced(storage)).toBe(false);
+  });
+
+  it('отказ хранилища не бросает: метка считается снятой', () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const broken: FakeStorage = {
+      getItem: () => { throw new DOMException('denied', 'SecurityError'); },
+      setItem: () => { throw new DOMException('full', 'QuotaExceededError'); },
+      removeItem: () => { throw new DOMException('denied', 'SecurityError'); },
+    };
+    expect(() => markUnsynced(broken)).not.toThrow();
+    expect(() => clearUnsynced(broken)).not.toThrow();
+    expect(isUnsynced(broken)).toBe(false);
   });
 });

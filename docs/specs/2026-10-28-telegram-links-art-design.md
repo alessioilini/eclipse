@@ -88,7 +88,7 @@ type Challenge = { v: 1; deck: Deck; seed: number; name: string };
 
 ## 6. Облако Telegram и загрузка
 
-- В Telegram источник истины для `profile`, `decks`, `settings` это облако: три ключа `eclipse.profile`, `eclipse.decks`, `eclipse.settings`, JSON, лимит 4096 байт на значение. Текущий матч остаётся в localStorage. Число колод ограничивается восемью: при восьми «Новая колода» и «Собрать за меня» скрыты с подписью `ru.decks.limit`; это держит `eclipse.decks` в пределах 3 КБ.
+- В Telegram источник истины для `profile`, `decks`, `settings` это облако: три ключа `eclipse_profile`, `eclipse_decks`, `eclipse_settings` (CloudStorage допускает в ключе только `A-Z a-z 0-9 _ -`, 1–128 символов), JSON, лимит 4096 байт на значение. Текущий матч остаётся в localStorage. Число колод ограничивается восемью: при восьми «Новая колода» и «Собрать за меня» скрыты с подписью `ru.decks.limit`; это держит `eclipse_decks` в пределах 3 КБ.
 - `src/game/save/cloud.ts`: `loadCloud(cloud): Promise<Partial<SaveV1> | null>`, `writeCloud(cloud, save): Promise<void>` с задержкой 1000 мс и слиянием подряд идущих записей; при превышении 4096 запись пропускается с `console.warn` (не бросает).
 - Загрузка: `boot(storage, platform)` становится асинхронной. Порядок: `platform.ready()` → локальное сохранение → если есть облако, читаем ключи; найденные ключи заменяют локальные разделы; если облако пустое, локальные разделы записываются в него (перенос прогресса при первом входе) → `hydrate` → `attachPersistence` пишет локально всегда и в облако при наличии. До `hydrate` виден статический каркас из `index.html`, затем меню.
 - Если облако недоступно или бросает, игра работает на localStorage и один раз пишет предупреждение в консоль.
