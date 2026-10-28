@@ -278,6 +278,22 @@ describe('Reaction-карты', () => {
     expect(hitsBy(r.events, enemy(0)).map(e => [e.target, e.dmg])).toEqual([[ally(0), 8]]);
   });
 
+  it('«Прикрытие» и «Защитница» Нерисы на одной союзнице: обе записи живут, первый удар — в Guardian «Прикрытия», второй — в Нерису (R9)', () => {
+    // A: Тали(0), Зефира(1, Guardian «Прикрытия»), Нериса(2). Нериса ускорена, чтобы «Защитница» успела до ударов B.
+    const team: HeroId[] = ['tali', 'zefira', 'nerisa', 'fenna', 'aira', 'liraya'];
+    const a = cmd(basic(0, enemy(0)), basic(1, enemy(1)), skill(2, ally(0)), play(ally(0), ally(1)));
+    const r = round(a, bCmd(undefined, ally(0), ally(0), ally(0)), s => {
+      setCards(s, 'A', ['cover']);
+      s.sides.A.active[2].statuses.push(st('spd', 10, 1));
+    }, makeMatch({ a: team, b: B_TEAM }));
+    const applied = ofType(r.events, 'statusApplied').filter(e => e.status === 'redirectTo');
+    expect(applied.map(e => [e.source, e.target, e.value, e.phase]))
+      .toEqual([[ally(1), ally(0), 2, 'reactions'], [ally(2), ally(0), 1, 'heroes']]);
+    // Первые два одиночных удара по Тали: «Прикрытие» (value 2) приоритетнее Нерисы (value 1).
+    expect(ofType(r.events, 'redirect').filter(e => isRef(e.from, ally(0))).slice(0, 2).map(e => [e.to, e.reason]))
+      .toEqual([[ally(1), 'cover'], [ally(2), 'nerisa']]);
+  });
+
   it('deferredDeath: Undying один раз', () => {
     const r = round(aCmd(play(ally(0))), bCmd(undefined, ally(0), ally(0)), s => {
       setCards(s, 'A', ['deferredDeath']);

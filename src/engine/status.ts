@@ -21,6 +21,8 @@ function laterExpiry(a: number | null, b: number | null): number | null {
 }
 
 const isModifier = (id: StatusId): boolean => id === 'spd' || id === 'atk';
+/** Statuses kept as separate entries: SPD/ATK modifiers and `redirectTo` (ruling R9: cover and Nerisa coexist). */
+const isAppended = (id: StatusId): boolean => isModifier(id) || id === 'redirectTo';
 
 export function applyStatus(
   hero: HeroState,
@@ -36,7 +38,7 @@ export function applyStatus(
   const existing = hero.statuses.findIndex(x => x.id === s.id);
   const old = hero.statuses[existing];
 
-  if (isModifier(s.id) || !old) {
+  if (isAppended(s.id) || !old) {
     return { ...hero, statuses: [...hero.statuses.map(x => ({ ...x })), make()] };
   }
   let next: Status;

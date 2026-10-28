@@ -62,7 +62,7 @@ describe('targeting', () => {
   });
 
   it('Прикрытие (redirectTo от cover) перехватывает раньше Нерисы', () => {
-    // applyStatus merges same-id statuses, so push both entries directly (Nerisa first in array).
+    // Nerisa's entry first in the array: priority is by value (cover 2 before Nerisa 1), not by order (R9).
     const s = mk();
     heroAt(s, ally(0)).statuses.push(
       { id: 'redirectTo', value: 1, stacks: 1, expiresAtRound: null, source: ally(2) },

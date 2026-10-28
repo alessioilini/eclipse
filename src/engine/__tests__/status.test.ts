@@ -37,6 +37,15 @@ describe('applyStatus', () => {
     expect(h.statuses[0]).toEqual({ id: 'mark', value: 0, stacks: 1, expiresAtRound: null, source: { side: 'B', slot: 1 } });
   });
 
+  it('redirectTo добавляется отдельной записью, а не заменяет прежнюю (R9)', () => {
+    let h = applyStatus(hero(), { id: 'redirectTo', value: 2, duration: 'thisRound', round: 1, source: { side: 'A', slot: 1 } });
+    h = applyStatus(h, { id: 'redirectTo', value: 1, duration: 'thisRound', round: 1, source: { side: 'A', slot: 2 } });
+    expect(h.statuses.filter(s => s.id === 'redirectTo').map(s => [s.value, s.source])).toEqual([
+      [2, { side: 'A', slot: 1 }],
+      [1, { side: 'A', slot: 2 }],
+    ]);
+  });
+
   it('одноимённый статус заменяется, срок — больший из двух, null позже любого числа', () => {
     let h = applyStatus(hero(), { id: 'silence', duration: 'nextRound', round: 1, value: 1 }); // 2
     h = applyStatus(h, { id: 'silence', duration: 'thisRound', round: 1, value: 5 }); // 1
