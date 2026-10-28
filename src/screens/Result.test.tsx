@@ -124,4 +124,25 @@ describe('экран результата', () => {
     expect(screen.getByRole('button', { name: ru.result.menu })).toBeInTheDocument();
     expect(st().stats.wins + st().stats.losses + st().stats.draws).toBe(0);
   });
+
+  it('после боя обучения «Дальше» ведёт в следующий бой, после третьего его нет', () => {
+    const finishTutorial = (id: 1 | 2 | 3) => {
+      st().startMatch(deckA, { opponentDeck: deckB, seed: 11, mode: 'tutorial', tutorialId: id });
+      const session = st().session!;
+      const state = structuredClone(session.state);
+      state.result = { winner: 'A', reason: 'wipe' };
+      useStore.setState({ session: { ...session, state }, phase: 'finished' });
+      st().completeTutorial(id);
+    };
+    finishTutorial(1);
+    const { unmount } = render(<Result />);
+    fireEvent.click(screen.getByRole('button', { name: ru.tutorial.next }));
+    expect(st().session).toBeNull();
+    expect(window.location.hash).toBe('#/tutorial/2');
+    unmount();
+    finishTutorial(3);
+    render(<Result />);
+    expect(screen.queryByRole('button', { name: ru.tutorial.next })).toBeNull();
+    expect(screen.getByRole('button', { name: ru.result.menu })).toBeInTheDocument();
+  });
 });

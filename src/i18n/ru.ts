@@ -16,7 +16,8 @@ export const ru = {
     heroes: 'Героини',
     decks: 'Колоды',
     tutorial: 'Обучение',
-    wins: 'Победы',
+    wins: 'Победы: {n}',
+    needDeck: 'Сначала соберите колоду',
   },
   battle: {
     confirm: 'Подтвердить',
@@ -24,6 +25,8 @@ export const ru = {
     log: 'Журнал',
     back: 'Назад',
     surrenderConfirm: 'Сдаться? Матч будет засчитан как поражение.',
+    yes: 'Да',
+    no: 'Нет',
     round: 'Раунд {n}/{max}',
     opponent: 'Бот',
     next: 'Далее',

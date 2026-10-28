@@ -14,6 +14,20 @@
   gap: var(--sp-8);
 }
 
+/* Подтверждение сдачи под шапкой (тот же приём, что удаление колоды). */
+.surrender {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-8);
+}
+
+.surrenderText {
+  font-size: var(--fs-14);
+  color: var(--danger);
+}
+
 .title {
   display: flex;
   flex-direction: column;

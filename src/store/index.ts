@@ -16,7 +16,7 @@ export type { ProfileSlice } from './profile';
 export type { DecksSlice, SavedDeck } from './decks';
 export type { SettingsSlice, Speed } from './settings';
 export type { MatchSlice, MatchPhase } from './match';
-export type { UiSlice, Sheet } from './ui';
+export type { UiSlice, Sheet, Notice } from './ui';
 
 export type StoreState = ProfileSlice & DecksSlice & SettingsSlice & MatchSlice & UiSlice;
 
@@ -84,6 +84,7 @@ export function hydrate(save: SaveV1): StoreState {
       : {}),
     selectedSlot: null,
     sheet: null,
+    notice: null,
   });
   return useStore.getState();
 }

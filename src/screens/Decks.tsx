@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { newId } from '../game/decks/ids';
 import { ARCHETYPE_KEYS, buildPreset, type Archetype } from '../game/decks/presets';
 import { fmt, ru } from '../i18n/ru';
@@ -18,6 +18,11 @@ export function Decks() {
   const upsertDeck = useStore((s) => s.upsertDeck);
   const deleteDeck = useStore((s) => s.deleteDeck);
   const setActiveDeck = useStore((s) => s.setActiveDeck);
+  const notice = useStore((s) => s.notice);
+  const setNotice = useStore((s) => s.setNotice);
+
+  // Уведомление из меню («Сначала соберите колоду») живёт, пока открыт этот экран.
+  useEffect(() => () => setNotice(null), [setNotice]);
 
   const [confirmId, setConfirmId] = useState<string | null>(null);
   const [archetypeSheet, setArchetypeSheet] = useState(false);
@@ -38,6 +43,7 @@ export function Decks() {
         <h1 className={styles.title}>{ru.decks.title}</h1>
       </header>
 
+      {notice === 'needDeck' && <p className={styles.notice} role="status">{ru.menu.needDeck}</p>}
       {decks.length === 0 && <p className={styles.muted}>{ru.decks.empty}</p>}
       <ul className={styles.list}>
         {decks.map((d) => {

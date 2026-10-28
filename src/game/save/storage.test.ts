@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { loadSave, writeSave, SAVE_KEY } from './storage';
 import { defaultSave } from './defaults';
+import { newMatch, opponentDeckFor } from '../session';
 
 type FakeStorage = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>;
 
@@ -69,6 +70,36 @@ describe('сохранение', () => {
       setItem: () => { throw new DOMException('full', 'QuotaExceededError'); },
     };
     expect(() => writeSave(defaultSave(), storage)).not.toThrow();
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(String(warn.mock.calls[0]?.[0])).toContain('[save]');
+  });
+
+  it('сохранение с матчем правильной формы читается вместе с матчем', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const playerDeck = opponentDeckFor(0);
+    const opponentDeck = opponentDeckFor(1);
+    const session = newMatch(playerDeck, { opponentDeck, seed: 5, mode: 'free' });
+    const save = defaultSave();
+    save.match = { state: session.state, botSeed: 5, mode: 'free', playerDeck, opponentDeck };
+    const storage = fakeStorage();
+    writeSave(save, storage);
+    expect(loadSave(storage)).toEqual(save);
+    expect(warn).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['матч не объект', 'oops'],
+    ['нет сторон в состоянии', { state: {}, botSeed: 1, mode: 'free', playerDeck: {}, opponentDeck: {} }],
+    ['нет колод', { state: { sides: { A: {}, B: {} } }, botSeed: 1, mode: 'free' }],
+    ['неизвестный режим', { state: { sides: { A: {}, B: {} } }, botSeed: 1, mode: 'arena', playerDeck: { heroes: [], cards: [] }, opponentDeck: { heroes: [], cards: [] } }],
+  ])('битый матч (%s) отбрасывается с предупреждением, профиль остаётся', (_name, match) => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const save = defaultSave();
+    save.profile.stats.wins = 4;
+    const storage = fakeStorage({ [SAVE_KEY]: JSON.stringify({ ...save, match }) });
+    const loaded = loadSave(storage);
+    expect(loaded.match).toBeNull();
+    expect(loaded.profile.stats.wins).toBe(4);
     expect(warn).toHaveBeenCalledTimes(1);
     expect(String(warn.mock.calls[0]?.[0])).toContain('[save]');
   });

@@ -19,6 +19,7 @@ export function Result({ now = Date.now }: Props) {
   const startMatch = useStore((s) => s.startMatch);
   const clearMatch = useStore((s) => s.clearMatch);
   const recordMatchResult = useStore((s) => s.recordMatchResult);
+  const tutorialStep = useStore((s) => s.tutorialStep);
 
   const state = session?.state ?? null;
   const result = state?.result ?? null;
@@ -64,6 +65,14 @@ export function Result({ now = Date.now }: Props) {
     navigate({ name: 'battle' });
   };
 
+  // После боя обучения — переход к следующему, пока обучение не пройдено.
+  const next = session.mode === 'tutorial' && tutorialStep < 3
+    ? () => {
+      clearMatch();
+      navigate({ name: 'tutorial', id: (tutorialStep + 1) as 1 | 2 | 3 });
+    }
+    : null;
+
   return (
     <main className={styles.screen} data-testid="result">
       <h1 className={cx(styles.title, result.winner === 'B' && styles.lost)}>{title}</h1>
@@ -71,7 +80,10 @@ export function Result({ now = Date.now }: Props) {
       <p className={styles.rounds}>{fmt(ru.result.rounds, { n: state.round })}</p>
       <p className={styles.moment} data-testid="key-moment">{moment.text}</p>
       <div className={styles.actions}>
-        <Button variant="primary" size="lg" onClick={again}>{ru.result.again}</Button>
+        {next && <Button variant="primary" size="lg" onClick={next}>{ru.tutorial.next}</Button>}
+        <Button variant={next ? 'secondary' : 'primary'} size={next ? 'md' : 'lg'} onClick={again}>
+          {ru.result.again}
+        </Button>
         <Button variant="secondary" onClick={toMenu}>{ru.result.menu}</Button>
       </div>
     </main>

@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { MAX_ROUNDS } from '../../game/session';
 import { fmt, ru } from '../../i18n/ru';
 import { navigate } from '../../router';
@@ -15,14 +16,29 @@ export function Battle() {
   const openSheet = useStore((s) => s.openSheet);
   const sheet = useStore((s) => s.sheet);
   const before = useStore((s) => s.viewBeforePlayback);
+  const surrender = useStore((s) => s.surrender);
   const hidden = useHidden();
-  const back = () => navigate({ name: 'menu' });
+  const [asking, setAsking] = useState(false);
+  const toMenu = () => navigate({ name: 'menu' });
+
+  // «Назад» (спека §2): свободный матч — сдача с подтверждением; бой обучения просто откладывается
+  // (продолжится из меню); завершённый матч уже ждёт на экране результата.
+  const back = () => {
+    if (!session || session.mode === 'tutorial') toMenu();
+    else if (phase === 'finished') navigate({ name: 'result' });
+    else setAsking(true);
+  };
+  const giveUp = () => {
+    setAsking(false);
+    surrender();
+    navigate({ name: 'result' });
+  };
 
   if (!session) {
     return (
       <main className={styles.screen}>
         <p className={styles.empty}>{ru.battle.noMatch}</p>
-        <Button variant="secondary" onClick={back}>
+        <Button variant="secondary" onClick={toMenu}>
           {ru.battle.back}
         </Button>
       </main>
@@ -53,6 +69,13 @@ export function Battle() {
           </Button>
         )}
       </header>
+      {asking && (
+        <div className={styles.surrender} role="alertdialog" aria-label={ru.battle.surrenderConfirm}>
+          <span className={styles.surrenderText}>{ru.battle.surrenderConfirm}</span>
+          <Button variant="danger" onClick={giveUp}>{ru.battle.yes}</Button>
+          <Button variant="secondary" onClick={() => setAsking(false)}>{ru.battle.no}</Button>
+        </div>
+      )}
       {phase === 'planning' && <Planning session={session} />}
       {phase === 'playback' && <Playback session={session} />}
       {phase === 'finished' && <p className={styles.empty}>{ru.common.soon}</p>}

@@ -87,6 +87,12 @@
   gap: var(--sp-8);
 }
 
+.notice {
+  margin: 0;
+  font-size: var(--fs-14);
+  color: var(--accent);
+}
+
 .confirm {
   font-size: var(--fs-14);
   color: var(--danger);
