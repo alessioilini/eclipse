@@ -20,6 +20,7 @@ const DEATH_KEY = 'deathRecorded';
 export function checkDeath(ctx: Ctx, ref: SlotRef): void {
   const hero = heroAt(ctx.s, ref);
   if (hero.hp > 0 || hero.once[DEATH_KEY] === 1) return;
+  // TODO(Task 11): triggerReactions('onDeath') runs here, before the death is recorded.
   hero.once[DEATH_KEY] = 1;
   emit(ctx, { type: 'death', side: ref.side, slot: ref.slot, heroId: hero.id });
   ctx.s.deaths.push({ side: ref.side, heroId: hero.id, round: ctx.s.round });
@@ -29,6 +30,18 @@ export function checkDeath(ctx: Ctx, ref: SlotRef): void {
   if (sd.luna !== before) {
     emit(ctx, { type: 'lunaChanged', side: ref.side, luna: sd.luna, delta: sd.luna - before, reason: 'death' });
   }
+}
+
+/**
+ * Reserve heroines' timers are frozen (controller ruling 14): every non-null status expiry and
+ * the shield expiry move one round later, so rounds spent in reserve do not count.
+ */
+export function freezeTimers(hero: HeroState): HeroState {
+  return {
+    ...hero,
+    statuses: hero.statuses.map(st => ({ ...st, expiresAtRound: st.expiresAtRound === null ? null : st.expiresAtRound + 1 })),
+    shieldExpiresAtRound: hero.shieldExpiresAtRound === null ? null : hero.shieldExpiresAtRound + 1,
+  };
 }
 
 function burnTick(ctx: Ctx): void {
@@ -81,7 +94,7 @@ function autoFill(ctx: Ctx, side: Side): void {
   }
 }
 
-/** Spec §2.5 step 8: Burn, expiry, unarmed reactions, Blood Moon, autofill, victory. */
+/** Spec §2.5 step 8: Burn, expiry (active) / frozen timers (reserve), unarmed reactions, Blood Moon, autofill, victory. */
 export function endRound(ctx: Ctx): void {
   const s = ctx.s;
   ctx.phase = 'endRound';
@@ -90,7 +103,7 @@ export function endRound(ctx: Ctx): void {
   for (const side of SIDES) {
     const sd = s.sides[side];
     sd.active = sd.active.map(h => expireStatuses(h, s.round)) as typeof sd.active;
-    sd.reserve = sd.reserve.map(h => expireStatuses(h, s.round)) as typeof sd.reserve;
+    sd.reserve = sd.reserve.map(freezeTimers) as typeof sd.reserve;
     sd.armedReactions = [];
     if (sd.nextCardCostUp && s.round >= sd.nextCardCostUp.untilRound) sd.nextCardCostUp = null;
   }

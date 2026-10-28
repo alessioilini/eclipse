@@ -62,7 +62,8 @@ export function dealHit(
     atk, mod, attacker: attDef.element, target: victimEl,
     flat: totalFlat, bloodMoon: att.bloodMoon, round: s.round, reductions,
   });
-  const { hero: hit, absorbed, hpLoss } = applyToHero(victim, dmg, { pierce: opts.pierce });
+  const { hero: hit, absorbed } = applyToHero(victim, dmg, { pierce: opts.pierce });
+  const hpLoss = victim.hp - hit.hp; // overkill beyond the victim's HP is not HP loss
   setHeroAt(s, tgt, hit);
   emit(ctx, {
     type: 'damage', attacker, target: tgt, raw, flat: totalFlat, reductions,

@@ -6,7 +6,6 @@ import { CARD_IDS } from '../data/cards';
 import type { GameEvent, MatchState, Side, SideCommands, SlotRef } from '../types';
 import { makeMatch, cmd, basic, skill, swap, none, enemy, ally, setHp, setHand, setRound, playRound } from './helpers';
 
-const run = playRound;
 
 /** A: all three hit B0; B: all three hit A2. Nobody dies in one round with the default teams. */
 const aDefault = () => cmd(basic(0, enemy(0)), basic(1, enemy(0)), basic(2, enemy(0)));
@@ -49,7 +48,7 @@ describe('resolveRound: начало раунда', () => {
     let s = makeMatch();
     const seen: { round: number; moon: string; energy: number; luna: number; hand: number }[] = [];
     for (let i = 0; i < 6; i++) {
-      s = healAll(run(s, aDefault(), bDefault()).state);
+      s = healAll(playRound(s, aDefault(), bDefault()).state);
       for (const side of ['A', 'B'] as const) {
         const sd = s.sides[side];
         seen.push({ round: s.round, moon: s.moon, energy: sd.energy, luna: sd.luna, hand: sd.hand.length });
@@ -72,7 +71,7 @@ describe('resolveRound: начало раунда', () => {
     const five = CARD_IDS.slice(12, 17);
     const s = setHand(makeMatch(), 'A', five);
     const top = s.sides.A.deck[0];
-    const { state, events } = run(s, aDefault(), bDefault());
+    const { state, events } = playRound(s, aDefault(), bDefault());
     expect(state.sides.A.hand).toEqual([...five.slice(1), top]);
     expect(state.sides.A.discard).toEqual([five[0]]);
     expect(state.sides.A.deck).toEqual(s.sides.A.deck.slice(1));
@@ -85,7 +84,7 @@ describe('resolveRound: начало раунда', () => {
     const pile = CARD_IDS.slice(12, 15);
     s.sides.A.deck = [];
     s.sides.A.discard = [...pile];
-    const { state } = run(s, aDefault(), bDefault());
+    const { state } = playRound(s, aDefault(), bDefault());
     const A = state.sides.A;
     expect(A.hand).toHaveLength(4);
     expect(A.discard).toEqual([]);
@@ -97,7 +96,7 @@ describe('resolveRound: начало раунда', () => {
 describe('resolveRound: порядок действий', () => {
   it('порядок: Селена (9) раньше Миры (9) по ATK; Нериса (4) последняя', () => {
     const s = makeMatch({ b: ['mira', 'selena', 'aurora', 'justina', 'nokta', 'kira'] });
-    const { events } = run(s, aDefault(), bDefault());
+    const { events } = playRound(s, aDefault(), bDefault());
     expect(ofType(events, 'heroAction').map(e => e.heroId))
       .toEqual(['selena', 'mira', 'fenna', 'aira', 'aurora', 'nerisa']);
     expect(ofType(events, 'heroAction').every(e => e.phase === 'heroes')).toBe(true);
@@ -105,7 +104,7 @@ describe('resolveRound: порядок действий', () => {
 
   it('при равном SPD раньше ходит больший % HP, затем больший ATK', () => {
     // Фенна (SPD 7, ATK 4) и Нокта (SPD 7, ATK 7).
-    const order = (s: MatchState) => ofType(run(s, aDefault(), bDefault()).events, 'heroAction').map(e => e.heroId);
+    const order = (s: MatchState) => ofType(playRound(s, aDefault(), bDefault()).events, 'heroAction').map(e => e.heroId);
     expect(order(makeMatch())).toEqual(['justina', 'nokta', 'fenna', 'aira', 'aurora', 'nerisa']);
     expect(order(setHp(makeMatch(), enemy(2), 10))).toEqual(['justina', 'fenna', 'nokta', 'aira', 'aurora', 'nerisa']);
   });
@@ -122,7 +121,7 @@ describe('resolveRound: basic и swap', () => {
 
   it('три basic: Нокта бьёт Аврору на 8, Аврора бьёт Нокту на 4×1.15 = 5', () => {
     // Раунд 2 (Растущая луна): без бонуса Луны к урону.
-    const { state, events } = run(setRound(make(), 1), A(), B());
+    const { state, events } = playRound(setRound(make(), 1), A(), B());
     expect(state.round).toBe(2);
     expect(state.moon).toBe('waxing');
     const dmg = (att: SlotRef) => damageBy(events, att).map(e => [(e.target as SlotRef).side, (e.target as SlotRef).slot, e.dmg]);
@@ -141,7 +140,7 @@ describe('resolveRound: basic и swap', () => {
   });
 
   it('бонус Луны: в Новолуние Dark +1 (Нокта по Авроре 9)', () => {
-    const { events } = run(make(), A(), B());
+    const { events } = playRound(make(), A(), B());
     expect(damageBy(events, ally(0))[0]).toMatchObject({ raw: 8, flat: 1, dmg: 9 });
     expect(damageBy(events, enemy(0))[0]).toMatchObject({ dmg: 5 });
   });
@@ -150,7 +149,7 @@ describe('resolveRound: basic и swap', () => {
     const s0 = structuredClone(makeMatch());
     s0.sides.A.active[0].statuses = [{ id: 'taunt', value: 0, stacks: 1, expiresAtRound: 2 }];
     // Юстина (8) и Нокта (7) бьют до замены — Taunt Айры перехватывает; Аврора (5) бьёт после — по Тали.
-    const r1 = run(s0,
+    const r1 = playRound(s0,
       cmd(swap(0, 0), basic(1, enemy(0)), basic(2, enemy(0))),
       cmd(basic(0, ally(0)), basic(1, ally(1)), basic(2, ally(2))));
     const A1 = r1.state.sides.A;
@@ -170,15 +169,40 @@ describe('resolveRound: basic и swap', () => {
     expect(ofType(r1.events, 'heroAction').filter(e => e.heroId === 'tali')).toEqual([]);
     expect(damageBy(r1.events, ally(0))).toEqual([]);
 
-    const r2 = run(r1.state, cmd(basic(0, enemy(0)), basic(1, enemy(0)), basic(2, enemy(0))), bDefault());
+    const r2 = playRound(r1.state, cmd(basic(0, enemy(0)), basic(1, enemy(0)), basic(2, enemy(0))), bDefault());
     expect(ofType(r2.events, 'heroAction').find(e => e.heroId === 'tali')).toMatchObject({ action: 'basic', target: enemy(0) });
     expect(damageBy(r2.events, ally(0)).map(e => e.dmg)).toEqual([6]); // Тали: 6 × 1 (Water → Light), Растущая луна
+  });
+
+  it('в резерве таймеры статусов и щита заморожены: два раунда в резерве не считаются', () => {
+    const s0 = structuredClone(makeMatch());
+    const aira = s0.sides.A.active[0];
+    aira.statuses = [{ id: 'spd', value: 2, stacks: 1, expiresAtRound: 2 }]; // «следующий раунд» от раунда 1
+    aira.shield = 5;
+    aira.shieldExpiresAtRound = 2;
+    const keep = () => cmd(basic(0, enemy(0)), basic(1, enemy(0)), basic(2, enemy(0)));
+    const timers = (h: MatchState['sides']['A']['active'][0]) =>
+      ({ id: h.id, spd: h.statuses.find(st => st.id === 'spd')?.expiresAtRound ?? null, shield: h.shield, shieldUntil: h.shieldExpiresAtRound });
+
+    const r1 = playRound(s0, cmd(swap(0, 0), basic(1, enemy(0)), basic(2, enemy(0))), bDefault());
+    expect(timers(r1.state.sides.A.reserve[0])).toEqual({ id: 'aira', spd: 3, shield: 5, shieldUntil: 3 });
+
+    const r2 = playRound(healAll(r1.state), keep(), bDefault());
+    expect(timers(r2.state.sides.A.reserve[0])).toEqual({ id: 'aira', spd: 4, shield: 5, shieldUntil: 4 });
+
+    const r3 = playRound(healAll(r2.state), cmd(swap(0, 0), basic(1, enemy(0)), basic(2, enemy(0))), bDefault());
+    expect(timers(r3.state.sides.A.active[0])).toEqual({ id: 'aira', spd: 4, shield: 5, shieldUntil: 4 });
+    expect(effectiveSpd(r3.state.sides.A.active[0])).toBe(8);
+
+    const r4 = playRound(healAll(r3.state), keep(), bDefault());
+    expect(timers(r4.state.sides.A.active[0])).toEqual({ id: 'aira', spd: null, shield: 0, shieldUntil: null });
+    expect(effectiveSpd(r4.state.sides.A.active[0])).toBe(6);
   });
 
   it('героиня, вошедшая в этом раунде, пропускает действие', () => {
     const s = structuredClone(makeMatch());
     s.sides.A.active[1].once['enteredRound'] = 1;
-    const { events } = run(s, aDefault(), bDefault());
+    const { events } = playRound(s, aDefault(), bDefault());
     expect(ofType(events, 'heroAction').find(e => e.heroId === 'fenna')).toMatchObject({ action: 'skipped', reason: 'entered' });
     expect(damageBy(events, ally(1))).toEqual([]);
   });
@@ -186,7 +210,7 @@ describe('resolveRound: basic и swap', () => {
   it('цель умерла раньше по SPD → удар переходит на врага с min HP (событие retarget)', () => {
     let s = setHp(makeMatch(), enemy(2), 1); // Нокта
     s = setHp(s, enemy(1), 10);              // Юстина
-    const { state, events } = run(s,
+    const { state, events } = playRound(s,
       cmd(basic(0, enemy(2)), basic(1, enemy(2)), basic(2, enemy(0))),
       bDefault());
     // Фенна (SPD 7, 100% HP) раньше Нокты (SPD 7, 5% HP) и добивает её.
@@ -196,6 +220,9 @@ describe('resolveRound: basic и swap', () => {
       { type: 'retarget', round: 1, phase: 'heroes', from: enemy(2), to: enemy(1) },
     ]);
     expect(damageBy(events, ally(0))).toEqual([expect.objectContaining({ target: enemy(1), dmg: 7 })]);
+    // Добивающий удар: урон 4, но в HP ушла только 1 — оверкилл не считается.
+    expect(damageBy(events, ally(1))).toEqual([expect.objectContaining({ target: enemy(2), dmg: 4, hpLoss: 1, hp: 0 })]);
+    expect(state.sides.A.damageDealt).toBe(1 + 7 + 4); // Фенна 1, Айра 7, Нериса → Аврора 4
     expect(state.deaths).toEqual([{ side: 'B', heroId: 'nokta', round: 1 }]);
     expect(state.sides.B.luna).toBe(3);
     expect(ofType(events, 'lunaChanged').filter(e => e.reason === 'death'))
@@ -210,7 +237,7 @@ describe('resolveRound: конец раунда', () => {
     s = setHp(s, enemy(1), 4);
     s.sides.B.active[0].statuses = [{ id: 'burn', value: 0, stacks: 2, expiresAtRound: null }];
     s.sides.B.active[1].statuses = [{ id: 'burn', value: 0, stacks: 2, expiresAtRound: null }];
-    const { state, events } = run(s,
+    const { state, events } = playRound(s,
       cmd(basic(0, enemy(2)), basic(1, enemy(2)), basic(2, enemy(2))),
       bDefault());
     expect(ofType(events, 'burn')).toEqual([
@@ -230,7 +257,7 @@ describe('resolveRound: конец раунда', () => {
     let s = setHp(makeMatch(), ally(1), 1);
     s.sides.A.reserve[0].hp = 0; // Тали мертва — выходит Зефира
     s = structuredClone(s);
-    const { state, events } = run(s, aDefault(), cmd(basic(0, ally(2)), basic(1, ally(1)), basic(2, ally(2))));
+    const { state, events } = playRound(s, aDefault(), cmd(basic(0, ally(2)), basic(1, ally(1)), basic(2, ally(2))));
     expect(ofType(events, 'death')).toEqual([
       { type: 'death', round: 1, phase: 'heroes', side: 'A', slot: 1, heroId: 'fenna' },
     ]);
@@ -247,7 +274,7 @@ describe('resolveRound: конец раунда', () => {
     const s = killAllBut(makeMatch(), 'B', 0);
     s.sides.B.active[0].statuses = [{ id: 'curse', value: 0, stacks: 1, expiresAtRound: null }];
     const bCmd = () => cmd(basic(0, ally(0)), none(), none());
-    const r1 = run(s, aDefault(), bCmd());
+    const r1 = playRound(s, aDefault(), bCmd());
     const aurora1 = r1.state.sides.B.active[0];
     expect(ofType(r1.events, 'bloodMoon')).toEqual([
       { type: 'bloodMoon', round: 1, phase: 'endRound', side: 'B', slot: 0, heroId: 'aurora', cleansed: ['curse'] },
@@ -261,7 +288,7 @@ describe('resolveRound: конец раунда', () => {
     expect(ofType(r1.events, 'autoFill')).toEqual([]);
     expect(r1.state.result).toBeNull();
 
-    const r2 = run(r1.state, aDefault(), bCmd());
+    const r2 = playRound(r1.state, aDefault(), bCmd());
     expect(ofType(r2.events, 'bloodMoon')).toEqual([]);
     expect(r2.state.sides.B.energy).toBe(5);
     expect(r2.state.sides.B.maxEnergyBonus).toBe(1);
@@ -271,7 +298,7 @@ describe('resolveRound: конец раунда', () => {
 
   it('раунд 9: урон ×1.25', () => {
     // moon new → после сдвига Растущая: без бонуса Луны.
-    const { state, events } = run(setRound(makeMatch(), 8), aDefault(),
+    const { state, events } = playRound(setRound(makeMatch(), 8), aDefault(),
       cmd(basic(0, ally(0)), basic(1, ally(1)), basic(2, ally(2))));
     expect(state.round).toBe(9);
     expect(state.moon).toBe('waxing');
@@ -287,17 +314,17 @@ describe('resolveRound: конец раунда', () => {
   });
 
   it('после 10 раунда result по тай-брейку; resolveRound на оконченном матче бросает', () => {
-    const r9 = run(setRound(makeMatch(), 8), aDefault(), bDefault());
+    const r9 = playRound(setRound(makeMatch(), 8), aDefault(), bDefault());
     expect(r9.state.result).toBeNull();
 
-    const r = run(setRound(makeMatch(), 9), aDefault(), bDefault());
+    const r = playRound(setRound(makeMatch(), 9), aDefault(), bDefault());
     expect(r.state.round).toBe(10);
     // Total Eclipse; живых 6:6; A потеряла 23/31 HP Нерисы, B — 19/32 HP Авроры → у B выше сумма % HP.
     expect(r.state.sides.A.active[2].hp).toBe(31 - 23);
     expect(r.state.sides.B.active[0].hp).toBe(32 - 19);
     expect(r.state.result).toEqual({ winner: 'B', reason: 'hpPct' });
     expect(r.events.at(-1)).toEqual({ type: 'matchEnd', round: 10, phase: 'endRound', winner: 'B', reason: 'hpPct' });
-    expect(() => run(r.state, aDefault(), bDefault())).toThrow('match finished');
+    expect(() => playRound(r.state, aDefault(), bDefault())).toThrow('match finished');
     expect(() => startRound(r.state)).toThrow('match finished');
     expect(() => resolveRound(r.state, { A: aDefault(), B: bDefault() })).toThrow('match finished');
   });
@@ -308,7 +335,7 @@ describe('resolveRound: конец раунда', () => {
     s.sides.A.active[0].hp = 2;
     s.sides.A.active[0].statuses = [{ id: 'burn', value: 0, stacks: 1, expiresAtRound: null }];
     s.sides.B.active[0].hp = 1;
-    const { state, events } = run(s, cmd(basic(0, enemy(0)), none(), none()), cmd(basic(0, ally(0)), none(), none()));
+    const { state, events } = playRound(s, cmd(basic(0, enemy(0)), none(), none()), cmd(basic(0, ally(0)), none(), none()));
     expect(ofType(events, 'death').map(e => [e.heroId, e.phase])).toEqual([['aurora', 'heroes'], ['aira', 'endRound']]);
     expect(ofType(events, 'bloodMoon')).toEqual([]);
     expect(state.result).toEqual({ winner: 'draw', reason: 'wipe' });
@@ -324,7 +351,7 @@ describe('resolveRound: детерминизм и валидация', () => {
       const all: GameEvent[] = [];
       for (let i = 0; i < 4; i++) {
         const before = structuredClone(s);
-        const r = run(s, autoCmds(s, 'A'), autoCmds(s, 'B'));
+        const r = playRound(s, autoCmds(s, 'A'), autoCmds(s, 'B'));
         expect(s).toEqual(before); // вход не мутируется
         expect(r.state.rngState).not.toBe(s.rngState);
         all.push(...r.events);
@@ -340,9 +367,9 @@ describe('resolveRound: детерминизм и валидация', () => {
 
   it('невалидные команды → Error("invalid commands")', () => {
     const s = makeMatch();
-    expect(() => run(s, cmd(basic(0, ally(1)), basic(1, enemy(0)), basic(2, enemy(0))), bDefault()))
+    expect(() => playRound(s, cmd(basic(0, ally(1)), basic(1, enemy(0)), basic(2, enemy(0))), bDefault()))
       .toThrow('invalid commands: A: wrong target type');
-    expect(() => run(s, aDefault(), cmd(none(), basic(1, ally(0)), basic(2, ally(0)))))
+    expect(() => playRound(s, aDefault(), cmd(none(), basic(1, ally(0)), basic(2, ally(0)))))
       .toThrow('invalid commands: B: none only for dead hero');
   });
 
