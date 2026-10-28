@@ -126,17 +126,17 @@ describe('resolveRound: basic и swap', () => {
     expect(state.moon).toBe('waxing');
     const dmg = (att: SlotRef) => damageBy(events, att).map(e => [(e.target as SlotRef).side, (e.target as SlotRef).slot, e.dmg]);
     expect(dmg(ally(0))).toEqual([['B', 0, 8]]); // Нокта: 7 × 1.15 = 8.05 → 8
-    expect(dmg(ally(1))).toEqual([['B', 0, 4]]); // Мира: 4 × 1
+    expect(dmg(ally(1))).toEqual([['B', 0, 5]]); // Мира: 5 × 1
     expect(dmg(ally(2))).toEqual([['B', 0, 4]]); // Фенна: 4 × 1
     expect(dmg(enemy(0))).toEqual([['A', 0, 5]]); // Аврора: 4 × 1.15 = 4.6 → 5
     expect(dmg(enemy(1))).toEqual([['A', 1, 7]]); // Юстина → Мира: 7 × 1
     expect(dmg(enemy(2))).toEqual([['A', 2, 7]]); // Кира → Фенна: 7 × 1
-    expect(state.sides.B.active[0].hp).toBe(32 - 16);
+    expect(state.sides.B.active[0].hp).toBe(32 - 17);
     expect(state.sides.A.active.map(h => h.hp)).toEqual([15, 17, 17]);
-    expect(state.sides.A.damageDealt).toBe(16);
+    expect(state.sides.A.damageDealt).toBe(17);
     expect(state.sides.B.damageDealt).toBe(19);
     const nokta = damageBy(events, ally(0))[0]!;
-    expect(nokta).toMatchObject({ raw: 8, flat: 0, reductions: 0, dmg: 8, absorbed: 0, hpLoss: 8, hp: 32 - 4 - 8, shield: 0 }); // Мира (SPD 9) ударила раньше
+    expect(nokta).toMatchObject({ raw: 8, flat: 0, reductions: 0, dmg: 8, absorbed: 0, hpLoss: 8, hp: 32 - 5 - 8, shield: 0 }); // Мира (SPD 9) ударила раньше
   });
 
   it('бонус Луны: в Новолуние Dark +1 (Нокта по Авроре 9)', () => {
@@ -220,10 +220,10 @@ describe('resolveRound: basic и swap', () => {
       { type: 'retarget', round: 1, phase: 'heroes', from: enemy(2), to: enemy(1) },
     ]);
     // Пассивка Авроры (HP > 50%): урон по её союзницам −1.
-    expect(damageBy(events, ally(0))).toEqual([expect.objectContaining({ target: enemy(1), dmg: 6, reductions: 1 })]);
+    expect(damageBy(events, ally(0))).toEqual([expect.objectContaining({ target: enemy(1), dmg: 5, reductions: 1 })]);
     // Добивающий удар: урон 4 − 1 = 3, но в HP ушла только 1 — оверкилл не считается.
     expect(damageBy(events, ally(1))).toEqual([expect.objectContaining({ target: enemy(2), dmg: 3, hpLoss: 1, hp: 0 })]);
-    expect(state.sides.A.damageDealt).toBe(1 + 6 + 4); // Фенна 1, Айра 6, Нериса → Аврора 4
+    expect(state.sides.A.damageDealt).toBe(1 + 5 + 4); // Фенна 1, Айра 5, Нериса → Аврора 4
     expect(state.deaths).toEqual([{ side: 'B', heroId: 'nokta', round: 1 }]);
     expect(state.sides.B.luna).toBe(3);
     expect(ofType(events, 'lunaChanged').filter(e => e.reason === 'death'))
@@ -295,7 +295,7 @@ describe('resolveRound: конец раунда', () => {
     expect(r2.state.sides.B.energy).toBe(5);
     expect(r2.state.sides.B.maxEnergyBonus).toBe(1);
     expect(damageBy(r2.events, enemy(0)).map(e => e.dmg)).toEqual([5]); // 4 × 1.2 = 4.8 → 5
-    expect(r2.state.sides.B.active[0].hp).toBe(32 - 15 - 15);
+    expect(r2.state.sides.B.active[0].hp).toBe(32 - 14 - 14); // Айра 6 + Фенна 4 + Нериса 4 за раунд
   });
 
   it('раунд 9: урон ×1.25', () => {
@@ -305,13 +305,13 @@ describe('resolveRound: конец раунда', () => {
     expect(state.round).toBe(9);
     expect(state.moon).toBe('waxing');
     const dmgs = (att: SlotRef) => damageBy(events, att).map(e => e.dmg);
-    expect(dmgs(ally(0))).toEqual([9]);  // Айра: 7 × 1.25 = 8.75 → 9
+    expect(dmgs(ally(0))).toEqual([8]);  // Айра: 6 × 1.25 = 7.5 → 8
     expect(dmgs(ally(1))).toEqual([5]);  // Фенна: 4 × 1.25 = 5
     expect(dmgs(ally(2))).toEqual([5]);  // Нериса: 4 × 1.25 = 5
     expect(dmgs(enemy(0))).toEqual([5]); // Аврора → Айра: 4 × 1.25 = 5
     expect(dmgs(enemy(1))).toEqual([9]); // Юстина → Фенна: 7 × 1.25 → 9
     expect(dmgs(enemy(2))).toEqual([6]); // Нокта → Нериса: 7 × 1.25 → 9, −3 первый урон Нерисы (пассивка)
-    expect(state.sides.B.active[0].hp).toBe(32 - 19);
+    expect(state.sides.B.active[0].hp).toBe(32 - 18);
     expect(state.result).toBeNull();
   });
 
@@ -321,10 +321,10 @@ describe('resolveRound: конец раунда', () => {
 
     const r = playRound(setRound(makeMatch(), 9), aDefault(), bDefault());
     expect(r.state.round).toBe(10);
-    // Total Eclipse; живых 6:6; A потеряла 20/31 HP Нерисы (9 + 9 + 5, первый урон −3), B — 19/32 HP Авроры
+    // Total Eclipse; живых 6:6; A потеряла 20/31 HP Нерисы (9 + 9 + 5, первый урон −3), B — 18/32 HP Авроры
     // → у B выше сумма % HP.
     expect(r.state.sides.A.active[2].hp).toBe(31 - 20);
-    expect(r.state.sides.B.active[0].hp).toBe(32 - 19);
+    expect(r.state.sides.B.active[0].hp).toBe(32 - 18);
     expect(r.state.result).toEqual({ winner: 'B', reason: 'hpPct' });
     expect(r.events.at(-1)).toEqual({ type: 'matchEnd', round: 10, phase: 'endRound', winner: 'B', reason: 'hpPct' });
     expect(() => playRound(r.state, aDefault(), bDefault())).toThrow('match finished');

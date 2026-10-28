@@ -7,6 +7,7 @@ import { resolveRound, startRound } from '../resolve/round';
 import { validateCommands } from '../validate';
 import { viewFor } from '../view';
 import { randomDeck } from '../sim';
+import { newPlan } from '../botScoring';
 import type { HeroAction, MatchState, Side, SideCommands, SlotRef } from '../types';
 import { makeMatch, setHp, setLuna } from './helpers';
 
@@ -68,6 +69,24 @@ describe('бот', () => {
     const swapped = cmds.actions[0].type === 'swap';
     const shielded = cmds.actions.some((a, i) => a.type === 'skill' && i === 2 && sameSlot(a.target, threatened));
     expect(swapped || shielded).toBe(true);
+  });
+
+  it('угроза = два сильнейших удара врагов: Айра 15 HP при ударах 7 + 7 + 4 не под угрозой, при 14 HP под угрозой', () => {
+    // B: aurora 4, justina 7, nokta 7 (бонус фазы Луны бот не считает). Два сильнейших: 14, все три: 18.
+    const threatened: SlotRef = { side: 'A', slot: 0 };
+    const safe = setHp(started(makeMatch()), threatened, 15);
+    expect(newPlan(viewFor(safe, 'A'), 'A').need[0]).toBe(0);
+    const risky = setHp(started(makeMatch()), threatened, 14);
+    expect(newPlan(viewFor(risky, 'A'), 'A').need[0]).toBe(1);
+  });
+
+  it('фокус: Тали бьёт Киру с 8 HP, а не Айру с полным HP и стихийным преимуществом', () => {
+    // Tali (water) vs aira (fire, ×1.2, 20 HP) and kira (dark, ×1.0, 8 HP); no kill is possible this round.
+    const s = setHp(started(makeMatch({ a: ['tali', 'fenna', 'nerisa', 'aira', 'zefira', 'liraya'], b: ['aira', 'kira', 'aurora', 'justina', 'mira', 'selena'] })),
+      { side: 'B', slot: 1 }, 8);
+    const cmds = chooseCommands(viewFor(s, 'A'), 'A', quietRng());
+    expect(validateCommands(s, 'A', cmds)).toEqual([]);
+    expect(targetOf(cmds.actions[0])).toEqual({ side: 'B', slot: 1 });
   });
 
   it('не целится в мёртвый слот при мёртвом резерве', () => {

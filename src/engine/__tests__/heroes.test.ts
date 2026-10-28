@@ -73,7 +73,7 @@ describe('хуки героинь', () => {
       cmd(basic(0, ally(2)), basic(1, ally(2)), basic(2, ally(2))));
     expect(ofType(r.events, 'burn').map(e => [e.target, e.dmg, e.hp])).toEqual([[ally(1), 2, 22], [enemy(1), 3, 20]]);
 
-    // Ульта: 7×1.2 = 8.4 → 8 (Юстине и Нокте 8 − 1 Аврора = 7), затем один лишний тик Burn:
+    // Ульта: 6×1.2 = 7.2 → 7 (Юстине и Нокте 7 − 1 Аврора = 6), затем один лишний тик Burn:
     // 2 × стаки + 1 (пассивка) — 3 стака → 7, 1 стак → 3.
     const ctx = ctxFor(['aira', 'fenna', 'nerisa', 'tali', 'zefira', 'liraya'], undefined, x => {
       x.sides.A.luna = 3;
@@ -81,9 +81,9 @@ describe('хуки героинь', () => {
       x.sides.B.active[2].statuses.push(st('burn'));
     });
     runAbility(ctx, ally(0), HEROES.aira.ultimate, undefined, 'ultimate');
-    expect(hits(ctx.events, ally(0)).map(h => [h.target, h.dmg])).toEqual([[enemy(0), 8], [enemy(1), 7], [enemy(2), 7]]);
+    expect(hits(ctx.events, ally(0)).map(h => [h.target, h.dmg])).toEqual([[enemy(0), 7], [enemy(1), 6], [enemy(2), 6]]);
     expect(ofType(ctx.events, 'detonate').map(e => [e.target, e.stacks, e.dmg])).toEqual([[enemy(1), 3, 7], [enemy(2), 1, 3]]);
-    expect([hpOf(ctx.s, enemy(0)), hpOf(ctx.s, enemy(1)), hpOf(ctx.s, enemy(2))]).toEqual([24, 9, 10]);
+    expect([hpOf(ctx.s, enemy(0)), hpOf(ctx.s, enemy(1)), hpOf(ctx.s, enemy(2))]).toEqual([25, 10, 11]);
   });
 
   it('fenna.revive: последняя погибшая возвращается 9 HP + Shield 3 на своём слоте; без погибших Heal 5 всем активным', () => {
@@ -261,14 +261,14 @@ describe('хуки героинь', () => {
     expect(cardCost(startRound(r2.state).state, 'A', 'lunarDash')).toBe(1);
   });
 
-  it('justina.pursuit: враг получил щит → +1 SPD до конца раунда, раз в раунд; justina.verdict: 200%, убийство → +1 Luna', () => {
+  it('justina.pursuit: враг получил щит → +1 SPD до конца следующего раунда, раз в раунд; justina.verdict: 200%, убийство → +1 Luna', () => {
     const ctx = ctxFor(['aira', 'fenna', 'nerisa', 'tali', 'zefira', 'liraya']);
     runAbility(ctx, enemy(0), HEROES.aurora.skill, undefined, 'skill'); // свой бафф — нет
     runAbility(ctx, ally(2), HEROES.nerisa.skill, ally(1), 'skill');    // щит врагу — да
     runAbility(ctx, ally(2), HEROES.nerisa.skill, ally(0), 'skill');    // второй раз в раунде — нет
     expect(ofType(ctx.events, 'statusApplied').filter(e => e.status === 'spd').map(e => [e.target, e.value]))
       .toEqual([[enemy(1), 1]]);
-    expect(findSt(ctx.s, enemy(1), 'spd')).toMatchObject({ value: 1, expiresAtRound: 1 });
+    expect(findSt(ctx.s, enemy(1), 'spd')).toMatchObject({ value: 1, expiresAtRound: 2 });
 
     // Две Юстины: бафф одной — «вражеский бафф» для другой; каждая получает +1 ровно один раз.
     const ctxJ = ctxFor(['justina', 'fenna', 'nerisa', 'aira', 'zefira', 'liraya'], ['justina', 'aurora', 'nokta', 'kira', 'mira', 'selena']);
