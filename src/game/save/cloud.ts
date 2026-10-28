@@ -8,7 +8,7 @@ export const CLOUD_KEYS = {
   settings: 'eclipse.settings',
 } as const;
 
-/** Предел длины значения в CloudStorage Telegram. */
+/** Предел длины значения в CloudStorage Telegram (4096 символов); `length` считает кодовые единицы UTF-16. */
 export const CLOUD_VALUE_LIMIT = 4096;
 
 export type CloudSections = Partial<Pick<SaveV1, 'profile' | 'decks' | 'activeDeckId' | 'settings'>>;
@@ -20,8 +20,13 @@ function isObject(v: unknown): v is Record<string, unknown> {
 const isProfile = (v: unknown): v is SaveV1['profile'] =>
   isObject(v) && Array.isArray(v.unlocked) && typeof v.tutorialStep === 'number' && isObject(v.stats);
 
+const isSavedDeck = (v: unknown): boolean =>
+  isObject(v) && typeof v.id === 'string' && typeof v.name === 'string' && isObject(v.deck);
+
+/** Одна неверная колода отбрасывает весь раздел: колоды и активная колода пишутся вместе. */
 const isDecks = (v: unknown): v is Pick<SaveV1, 'decks' | 'activeDeckId'> =>
-  isObject(v) && Array.isArray(v.decks) && (v.activeDeckId === null || typeof v.activeDeckId === 'string');
+  isObject(v) && Array.isArray(v.decks) && v.decks.every(isSavedDeck)
+  && (v.activeDeckId === null || typeof v.activeDeckId === 'string');
 
 const isSettings = (v: unknown): v is SaveV1['settings'] =>
   isObject(v) && (v.speed === 'normal' || v.speed === 'fast') && typeof v.sound === 'boolean';

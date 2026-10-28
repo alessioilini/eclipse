@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { CLOUD_KEYS } from './game/save/cloud';
 import { defaultSave } from './game/save/defaults';
 import { SAVE_KEY } from './game/save/storage';
-import { boot } from './main';
+import { boot, CLOUD_BOOT_TIMEOUT_MS } from './main';
 import type { CloudStorage, Platform } from './platform';
 import { createWebPlatform } from './platform/web';
 import { useStore } from './store';
@@ -39,6 +39,7 @@ function localSave() {
 
 afterEach(() => {
   vi.restoreAllMocks();
+  vi.useRealTimers();
 });
 
 describe('запуск приложения', () => {
@@ -91,7 +92,8 @@ describe('запуск приложения', () => {
     const cloud = fakeCloud();
     const detach = await boot(storage, withCloud(cloud));
     try {
-      expect(cloud.setItem).toHaveBeenCalledTimes(3);
+      // Перенос не задерживает запуск: запись идёт в фоне.
+      await vi.waitFor(() => expect(cloud.setItem).toHaveBeenCalledTimes(3));
       expect(cloud.map.get(CLOUD_KEYS.profile)).toBe(JSON.stringify(local.profile));
       expect(cloud.map.get(CLOUD_KEYS.decks)).toBe(JSON.stringify({ decks: local.decks, activeDeckId: local.activeDeckId }));
       expect(cloud.map.get(CLOUD_KEYS.settings)).toBe(JSON.stringify(local.settings));
@@ -131,5 +133,32 @@ describe('запуск приложения', () => {
     // Облако на этом запуске считается отсутствующим: в него ничего не пишется.
     await new Promise((r) => setTimeout(r, 0));
     expect(cloud.setItem).not.toHaveBeenCalled();
+  });
+
+  it('облако молчит дольше 3000 мс → запуск на localStorage с одним предупреждением', async () => {
+    vi.useFakeTimers();
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const storage = fakeStorage({ [SAVE_KEY]: JSON.stringify(localSave()) });
+    const cloud = fakeCloud();
+    cloud.getItem.mockImplementation(() => new Promise<string | null>(() => {}));
+    let detach: (() => void) | null = null;
+    const booting = boot(storage, withCloud(cloud)).then((d) => { detach = d; });
+    await vi.advanceTimersByTimeAsync(CLOUD_BOOT_TIMEOUT_MS - 1);
+    expect(detach).toBeNull();
+    await vi.advanceTimersByTimeAsync(1);
+    await booting;
+    try {
+      expect(CLOUD_BOOT_TIMEOUT_MS).toBe(3000);
+      expect(useStore.getState().stats.wins).toBe(7);
+      expect(warn).toHaveBeenCalledTimes(1);
+      useStore.getState().recordResult('win');
+      expect(JSON.parse(storage.getItem(SAVE_KEY)!).profile.stats.wins).toBe(8);
+      await vi.advanceTimersByTimeAsync(5000);
+      expect(cloud.setItem).not.toHaveBeenCalled();
+    } finally {
+      detach!();
+    }
+    expect(cloud.setItem).not.toHaveBeenCalled();
+    expect(vi.getTimerCount()).toBe(0);
   });
 });

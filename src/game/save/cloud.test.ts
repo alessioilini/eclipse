@@ -78,6 +78,16 @@ describe('loadCloud', () => {
     expect(c).toEqual({ profile: save.profile });
     expect(warn).toHaveBeenCalledTimes(2);
   });
+
+  it('одна неверная колода → весь раздел колод пропущен с предупреждением', async () => {
+    const save = sampleSave();
+    const c = await loadCloud(fakeCloud({
+      [CLOUD_KEYS.profile]: JSON.stringify(save.profile),
+      [CLOUD_KEYS.decks]: JSON.stringify({ decks: [...save.decks, { id: 2, name: 'Без колоды' }], activeDeckId: 'd1' }),
+    }));
+    expect(c).toEqual({ profile: save.profile });
+    expect(warn).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe('createCloudWriter', () => {
@@ -149,8 +159,11 @@ describe('createCloudWriter', () => {
     const save = sampleSave();
     writer.write(save);
     await writer.flush();
-    writer.write({ ...save, settings: { speed: 'normal', sound: false } });
+    const next = { ...save, settings: { speed: 'normal' as const, sound: false } };
+    writer.write(next);
     await writer.flush();
+    // Неудачный ключ не считается записанным: следующая запись повторяет его с новым значением.
+    expect(cloud.setItem).toHaveBeenCalledWith(CLOUD_KEYS.settings, JSON.stringify(next.settings));
     expect(cloud.map.has(CLOUD_KEYS.profile)).toBe(true);
     expect(cloud.map.has(CLOUD_KEYS.decks)).toBe(true);
     expect(warn).toHaveBeenCalledTimes(1);
