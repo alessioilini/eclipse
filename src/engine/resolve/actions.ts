@@ -180,11 +180,11 @@ export function runAbility(ctx: Ctx, actor: SlotRef, ability: Ability, target: S
   }
 
   const sd = s.sides[actor.side];
-  if (kind === 'skill') {
-    sd.energy -= ability.cost;
-  } else {
+  const energyCost = kind === 'skill' ? ability.cost : ULTIMATE_ENERGY_COST;
+  sd.energy -= energyCost;
+  if (energyCost > 0) emit(ctx, { type: 'energyChanged', side: actor.side, energy: sd.energy, delta: -energyCost, reason: kind });
+  if (kind === 'ultimate') {
     const luna = ultimateLunaCost(s, actor.side);
-    sd.energy -= ULTIMATE_ENERGY_COST;
     sd.luna -= luna;
     setHeroAt(s, actor, { ...heroAt(s, actor), ultimateUsed: true });
     emit(ctx, { type: 'lunaChanged', side: actor.side, luna: sd.luna, delta: -luna, reason: 'ultimate' });

@@ -32,18 +32,21 @@ export function computeDamage(i: DamageInput): number {
   return Math.max(1, scaled - i.reductions);
 }
 
+/** Shield, then HP. `undying` is true when Undying fired (and was consumed) on this hit. */
 export function applyToHero(
   hero: HeroState, dmg: number, opts: { pierce?: boolean },
-): { hero: HeroState; absorbed: number; hpLoss: number } {
+): { hero: HeroState; absorbed: number; hpLoss: number; undying: boolean } {
   const absorbed = opts.pierce ? 0 : Math.min(hero.shield, dmg);
   let hpLoss = dmg - absorbed;
   let next: HeroState = { ...hero, shield: hero.shield - absorbed, statuses: hero.statuses.map(s => ({ ...s })) };
+  let undying = false;
   if (hero.hp > 0 && hasStatus(hero, 'undying') && hero.hp - hpLoss < 1) {
     hpLoss = hero.hp - 1;
     next = removeStatus(next, 'undying');
+    undying = true;
   }
   next.hp = Math.max(0, hero.hp - hpLoss);
-  return { hero: next, absorbed, hpLoss };
+  return { hero: next, absorbed, hpLoss, undying };
 }
 
 /** Ignores shield, reductions and undying. */

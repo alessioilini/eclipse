@@ -106,6 +106,7 @@ export function playCard(ctx: Ctx, side: Side, card: PlannedCard): void {
   }
 
   sd.energy -= cost;
+  if (cost > 0) emit(ctx, { type: 'energyChanged', side, energy: sd.energy, delta: -cost, reason: 'card' });
   sd.lastCardPlayed = {
     cardId, ...(play.target ? { target: play.target } : {}), ...(play.secondary ? { secondary: play.secondary } : {}),
   };

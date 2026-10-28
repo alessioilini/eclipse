@@ -243,7 +243,7 @@ describe('умения героинь через данные', () => {
     expect(ofType(events, 'shield').map(e => [e.source, e.target, e.amount]))
       .toEqual([[ally(2), ally(0), 6], [ally(2), ally(1), 6], [ally(2), ally(2), 6]]);
     // Cleanse 1: первый дебафф по порядку списка (Soak раньше Curse).
-    expect(ofType(events, 'statusRemoved').map(e => [e.target, e.status]))
+    expect(ofType(events, 'statusRemoved').filter(e => e.reason === undefined).map(e => [e.target, e.status]))
       .toEqual([[ally(0), 'burn'], [ally(1), 'soak']]);
     expect(statusIds(state, ally(0))).toEqual([]);
     expect(statusIds(state, ally(1))).toEqual(['curse']);

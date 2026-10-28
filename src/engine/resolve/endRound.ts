@@ -61,6 +61,21 @@ function burnTick(ctx: Ctx): void {
   }
 }
 
+/**
+ * Expiry on an active heroine (spec §3.4): statuses whose `expiresAtRound` is this round go away
+ * (`statusRemoved` with reason 'expired', one per entry), an expiring shield drops to 0
+ * (`shieldExpired` with the amount left, only if there was any).
+ */
+function expireActive(ctx: Ctx, ref: SlotRef): void {
+  const round = ctx.s.round;
+  const hero = heroAt(ctx.s, ref);
+  for (const st of hero.statuses) {
+    if (st.expiresAtRound === round) emit(ctx, { type: 'statusRemoved', target: ref, status: st.id, value: st.value, reason: 'expired' });
+  }
+  if (hero.shieldExpiresAtRound === round && hero.shield > 0) emit(ctx, { type: 'shieldExpired', target: ref, amount: hero.shield });
+  setHeroAt(ctx.s, ref, expireStatuses(hero, round));
+}
+
 function bloodMoon(ctx: Ctx, side: Side): void {
   const sd = ctx.s.sides[side];
   if (sd.bloodMoonUsed) return;
@@ -103,7 +118,7 @@ export function endRound(ctx: Ctx): void {
 
   for (const side of SIDES) {
     const sd = s.sides[side];
-    sd.active = sd.active.map(h => expireStatuses(h, s.round)) as typeof sd.active;
+    for (const slot of SLOTS) expireActive(ctx, { side, slot });
     sd.reserve = sd.reserve.map(freezeTimers) as typeof sd.reserve;
     sd.armedReactions = [];
     if (sd.nextCardCostUp && s.round >= sd.nextCardCostUp.untilRound) sd.nextCardCostUp = null;

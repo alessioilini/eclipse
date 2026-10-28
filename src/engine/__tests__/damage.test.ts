@@ -70,12 +70,14 @@ describe('applyToHero', () => {
     expect(r.hero.hp).toBe(1);
     expect(r.hpLoss).toBe(2);
     expect(hasStatus(r.hero, 'undying')).toBe(false);
+    expect(r.undying).toBe(true);
   });
   it('undying при hp 0 статус не расходуется', () => {
     const h = applyStatus(hero({ hp: 0 }), { id: 'undying', duration: 'thisRound', round: 1 });
     const r = applyToHero(h, 5, {});
     expect(r.hero.hp).toBe(0);
     expect(hasStatus(r.hero, 'undying')).toBe(true);
+    expect(r.undying).toBe(false);
   });
   it('не мутирует исходного героя', () => {
     const h = hero({ shield: 5 });

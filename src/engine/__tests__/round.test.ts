@@ -4,7 +4,7 @@ import { validateCommands } from '../validate';
 import { effectiveSpd } from '../status';
 import { CARD_IDS } from '../data/cards';
 import type { GameEvent, MatchState, Side, SideCommands, SlotRef } from '../types';
-import { makeMatch, cmd, basic, skill, swap, none, enemy, ally, setHp, setHand, setRound, playRound } from './helpers';
+import { makeMatch, cmd, basic, skill, ult, swap, none, enemy, ally, setHp, setHand, setRound, playRound } from './helpers';
 
 
 /** A: all three hit B0; B: all three hit A2. Nobody dies in one round with the default teams. */
@@ -414,5 +414,56 @@ describe('resolveRound: детерминизм и валидация', () => {
     expect(damageBy(r.events, ally(1))).toEqual([]);
     expect(damageBy(r.events, ally(2))).toEqual([]);
     expect(() => resolveRound(started, { A: drawn, B: bDefault() })).not.toThrow();
+  });
+});
+
+describe('resolveRound: события тихих изменений', () => {
+  // A: Айра(0), Фенна(1), Нериса(2). B: Аврора(0), Юстина(1), Нокта(2). На стороне B нет перехватчиков.
+  const removed = (events: GameEvent[], reason: string) =>
+    ofType(events, 'statusRemoved').filter(e => e.reason === reason).map(e => [e.target, e.status, e.phase]);
+
+  it.each([
+    ['mark', enemy(0)],
+    ['damageReduction', enemy(0)],
+    ['pierce', ally(0)],
+    ['nextHitBonus', ally(0)],
+  ] as const)('одноразовый %s расходуется в ударе → statusRemoved reason consumed', (id, holder) => {
+    const s = structuredClone(makeMatch());
+    s.sides[holder.side].active[holder.slot].statuses = [{ id, value: 2, stacks: 1, expiresAtRound: null }];
+    const { events } = playRound(s, cmd(basic(0, enemy(0)), basic(1, enemy(1)), basic(2, enemy(1))), bDefault());
+    expect(removed(events, 'consumed')).toEqual([[holder, id, 'heroes']]);
+  });
+
+  it('Undying спасает от летального удара → statusRemoved reason consumed', () => {
+    const s = setHp(makeMatch(), enemy(0), 1);
+    s.sides.B.active[0].statuses = [{ id: 'undying', value: 0, stacks: 1, expiresAtRound: 1 }];
+    const { state, events } = playRound(s, cmd(basic(0, enemy(0)), basic(1, enemy(1)), basic(2, enemy(1))), bDefault());
+    expect(removed(events, 'consumed')).toEqual([[enemy(0), 'undying', 'heroes']]);
+    expect(state.sides.B.active[0].hp).toBe(1);
+  });
+
+  it('End Round: истёкшие статусы → statusRemoved reason expired, истёкший щит → shieldExpired', () => {
+    const s = structuredClone(makeMatch());
+    const aira = s.sides.A.active[0];
+    aira.statuses = [{ id: 'spd', value: 2, stacks: 1, expiresAtRound: 1 }, { id: 'curse', value: 0, stacks: 1, expiresAtRound: null }];
+    aira.shield = 5;
+    aira.shieldExpiresAtRound = 1;
+    const { state, events } = playRound(s, aDefault(), bDefault());
+    expect(ofType(events, 'statusRemoved').filter(e => e.reason === 'expired').map(e => [e.target, e.status, e.value, e.phase]))
+      .toEqual([[ally(0), 'spd', 2, 'endRound']]);
+    expect(ofType(events, 'shieldExpired').map(e => [e.target, e.amount, e.phase])).toEqual([[ally(0), 5, 'endRound']]);
+    expect(state.sides.A.active[0].shield).toBe(0);
+    expect(state.sides.A.active[0].statuses.map(x => x.id)).toEqual(['curse']);
+  });
+
+  it('Energy, потраченная на Skill, Ultimate и карту → energyChanged с причиной', () => {
+    const started = startRound(makeMatch()).state;
+    started.sides.A.luna = 3;
+    started.sides.A.hand = ['fieldKit'];
+    // Фенна (SPD 7) лечит, Айра (6) бьёт, Нериса (4) — ульта; затем Standard-карта.
+    const a = cmd(basic(0, enemy(0)), skill(1, ally(2)), ult(2), { handIndex: 0, target: ally(2) });
+    const { events } = resolveRound(started, { A: a, B: bDefault() });
+    expect(ofType(events, 'energyChanged').filter(e => e.side === 'A').map(e => [e.energy, e.delta, e.reason, e.phase]))
+      .toEqual([[3, -1, 'skill', 'heroes'], [1, -2, 'ultimate', 'heroes'], [0, -1, 'card', 'standard']]);
   });
 });

@@ -88,14 +88,17 @@ export function dealHit(ctx: Ctx, attacker: SlotRef, target: SlotRef, mod: numbe
   const attDef = HEROES[att.id];
   let totalFlat = flatBox.v + lunarDamageBonus(s.moon, attDef.element);
   let pierce = opts.pierce ?? false;
+  const consumed: { target: SlotRef; status: StatusId }[] = [];
   if (hasStatus(att, 'pierce')) {
     totalFlat += statusValue(att, 'pierce');
     pierce = true;
     att = removeStatus(att, 'pierce');
+    consumed.push({ target: attacker, status: 'pierce' });
   }
   if (hasStatus(att, 'nextHitBonus')) {
     totalFlat += statusValue(att, 'nextHitBonus');
     att = removeStatus(att, 'nextHitBonus');
+    consumed.push({ target: attacker, status: 'nextHitBonus' });
   }
   setHeroAt(s, attacker, att);
 
@@ -105,11 +108,14 @@ export function dealHit(ctx: Ctx, attacker: SlotRef, target: SlotRef, mod: numbe
   if (dr !== 0) {
     reductions += dr;
     victim = removeStatus(victim, 'damageReduction');
+    consumed.push({ target: tgt, status: 'damageReduction' });
   }
   if (opts.single && hasStatus(victim, 'mark')) {
     totalFlat += MARK_BONUS;
     victim = removeStatus(victim, 'mark');
+    consumed.push({ target: tgt, status: 'mark' });
   }
+  for (const c of consumed) emit(ctx, { type: 'statusRemoved', ...c, reason: 'consumed' });
 
   const atk = effectiveAtk(att);
   const raw = roundHalfUp(atk * mod * elementMultiplier(attDef.element, victimEl));
@@ -117,13 +123,14 @@ export function dealHit(ctx: Ctx, attacker: SlotRef, target: SlotRef, mod: numbe
     atk, mod, attacker: attDef.element, target: victimEl,
     flat: totalFlat, bloodMoon: att.bloodMoon, round: s.round, reductions,
   });
-  const { hero: hit, absorbed } = applyToHero(victim, dmg, { pierce });
+  const { hero: hit, absorbed, undying } = applyToHero(victim, dmg, { pierce });
   const hpLoss = victim.hp - hit.hp; // overkill beyond the victim's HP is not HP loss
   setHeroAt(s, tgt, hit);
   emit(ctx, {
     type: 'damage', attacker, target: tgt, attackerId: att.id, targetId: victim.id, raw, flat: totalFlat, reductions,
     dmg, absorbed, hpLoss, hp: hit.hp, shield: hit.shield,
   });
+  if (undying) emit(ctx, { type: 'statusRemoved', target: tgt, status: 'undying', reason: 'consumed' });
   s.sides[attacker.side].damageDealt += hpLoss;
   mirrorShield(ctx, attacker, tgt, absorbed);
   fire(ctx, 'afterDealDamage', { attacker, target: tgt, amount: { v: hpLoss }, killed: hit.hp === 0 });
@@ -137,7 +144,7 @@ function mirrorShield(ctx: Ctx, attacker: SlotRef, target: SlotRef, absorbed: nu
   const mirror = victim.statuses.find(st => st.id === 'mirrorShield');
   if (!mirror || absorbed <= 0 || victim.shield > 0) return;
   setHeroAt(ctx.s, target, removeStatus(victim, 'mirrorShield'));
-  emit(ctx, { type: 'statusRemoved', target, status: 'mirrorShield' });
+  emit(ctx, { type: 'statusRemoved', target, status: 'mirrorShield', reason: 'consumed' });
   applyStatusTo(ctx, mirror.source ?? target, attacker, 'mark', 0, 'permanent');
 }
 
@@ -168,7 +175,7 @@ function reflect(ctx: Ctx, attacker: SlotRef, target: SlotRef): void {
     : removeStatus(h, 'reflect'));
   const dmg = directHit(ctx, holder, attacker, REFLECT_DAMAGE);
   emit(ctx, { type: 'reflect', from: holder, to: attacker, dmg, charges, hp: heroAt(s, attacker).hp });
-  if (charges <= 0) emit(ctx, { type: 'statusRemoved', target: holder, status: 'reflect' });
+  if (charges <= 0) emit(ctx, { type: 'statusRemoved', target: holder, status: 'reflect', reason: 'consumed' });
   checkDeath(ctx, attacker, holder);
 }
 
