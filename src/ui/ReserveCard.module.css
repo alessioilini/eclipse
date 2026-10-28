@@ -1,0 +1,21 @@
+.card {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-4);
+  min-height: var(--tap);
+  padding: var(--sp-4) var(--sp-8);
+  border: 1px solid var(--muted);
+  border-radius: var(--r-8);
+  background: var(--surface);
+  cursor: pointer;
+}
+
+.card:global(.dead) {
+  opacity: 0.35;
+  filter: grayscale(1);
+  text-decoration: line-through;
+}
+
+.name {
+  font-size: var(--fs-12);
+}

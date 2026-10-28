@@ -1,0 +1,49 @@
+.bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-16);
+  min-height: var(--tap);
+}
+
+.group {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+}
+
+.dot {
+  width: var(--dot);
+  height: var(--dot);
+  border-radius: 50%;
+  border: var(--border) solid var(--accent);
+}
+
+.filled {
+  background: var(--accent);
+}
+
+.spent {
+  background: transparent;
+}
+
+.empty {
+  border-color: var(--muted);
+  opacity: 0.4;
+}
+
+.bar:global(.over) .spent {
+  border-color: var(--danger);
+}
+
+.luna {
+  font-size: var(--fs-20);
+  line-height: 1;
+  color: var(--muted);
+  opacity: 0.4;
+}
+
+.on {
+  color: var(--accent);
+  opacity: 1;
+}

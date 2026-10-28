@@ -1,0 +1,42 @@
+.button {
+  min-height: var(--tap);
+  min-width: var(--tap);
+  padding: 0 var(--sp-16);
+  border: var(--border) solid transparent;
+  border-radius: var(--r-8);
+  font-size: var(--fs-16);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.lg {
+  min-height: calc(var(--tap) + var(--sp-12));
+  font-size: var(--fs-20);
+  border-radius: var(--r-16);
+}
+
+.primary {
+  background: var(--accent);
+  color: var(--bg);
+}
+
+.secondary {
+  background: var(--surface);
+  color: var(--text);
+  border-color: var(--muted);
+}
+
+.ghost {
+  background: transparent;
+  color: var(--text);
+}
+
+.danger {
+  background: var(--danger);
+  color: var(--bg);
+}

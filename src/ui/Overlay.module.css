@@ -1,0 +1,53 @@
+.root {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  pointer-events: none;
+}
+
+.hole {
+  position: absolute;
+  border-radius: var(--r-8);
+  box-shadow: 0 0 0 9999px var(--scrim);
+  outline: var(--border) solid var(--accent);
+  pointer-events: none;
+}
+
+.block {
+  position: absolute;
+  pointer-events: auto;
+}
+
+.full {
+  inset: 0;
+  background: var(--scrim);
+}
+
+.bubble {
+  position: absolute;
+  left: var(--sp-16);
+  right: var(--sp-16);
+  max-width: 448px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-12);
+  padding: var(--sp-16);
+  border: 1px solid var(--accent);
+  border-radius: var(--r-16);
+  background: var(--surface);
+  pointer-events: auto;
+}
+
+.top {
+  top: calc(var(--sp-24) + env(safe-area-inset-top));
+}
+
+.bottom {
+  bottom: calc(var(--sp-24) + env(safe-area-inset-bottom));
+}
+
+.text {
+  margin: 0;
+  font-size: var(--fs-16);
+}

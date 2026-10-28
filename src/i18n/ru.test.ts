@@ -35,3 +35,16 @@ describe('fmt', () => {
     expect(fmt('{n}+{n}={x}', { n: 1 })).toBe('1+1={x}');
   });
 });
+
+describe('ru: статусы и тайминги', () => {
+  it('содержит уникальные короткие коды и названия для всех 16 статусов', () => {
+    const entries = Object.values(ru.statuses);
+    expect(entries).toHaveLength(16);
+    expect(new Set(entries.map((e) => e.short)).size).toBe(16);
+    for (const e of entries) expect(e.name.length).toBeGreaterThan(0);
+  });
+
+  it('описывает три тайминга карт', () => {
+    expect(Object.keys(ru.cardTiming).sort()).toEqual(['reaction', 'standard', 'swift']);
+  });
+});

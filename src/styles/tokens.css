@@ -30,4 +30,19 @@
   --r-16: 16px;
 
   --tap: 44px;
+
+  /* Component sizes */
+  --art-sm: 32px;
+  --art-md: 48px;
+  --art-lg: 96px;
+  --moon: 64px;
+  --bar-h: 6px;
+  --card-w: 112px;
+  --hero-w: 104px;
+  --dot: 12px;
+  --border: 2px;
+
+  /* Translucent layers */
+  --scrim: rgba(5, 7, 18, 0.72);
+  --hp: var(--el-wind);
 }

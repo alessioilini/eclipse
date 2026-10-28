@@ -1,0 +1,58 @@
+.widget {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-4);
+  text-align: center;
+}
+
+.svg {
+  width: var(--moon);
+  height: var(--moon);
+}
+
+.dark {
+  fill: var(--bg);
+  stroke: var(--muted);
+  stroke-width: 1.5;
+}
+
+.light {
+  fill: var(--accent);
+}
+
+.lit {
+  transition: x 600ms ease, width 600ms ease;
+}
+
+.name {
+  font-size: var(--fs-14);
+  font-weight: 600;
+}
+
+.effect {
+  font-size: var(--fs-12);
+  color: var(--muted);
+}
+
+.tags {
+  display: flex;
+  gap: var(--sp-4);
+}
+
+.eclipse,
+.blood {
+  padding: 0 var(--sp-8);
+  border: 1px solid currentColor;
+  border-radius: var(--r-8);
+  font-size: var(--fs-12);
+  font-weight: 600;
+}
+
+.eclipse {
+  color: var(--accent);
+}
+
+.blood {
+  color: var(--danger);
+}

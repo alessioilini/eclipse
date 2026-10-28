@@ -1,0 +1,24 @@
+.icon {
+  display: inline-flex;
+  align-items: flex-start;
+  padding: 0 var(--sp-4);
+  border: 1px solid currentColor;
+  border-radius: var(--r-8);
+  font-size: var(--fs-12);
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.buff {
+  color: var(--accent);
+}
+
+.debuff {
+  color: var(--danger);
+}
+
+.stacks {
+  font-size: var(--fs-12);
+  line-height: 1;
+  margin-left: 1px;
+}

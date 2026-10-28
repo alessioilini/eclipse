@@ -1,0 +1,112 @@
+.card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-4);
+  width: var(--hero-w);
+  min-height: var(--tap);
+  padding: var(--sp-8);
+  border: var(--border) solid var(--el-color);
+  border-radius: var(--r-16);
+  background: var(--surface);
+  cursor: pointer;
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.card:global(.selected) {
+  outline: var(--border) solid var(--accent);
+  outline-offset: var(--border);
+}
+
+.card:global(.dimmed) {
+  opacity: 0.4;
+}
+
+.card:global(.dead) {
+  opacity: 0.35;
+  filter: grayscale(1);
+}
+
+.card:global(.dead)::after {
+  content: '✕';
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--danger);
+  font-size: var(--fs-28);
+  font-weight: 700;
+}
+
+.name {
+  font-size: var(--fs-14);
+  font-weight: 600;
+}
+
+.bars {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+}
+
+.track {
+  position: relative;
+  height: var(--bar-h);
+  border-radius: var(--bar-h);
+  background: var(--bg);
+  overflow: hidden;
+}
+
+.hp,
+.shieldBar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  border-radius: var(--bar-h);
+}
+
+.hp {
+  background: var(--hp);
+}
+
+.shieldBar {
+  top: 50%;
+  height: 50%;
+  background: var(--el-water);
+}
+
+.numbers {
+  display: flex;
+  justify-content: space-between;
+  font-size: var(--fs-12);
+  font-variant-numeric: tabular-nums;
+}
+
+.shield {
+  color: var(--el-water);
+  font-weight: 600;
+}
+
+.statuses {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 2px;
+}
+
+.chip {
+  padding: 0 var(--sp-8);
+  border-radius: var(--r-8);
+  background: var(--accent);
+  color: var(--bg);
+  font-size: var(--fs-12);
+  font-weight: 600;
+  white-space: nowrap;
+}

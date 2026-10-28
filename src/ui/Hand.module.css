@@ -1,0 +1,12 @@
+.hand {
+  display: flex;
+  gap: var(--sp-8);
+  padding: var(--sp-12) var(--sp-4) var(--sp-4);
+  overflow-x: auto;
+  scroll-snap-type: x proximity;
+  -webkit-overflow-scrolling: touch;
+}
+
+.hand > * {
+  scroll-snap-align: start;
+}

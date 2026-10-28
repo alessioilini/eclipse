@@ -1,0 +1,84 @@
+.card {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--sp-4);
+  width: var(--card-w);
+  min-height: var(--tap);
+  padding: var(--sp-8);
+  border: 1px solid var(--muted);
+  border-radius: var(--r-8);
+  background: var(--surface);
+  text-align: left;
+  cursor: pointer;
+  transition: transform 150ms ease;
+}
+
+.card:global(.selected) {
+  border-color: var(--accent);
+  transform: translateY(calc(-1 * var(--sp-8)));
+}
+
+.card:global(.disabled) {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--sp-4);
+}
+
+.name {
+  font-size: var(--fs-14);
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.cost {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: var(--fs-20);
+  height: var(--fs-20);
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--bg);
+  font-size: var(--fs-12);
+  font-weight: 700;
+}
+
+.timing {
+  align-self: flex-start;
+  padding: 0 var(--sp-4);
+  border-radius: var(--r-8);
+  font-size: var(--fs-12);
+  border: 1px solid currentColor;
+}
+
+.swift {
+  color: var(--el-wind);
+}
+
+.reaction {
+  color: var(--el-water);
+}
+
+.standard {
+  color: var(--muted);
+}
+
+.text {
+  font-size: var(--fs-12);
+  color: var(--muted);
+  line-height: 1.3;
+}
+
+.blocked {
+  font-size: var(--fs-12);
+  color: var(--danger);
+}

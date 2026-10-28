@@ -1,0 +1,29 @@
+.art {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--art-color);
+  color: var(--bg);
+  font-weight: 700;
+  line-height: 1;
+}
+
+.sm {
+  width: var(--art-sm);
+  height: var(--art-sm);
+  font-size: var(--fs-14);
+}
+
+.md {
+  width: var(--art-md);
+  height: var(--art-md);
+  font-size: var(--fs-20);
+}
+
+.lg {
+  width: var(--art-lg);
+  height: var(--art-lg);
+  font-size: var(--fs-28);
+}

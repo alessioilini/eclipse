@@ -1,4 +1,4 @@
-import type { Element, Role } from '../engine/types';
+import type { Element, Role, StatusId, Timing } from '../engine/types';
 
 // TODO(Task 1): replace these local types with imports from the engine public API.
 export type ValidationCode =
@@ -34,7 +34,37 @@ export const ru = {
       ultimate: 'Ульта',
       swap: 'Смена',
     },
+    chipTarget: '→ {side}{n}',
+    chipReserve: '→ R{n}',
+    eclipse: 'Полное затмение',
+    bloodMoon: 'Кровавая Луна',
+    energy: 'Энергия',
+    luna: 'Luna',
+    shield: 'Щит',
   },
+  statuses: {
+    burn: { short: 'Г', name: 'Горение' },
+    soak: { short: 'Пр', name: 'Промокание' },
+    freeze: { short: 'Зм', name: 'Заморозка' },
+    silence: { short: 'М', name: 'Молчание' },
+    curse: { short: 'П', name: 'Проклятие' },
+    mark: { short: 'Мт', name: 'Метка' },
+    taunt: { short: 'Пв', name: 'Провокация' },
+    spd: { short: 'С', name: 'Скорость' },
+    atk: { short: 'А', name: 'Атака' },
+    damageReduction: { short: 'Сн', name: 'Снижение урона' },
+    undying: { short: 'Б', name: 'Бессмертие' },
+    pierce: { short: 'Ск', name: 'Сквозной удар' },
+    nextHitBonus: { short: 'У', name: 'Усиленный удар' },
+    redirectTo: { short: 'Пх', name: 'Перехват' },
+    mirrorShield: { short: 'Зр', name: 'Зеркальный щит' },
+    reflect: { short: 'От', name: 'Отражение' },
+  } satisfies Record<StatusId, { short: string; name: string }>,
+  cardTiming: {
+    swift: 'Быстрая',
+    reaction: 'Реакция',
+    standard: 'Обычная',
+  } satisfies Record<Timing, string>,
   moon: {
     new: { name: 'Новолуние', effect: 'Dark +1 урон, Luna +2' },
     waxing: { name: 'Растущая Луна', effect: 'Лечение и щиты +1' },
