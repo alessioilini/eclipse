@@ -9,6 +9,7 @@ import { Button } from '../ui/Button';
 import { HeroArt } from '../ui/HeroArt';
 import { cx } from '../ui/cx';
 import styles from './DeckBuilder.module.css';
+import { useAppBack } from './useAppBack';
 
 const HERO_SLOTS = 6;
 const CARD_SLOTS = 12;
@@ -61,11 +62,17 @@ export function DeckBuilder({ id }: { id: string }) {
 
   const issues = useMemo(() => (draft ? deckIssues(draft.deck) : []), [draft]);
 
+  const dirty = saved && draft ? !same(draft, { name: saved.name, deck: normalize(saved.deck) }) : false;
+  const back = () => {
+    if (dirty) setConfirmBack(true);
+    else navigate({ name: 'decks' });
+  };
+  // Кнопка «Назад» платформы — тот же обработчик, что и в шапке.
+  useAppBack(back);
+
   if (!saved || !draft) return null;
 
   const { deck } = draft;
-  const baseline: Draft = { name: saved.name, deck: normalize(saved.deck) };
-  const dirty = !same(draft, baseline);
   const name = draft.name.trim();
   const nameOk = name.length >= 1 && draft.name.length <= NAME_MAX;
   const canSave = issues.length === 0 && nameOk;
@@ -83,11 +90,6 @@ export function DeckBuilder({ id }: { id: string }) {
     if (!canSave) return;
     upsertDeck({ id, name, deck });
     setDraft({ name, deck });
-  };
-
-  const back = () => {
-    if (dirty) setConfirmBack(true);
-    else navigate({ name: 'decks' });
   };
 
   return (

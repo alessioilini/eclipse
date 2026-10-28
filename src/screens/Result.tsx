@@ -2,11 +2,16 @@ import { useEffect, useMemo } from 'react';
 import { keyMoment } from '../game/keyMoment';
 import { opponentDeckFor } from '../game/session';
 import { fmt, ru } from '../i18n/ru';
+import { getPlatform } from '../platform';
 import { navigate } from '../router';
 import { useStore } from '../store';
 import { Button } from '../ui/Button';
 import { cx } from '../ui/cx';
 import styles from './Result.module.css';
+import { useAppBack } from './useAppBack';
+
+/** Матчи, за итог которых уже была вибрация: перемонтирование экрана её не повторяет. */
+const buzzed = new WeakSet<object>();
 
 type Props = {
   /** Источник seed для «Ещё раз»; в тестах подменяется. */
@@ -35,10 +40,19 @@ export function Result({ now = Date.now }: Props) {
     [allEvents, state, result],
   );
 
+  // Вибрация итога (спека §3) — один раз на завершённый матч.
+  useEffect(() => {
+    if (!state || !result || buzzed.has(state)) return;
+    buzzed.add(state);
+    getPlatform().haptic(result.winner === 'A' ? 'success' : 'error');
+  }, [state, result]);
+
   const toMenu = () => {
     clearMatch();
     navigate({ name: 'menu' });
   };
+  // Кнопка «Назад» платформы — как «В меню».
+  useAppBack(toMenu);
 
   if (!session || !state || !result || !moment) {
     return (

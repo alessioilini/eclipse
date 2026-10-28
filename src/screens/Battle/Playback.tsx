@@ -17,7 +17,7 @@ import { ReserveCard } from '../../ui/ReserveCard';
 import { ResourceBar } from '../../ui/ResourceBar';
 import styles from './Battle.module.css';
 import {
-  BloodMoonFlash, CardFlights, HeroFxLayer, LayoutSlot, cardFlights, fxKey, heroEffects,
+  BloodMoonFlash, CardFlights, HeroFxLayer, LayoutSlot, cardFlights, fxKey, heroEffects, useBeatHaptic,
 } from './BeatEffects';
 import { OpponentBar } from './Planning';
 
@@ -68,6 +68,7 @@ export function Playback({ session }: { session: MatchSession }) {
   const events = useMemo(() => beat?.events ?? [], [beat]);
   const fx = useMemo(() => heroEffects(events), [events]);
   const flights = useMemo(() => cardFlights(events), [events]);
+  useBeatHaptic(events);
   const bloodMoon = events.some((e) => e.type === 'bloodMoon');
 
   const own = view.sides.A;

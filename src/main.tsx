@@ -1,6 +1,7 @@
 import { createRoot } from 'react-dom/client';
 import { App } from './App';
 import { loadSave } from './game/save/storage';
+import { createPlatform } from './platform';
 import { attachPersistence, hydrate } from './store';
 import './styles/tokens.css';
 import './styles/global.css';
@@ -15,6 +16,9 @@ export function boot(storage?: SaveStorage): () => void {
 
 const root = document.getElementById('root');
 if (root) {
+  // Платформа (Telegram или web) создаётся до загрузки и отрисовки: экраны берут её через getPlatform().
+  const platform = await createPlatform();
+  platform.ready();
   boot();
   createRoot(root).render(<App />);
 }

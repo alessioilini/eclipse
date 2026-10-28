@@ -1,5 +1,6 @@
 import { Suspense, lazy, useEffect } from 'react';
 import { ru } from './i18n/ru';
+import { getPlatform } from './platform';
 import { navigate, toHash, useRoute } from './router';
 import { Crashed } from './screens/Crashed';
 import { Decks } from './screens/Decks';
@@ -24,6 +25,18 @@ export function App() {
   useEffect(() => {
     if (redirect !== null) navigate({ name: 'tutorial', id: redirect });
   }, [redirect]);
+  // Кнопка «Назад» платформы следует за обработчиком текущего экрана (спека §3); в меню его нет.
+  const backHandler = useStore((s) => s.backHandler);
+  useEffect(() => {
+    const platform = getPlatform();
+    if (backHandler) platform.backButton.show(backHandler);
+    else platform.backButton.hide();
+  }, [backHandler]);
+  // Во время боя (свободного и обучения) закрытие мини-приложения требует подтверждения.
+  const inBattle = route.name === 'battle' || route.name === 'tutorial';
+  useEffect(() => {
+    getPlatform().setClosingConfirmation(inBattle);
+  }, [inBattle]);
   return (
     <div className="app">
       <ErrorBoundary resetKey={toHash(route)} fallback={(reset) => <Crashed onDone={reset} />}>

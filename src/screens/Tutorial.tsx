@@ -12,6 +12,7 @@ import { Overlay } from '../ui/Overlay';
 import type { AnchorRect } from '../ui/Overlay';
 import { Battle } from './Battle/Battle';
 import styles from './Tutorial.module.css';
+import { useAppBack } from './useAppBack';
 
 type Id = 1 | 2 | 3;
 
@@ -108,17 +109,7 @@ export function Tutorial({ id }: { id: Id }) {
   // Чужой матч в сторе ещё не заменён эффектом выше: не показываем его ни кадра.
   if (!ours) return null;
 
-  if (phase === 'finished' && session.state.result?.winner !== 'A') {
-    return (
-      <main className={styles.screen} data-testid="tutorial-lost">
-        <h1 className={styles.title}>{ru.result.loss}</h1>
-        <p className={styles.text}>{ru.tutorial.lost}</p>
-        <Button variant="primary" size="lg" onClick={restart}>
-          {ru.tutorial.retry}
-        </Button>
-      </main>
-    );
-  }
+  if (phase === 'finished' && session.state.result?.winner !== 'A') return <TutorialLost onRetry={restart} />;
 
   return (
     <>
@@ -136,5 +127,22 @@ export function Tutorial({ id }: { id: Id }) {
         )
       )}
     </>
+  );
+}
+
+/**
+ * Поражение в обучении: повтор боя. «Назад» платформы ведёт в меню; в самом бою обработчик регистрирует
+ * экран боя (`Battle`), поэтому `Tutorial` его не регистрирует.
+ */
+function TutorialLost({ onRetry }: { onRetry: () => void }) {
+  useAppBack(() => navigate({ name: 'menu' }));
+  return (
+    <main className={styles.screen} data-testid="tutorial-lost">
+      <h1 className={styles.title}>{ru.result.loss}</h1>
+      <p className={styles.text}>{ru.tutorial.lost}</p>
+      <Button variant="primary" size="lg" onClick={onRetry}>
+        {ru.tutorial.retry}
+      </Button>
+    </main>
   );
 }

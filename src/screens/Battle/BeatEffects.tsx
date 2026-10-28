@@ -1,8 +1,9 @@
 import { motion } from 'framer-motion';
-import type { ReactNode } from 'react';
+import { useEffect, type ReactNode } from 'react';
 import { CARDS } from '../../engine';
 import type { EngineEvent, Side, SlotRef } from '../../engine';
 import { ru } from '../../i18n/ru';
+import { getPlatform, type HapticKind } from '../../platform';
 import { FloatingNumber, type FloatingNumberProps } from '../../ui/FloatingNumber';
 import { cx } from '../../ui/cx';
 import styles from './Battle.module.css';
@@ -27,6 +28,21 @@ function hit(ev: EngineEvent): { target: SlotRef; value: number } | null {
     case 'selfHp': return { target: ev.target, value: ev.hpLoss };
     default: return null;
   }
+}
+
+/** Вибрация бита (спека §3): смерть — средняя, иначе любой урон — лёгкая; одна на бит. */
+export function beatHaptic(events: EngineEvent[]): HapticKind | null {
+  if (events.some((ev) => ev.type === 'death')) return 'medium';
+  if (events.some((ev) => hit(ev) !== null)) return 'light';
+  return null;
+}
+
+/** Вибрирует один раз при показе бита; `events` — события текущего бита (новый массив на каждый бит). */
+export function useBeatHaptic(events: EngineEvent[]): void {
+  useEffect(() => {
+    const kind = beatHaptic(events);
+    if (kind) getPlatform().haptic(kind);
+  }, [events]);
 }
 
 /** Эффекты бита по активным героиням, ключ — `fxKey`. */

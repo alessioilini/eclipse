@@ -8,6 +8,7 @@ import { Button } from '../ui/Button';
 import { HeroArt } from '../ui/HeroArt';
 import { cx } from '../ui/cx';
 import styles from './Heroes.module.css';
+import { useAppBack } from './useAppBack';
 
 const ELEMENTS = Object.keys(ru.elements) as Element[];
 const ROLES = Object.keys(ru.roles) as Role[];
@@ -25,6 +26,7 @@ export function Heroes() {
   const unlocked = useStore((s) => s.unlocked);
   const [element, setElement] = useState<Element | null>(null);
   const [role, setRole] = useState<Role | null>(null);
+  useAppBack(() => navigate({ name: 'menu' }));
 
   const list = HERO_IDS.filter((h) => (element === null || HEROES[h].element === element)
     && (role === null || HEROES[h].role === role));

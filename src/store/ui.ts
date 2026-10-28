@@ -22,6 +22,9 @@ export type UiSlice = {
   /** Открывает лист; лист со слотом заодно выбирает этот слот. */
   openSheet(sheet: Sheet): void;
   closeSheet(): void;
+  /** Обработчик «Назад» текущего экрана (кнопка платформы); null — кнопка скрыта (меню). */
+  backHandler: (() => void) | null;
+  setBackHandler(fn: (() => void) | null): void;
 };
 
 export const createUiSlice: StateCreator<StoreState, [], [], UiSlice> = (set) => ({
@@ -33,4 +36,6 @@ export const createUiSlice: StateCreator<StoreState, [], [], UiSlice> = (set) =>
     set('slot' in sheet ? { sheet, selectedSlot: sheet.slot } : { sheet });
   },
   closeSheet() { set({ sheet: null }); },
+  backHandler: null,
+  setBackHandler(backHandler) { set({ backHandler }); },
 });

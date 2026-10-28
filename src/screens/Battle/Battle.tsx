@@ -3,6 +3,7 @@ import { MAX_ROUNDS } from '../../engine';
 import { fmt, ru } from '../../i18n/ru';
 import { navigate } from '../../router';
 import { useStore } from '../../store';
+import { useAppBack } from '../useAppBack';
 import { useHidden } from './tutorialHooks';
 import { Button } from '../../ui/Button';
 import styles from './Battle.module.css';
@@ -39,6 +40,10 @@ export function Battle() {
     else if (phase === 'finished') navigate({ name: 'result' });
     else setAsking(true);
   };
+  // Кнопка «Назад» платформы — тот же обработчик; во время проигрывания она, как и шапка, ничего не делает.
+  useAppBack(() => {
+    if (phase !== 'playback') back();
+  });
   const swallow = (e: SyntheticEvent) => {
     e.stopPropagation();
     e.preventDefault();

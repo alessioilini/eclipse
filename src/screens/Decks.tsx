@@ -9,6 +9,7 @@ import { Button } from '../ui/Button';
 import { HeroArt } from '../ui/HeroArt';
 import { cx } from '../ui/cx';
 import styles from './Decks.module.css';
+import { useAppBack } from './useAppBack';
 
 /** Спека §6: список колод, активная отмечена, «Новая колода», «Собрать за меня», удаление с подтверждением. */
 export function Decks() {
@@ -23,6 +24,7 @@ export function Decks() {
 
   // Уведомление из меню («Сначала соберите колоду») живёт, пока открыт этот экран.
   useEffect(() => () => setNotice(null), [setNotice]);
+  useAppBack(() => navigate({ name: 'menu' }));
 
   const [confirmId, setConfirmId] = useState<string | null>(null);
   const [archetypeSheet, setArchetypeSheet] = useState(false);

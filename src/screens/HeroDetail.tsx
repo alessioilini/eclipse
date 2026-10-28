@@ -7,6 +7,7 @@ import { useStore } from '../store';
 import { Button } from '../ui/Button';
 import { HeroArt } from '../ui/HeroArt';
 import styles from './Heroes.module.css';
+import { useAppBack } from './useAppBack';
 
 /** Последний слот резерва колоды: туда встаёт добавленная героиня (самая глубокая запасная). */
 const LAST_SLOT = 5;
@@ -19,7 +20,10 @@ export function HeroDetail({ id }: { id: HeroId }) {
   const upsertDeck = useStore((s) => s.upsertDeck);
   const [added, setAdded] = useState(false);
 
-  const back = <Button variant="ghost" onClick={() => navigate({ name: 'heroes' })}>{ru.common.back}</Button>;
+  const toList = () => navigate({ name: 'heroes' });
+  // Кнопка «Назад» платформы — как и в шапке, к списку героинь.
+  useAppBack(toList);
+  const back = <Button variant="ghost" onClick={toList}>{ru.common.back}</Button>;
 
   if (!HERO_IDS.includes(id)) {
     return (
