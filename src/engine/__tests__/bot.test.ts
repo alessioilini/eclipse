@@ -80,6 +80,15 @@ describe('бот', () => {
     expect(newPlan(viewFor(risky, 'A'), 'A').need[0]).toBe(1);
   });
 
+  it('фокус: Тали бьёт Киру с 8 HP, а не Айру с полным HP и стихийным преимуществом', () => {
+    // Tali (water) vs aira (fire, ×1.2, 20 HP) and kira (dark, ×1.0, 8 HP); no kill is possible this round.
+    const s = setHp(started(makeMatch({ a: ['tali', 'fenna', 'nerisa', 'aira', 'zefira', 'liraya'], b: ['aira', 'kira', 'aurora', 'justina', 'mira', 'selena'] })),
+      { side: 'B', slot: 1 }, 8);
+    const cmds = chooseCommands(viewFor(s, 'A'), 'A', quietRng());
+    expect(validateCommands(s, 'A', cmds)).toEqual([]);
+    expect(targetOf(cmds.actions[0])).toEqual({ side: 'B', slot: 1 });
+  });
+
   it('не целится в мёртвый слот при мёртвом резерве', () => {
     const s = started(makeMatch());
     s.sides.B.active[1].hp = 0;
