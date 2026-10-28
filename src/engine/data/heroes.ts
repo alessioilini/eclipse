@@ -5,7 +5,7 @@ import type { HeroDef, HeroId } from '../types';
 // Hero rarity is not specified in the spec; 'rare' is a placeholder (it has no effect on the engine).
 export const HEROES: Record<HeroId, HeroDef> = {
   aira: {
-    id: 'aira', name: 'Айра', element: 'fire', role: 'mage', rarity: 'rare', hp: 20, atk: 7, spd: 6,
+    id: 'aira', name: 'Айра', element: 'fire', role: 'mage', rarity: 'rare', hp: 20, atk: 6, spd: 6,
     passive: {
       name: 'Жар',
       text: 'Каждый тик Burn по противникам наносит +1.',

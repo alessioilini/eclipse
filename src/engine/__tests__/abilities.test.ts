@@ -38,14 +38,14 @@ const statusIds = (s: MatchState, ref: SlotRef) => s.sides[ref.side].active[ref.
 
 describe('умения героинь через данные', () => {
   it('Айра skill: 90% всем врагам, Burn на враге с max ATK; Energy −2', () => {
-    // Раунд 1, Новолуние. 7×0.9 = 6.3 → 6. Аврора (HP > 50%) снижает урон по союзницам на 1.
+    // Раунд 1, Новолуние. 6×0.9 = 5.4 → 5. Аврора (HP > 50%) снижает урон по союзницам на 1.
     const { state, events } = playRound(makeMatch(),
       cmd(skill(0), basic(1, enemy(0)), basic(2, enemy(0))),
       cmd(basic(0, ally(2)), basic(1, ally(2)), basic(2, ally(2))));
     expect(hits(events, ally(0))).toEqual([
-      { target: enemy(0), dmg: 6, reductions: 0, absorbed: 0 },
-      { target: enemy(1), dmg: 5, reductions: 1, absorbed: 0 },
-      { target: enemy(2), dmg: 5, reductions: 1, absorbed: 0 },
+      { target: enemy(0), dmg: 5, reductions: 0, absorbed: 0 },
+      { target: enemy(1), dmg: 4, reductions: 1, absorbed: 0 },
+      { target: enemy(2), dmg: 4, reductions: 1, absorbed: 0 },
     ]);
     // Юстина и Нокта обе ATK 7 → меньший слот, Юстина.
     expect(ofType(events, 'statusApplied').filter(e => e.status === 'burn').map(e => e.target)).toEqual([enemy(1)]);
@@ -113,8 +113,8 @@ describe('умения героинь через данные', () => {
     // Порядок: Юстина 8, Нокта 7, Фенна 7, Айра 6, Аврора 5, Нериса 4.
     const { state, events } = playRound(makeMatch(), aPlan(),
       cmd(skill(0), basic(1, ally(0)), basic(2, ally(0))));
-    // Айра бьёт Юстину до Бастиона: 7 − 1 (Аврора) = 6.
-    expect(hits(events, ally(0))).toEqual([{ target: enemy(1), dmg: 6, reductions: 1, absorbed: 0 }]);
+    // Айра бьёт Юстину до Бастиона: 6 − 1 (Аврора) = 5.
+    expect(hits(events, ally(0))).toEqual([{ target: enemy(1), dmg: 5, reductions: 1, absorbed: 0 }]);
     expect(ofType(events, 'shield').map(e => [e.source, e.target, e.amount])).toEqual([[enemy(0), enemy(0), 6]]);
     expect(ofType(events, 'statusApplied').filter(e => e.status === 'taunt').map(e => e.target)).toEqual([enemy(0)]);
     // Нериса после Бастиона: удар по Юстине уходит в Аврору (Taunt), себе Аврора не снижает, щит поглощает 4.
@@ -127,7 +127,7 @@ describe('умения героинь через данные', () => {
     // HP Авроры ровно 50% — снижения нет.
     const r2 = playRound(setHp(makeMatch(), enemy(0), 16), aPlan(),
       cmd(basic(0, ally(2)), basic(1, ally(2)), basic(2, ally(2))));
-    expect(hits(r2.events, ally(0))).toEqual([{ target: enemy(1), dmg: 7, reductions: 0, absorbed: 0 }]);
+    expect(hits(r2.events, ally(0))).toEqual([{ target: enemy(1), dmg: 6, reductions: 0, absorbed: 0 }]);
   });
 
   it('Юстина skill: 120%, против щита 150%', () => {
