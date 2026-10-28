@@ -6,11 +6,44 @@ import { resolveRound, startRound } from './resolve/round';
 import { viewFor } from './view';
 import { CARDS, CARD_IDS } from './data/cards';
 import { HERO_IDS } from './data/heroes';
-import type { CardId, Deck, GameEvent, HeroId, MatchState, Side, SideCommands } from './types';
+import type { CardId, Deck, GameEvent, HeroId, MatchState, Side, SideCommands, Slot } from './types';
 
 const SIDES: Side[] = ['A', 'B'];
 /** Spec §2.2: a match never lasts longer than this; hitting it is an engine bug. */
 const MAX_ROUNDS = 10;
+
+export type ResultReason = NonNullable<MatchState['result']>['reason'];
+const RESULT_REASONS: ResultReason[] = ['wipe', 'heroes', 'hpPct', 'damage', 'draw'];
+/** Spec §2.2: everything but a wipe is decided by the round-10 tie-break. */
+const ROUND_LIMIT_REASONS: ResultReason[] = ['heroes', 'hpPct', 'damage', 'draw'];
+
+/** Per-heroine tallies of one match (matchStats) or per-match averages (SimReport). */
+export type HeroTally = {
+  /** HP removed by her `damage` events (hits). */
+  hits: number;
+  /** HP removed by her direct damage: detonate, Nokta's «Падшая», Reflect, «Последнее слово». */
+  direct: number;
+  /** HP removed by Burn ticks on targets whose Burn she applied (card Burn is nobody's). */
+  burn: number;
+  swaps: number;
+  fizzles: number;
+  ults: number;
+  deaths: number;
+};
+
+export type MatchStats = {
+  heroes: Record<HeroId, HeroTally>;
+  /** Index r = HP lost by both sides in round r (hits, direct damage, Burn, self HP loss); index 0 unused. */
+  hpLost: number[];
+  healed: number[];
+  shielded: number[];
+  /** HP absorbed by shields, all rounds. */
+  absorbed: number;
+  burn: number;
+  fizzlesByReason: Record<string, number>;
+  cardPlays: Record<CardId, number>;
+  firstBloodMoon: Side | null;
+};
 
 export type SimReport = {
   matches: number;
@@ -18,11 +51,27 @@ export type SimReport = {
   /** Index r (1..10) = matches that ended in round r; index 0 is unused (always 0). */
   roundHistogram: number[];
   drawRate: number;
+  /** Matches decided by the round-10 tie-break (reason heroes, hpPct, damage or draw) / all matches. */
+  roundLimitRate: number;
+  /** Matches by `result.reason`. */
+  resultReasons: Record<ResultReason, number>;
   /** Matches with at least one Blood Moon event / all matches. */
   bloodMoonRate: number;
   /** Among matches with Blood Moon: share won by the side whose Blood Moon fired first. */
   bloodMoonComebackRate: number;
-  heroes: Record<HeroId, { picks: number; wins: number; winRate: number; avgDamage: number }>;
+  /** Index r = average over the matches that played round r; index 0 unused. */
+  perRound: { hpLost: number[]; healed: number[]; shielded: number[] };
+  /** Per-match averages over all matches. */
+  totals: { hpLost: number; healed: number; shielded: number; absorbed: number; burn: number; swaps: number; fizzles: number };
+  /** Fizzles per match by reason. */
+  fizzlesByReason: Record<string, number>;
+  heroes: Record<HeroId, {
+    picks: number; wins: number; winRate: number;
+    /** HP removed per match from every source: hits + direct + burn. */
+    avgDamage: number;
+    damageBy: { hits: number; direct: number; burn: number };
+    swaps: number; fizzles: number; ults: number; deaths: number;
+  }>;
   cards: Record<CardId, { picks: number; plays: number; winRate: number }>;
 };
 
@@ -76,12 +125,140 @@ export function playMatch(deckA: Deck, deckB: Deck, seed: number): { state: Matc
 const emptyRecord = <K extends string, V>(keys: K[], make: () => V): Record<K, V> =>
   Object.fromEntries(keys.map(k => [k, make()])) as Record<K, V>;
 
+const emptyTally = (): HeroTally => ({ hits: 0, direct: 0, burn: 0, swaps: 0, fizzles: 0, ults: 0, deaths: 0 });
+
+type Ref = { side: Side; slot: Slot };
+const isSlotRef = (v: unknown): v is Ref => typeof v === 'object' && v !== null && 'slot' in v && 'side' in v;
+const num = (v: unknown): number => (typeof v === 'number' ? v : 0);
+
+/** Who stands where, replayed from the `swap` / `autoFill` events (the events carry slots, not heroines). */
+class Board {
+  private readonly sides: Record<Side, { active: HeroId[]; reserve: HeroId[] }>;
+
+  constructor(decks: Record<Side, Deck>) {
+    const of = (deck: Deck) => ({
+      active: deck.starting.map(i => deck.heroes[i]!),
+      reserve: deck.heroes.filter((_, i) => !deck.starting.includes(i as Deck['starting'][number])),
+    });
+    this.sides = { A: of(decks.A), B: of(decks.B) };
+  }
+
+  at(ref: Ref): HeroId {
+    return this.sides[ref.side].active[ref.slot]!;
+  }
+
+  apply(ev: GameEvent): void {
+    if (ev.type !== 'swap' && ev.type !== 'autoFill') return;
+    const b = this.sides[ev['side'] as Side];
+    const slot = ev['slot'] as number;
+    const reserveIndex = ev['reserveIndex'] as number;
+    b.reserve[reserveIndex] = b.active[slot]!;
+    b.active[slot] = ev['in'] as HeroId;
+  }
+}
+
+/** Tallies of one match from its events: damage by source and heroine, swaps, fizzles, per-round HP flow. */
+export function matchStats(decks: Record<Side, Deck>, events: GameEvent[]): MatchStats {
+  const board = new Board(decks);
+  const heroes = emptyRecord(HERO_IDS, emptyTally);
+  const burnBy = new Map<HeroId, HeroId | null>(); // burning heroine → who applied her Burn
+  const hpLost: number[] = [0];
+  const healed: number[] = [0];
+  const shielded: number[] = [0];
+  const fizzlesByReason: Record<string, number> = {};
+  const cardPlays = emptyRecord(CARD_IDS, () => 0);
+  let absorbed = 0;
+  let burn = 0;
+  let firstBloodMoon: Side | null = null;
+
+  const addRound = (arr: number[], round: number, v: number) => {
+    while (arr.length <= round) arr.push(0);
+    arr[round] = arr[round]! + v;
+  };
+
+  for (const ev of events) {
+    board.apply(ev);
+    const target = ev['target'];
+    switch (ev.type) {
+      case 'damage': {
+        const loss = num(ev['hpLoss']);
+        heroes[ev['attackerId'] as HeroId].hits += loss;
+        absorbed += num(ev['absorbed']);
+        addRound(hpLost, ev.round, loss);
+        break;
+      }
+      case 'directDamage':
+      case 'detonate':
+      case 'reflect': {
+        const src = ev.type === 'reflect' ? ev['from'] : ev['source'];
+        const dmg = num(ev['dmg']);
+        if (isSlotRef(src)) heroes[board.at(src)].direct += dmg;
+        addRound(hpLost, ev.round, dmg);
+        break;
+      }
+      case 'selfHp':
+        addRound(hpLost, ev.round, num(ev['hpLoss']));
+        break;
+      case 'burn': {
+        if (!isSlotRef(target)) break;
+        const dmg = num(ev['dmg']);
+        const by = burnBy.get(board.at(target));
+        if (by) heroes[by].burn += dmg;
+        burn += dmg;
+        addRound(hpLost, ev.round, dmg);
+        break;
+      }
+      case 'statusApplied':
+        if (ev['status'] === 'burn' && isSlotRef(target)) {
+          const src = ev['source'];
+          burnBy.set(board.at(target), isSlotRef(src) ? board.at(src) : null);
+        }
+        break;
+      case 'heal':
+        addRound(healed, ev.round, num(ev['healed']));
+        break;
+      case 'shield':
+        addRound(shielded, ev.round, num(ev['amount']));
+        break;
+      case 'heroAction': {
+        const id = ev['heroId'] as HeroId;
+        if (ev['action'] === 'swap') heroes[id].swaps += 1;
+        if (ev['action'] === 'ultimate') heroes[id].ults += 1;
+        break;
+      }
+      case 'fizzle': {
+        const reason = String(ev['reason']);
+        fizzlesByReason[reason] = (fizzlesByReason[reason] ?? 0) + 1;
+        if (ev['action'] !== 'card') heroes[ev['heroId'] as HeroId].fizzles += 1;
+        break;
+      }
+      case 'death':
+        heroes[ev['heroId'] as HeroId].deaths += 1;
+        break;
+      case 'cardPlayed':
+        if (!ev['replay']) cardPlays[ev['cardId'] as CardId] += 1;
+        break;
+      case 'bloodMoon':
+        if (firstBloodMoon === null) firstBloodMoon = ev['side'] as Side;
+        break;
+    }
+  }
+  return { heroes, hpLost, healed, shielded, absorbed, burn, fizzlesByReason, cardPlays, firstBloodMoon };
+}
+
+const ratio = (a: number, b: number): number => (b === 0 ? 0 : a / b);
+
 /** `n` matches between random legal decks; the decks come from one Rng(seed), match seeds are derived from it. */
 export function runSimulation(n: number, seed: number): SimReport {
   const rng = createRng(seed);
   const histogram: number[] = new Array(MAX_ROUNDS + 1).fill(0);
-  const heroAcc = emptyRecord(HERO_IDS, () => ({ picks: 0, wins: 0, damage: 0 }));
+  const heroAcc = emptyRecord(HERO_IDS, () => ({ picks: 0, wins: 0, tally: emptyTally() }));
   const cardAcc = emptyRecord(CARD_IDS, () => ({ picks: 0, plays: 0, wins: 0 }));
+  const resultReasons = emptyRecord(RESULT_REASONS, () => 0);
+  const perRound = { hpLost: new Array<number>(MAX_ROUNDS + 1).fill(0), healed: new Array<number>(MAX_ROUNDS + 1).fill(0), shielded: new Array<number>(MAX_ROUNDS + 1).fill(0) };
+  const roundsPlayed = new Array<number>(MAX_ROUNDS + 1).fill(0);
+  const totals = { hpLost: 0, healed: 0, shielded: 0, absorbed: 0, burn: 0, swaps: 0, fizzles: 0 };
+  const fizzlesByReason: Record<string, number> = {};
   let totalRounds = 0;
   let draws = 0;
   let bloodMoonMatches = 0;
@@ -93,6 +270,7 @@ export function runSimulation(n: number, seed: number): SimReport {
     const winner = state.result!.winner;
     totalRounds += rounds;
     histogram[rounds] = (histogram[rounds] ?? 0) + 1;
+    resultReasons[state.result!.reason] += 1;
     if (winner === 'draw') draws += 1;
 
     for (const side of SIDES) {
@@ -107,41 +285,69 @@ export function runSimulation(n: number, seed: number): SimReport {
       }
     }
 
-    let firstBloodMoon: Side | null = null;
-    for (const ev of events) {
-      if (ev.type === 'damage') {
-        const id = ev['attackerId'] as HeroId;
-        heroAcc[id].damage += ev['hpLoss'] as number;
-      } else if (ev.type === 'cardPlayed' && !ev['replay']) {
-        cardAcc[ev['cardId'] as CardId].plays += 1;
-      } else if (ev.type === 'bloodMoon' && firstBloodMoon === null) {
-        firstBloodMoon = ev['side'] as Side;
-      }
+    const m = matchStats(decks, events);
+    for (const id of HERO_IDS) {
+      const t = heroAcc[id].tally;
+      for (const k of Object.keys(t) as (keyof HeroTally)[]) t[k] += m.heroes[id][k];
     }
-    if (firstBloodMoon !== null) {
+    for (const id of CARD_IDS) cardAcc[id].plays += m.cardPlays[id];
+    for (let r = 1; r <= rounds; r++) {
+      roundsPlayed[r]! += 1;
+      perRound.hpLost[r]! += m.hpLost[r] ?? 0;
+      perRound.healed[r]! += m.healed[r] ?? 0;
+      perRound.shielded[r]! += m.shielded[r] ?? 0;
+    }
+    const sum = (arr: number[]) => arr.reduce((a, b) => a + b, 0);
+    totals.hpLost += sum(m.hpLost);
+    totals.healed += sum(m.healed);
+    totals.shielded += sum(m.shielded);
+    totals.absorbed += m.absorbed;
+    totals.burn += m.burn;
+    for (const [reason, count] of Object.entries(m.fizzlesByReason)) {
+      fizzlesByReason[reason] = (fizzlesByReason[reason] ?? 0) + count;
+      totals.fizzles += count;
+    }
+    for (const id of HERO_IDS) totals.swaps += m.heroes[id].swaps;
+    if (m.firstBloodMoon !== null) {
       bloodMoonMatches += 1;
-      if (winner === firstBloodMoon) bloodMoonWins += 1;
+      if (winner === m.firstBloodMoon) bloodMoonWins += 1;
     }
   }
 
-  const ratio = (a: number, b: number): number => (b === 0 ? 0 : a / b);
-  const heroes = emptyRecord(HERO_IDS, () => ({ picks: 0, wins: 0, winRate: 0, avgDamage: 0 }));
+  const heroes = emptyRecord(HERO_IDS, () => ({
+    picks: 0, wins: 0, winRate: 0, avgDamage: 0, damageBy: { hits: 0, direct: 0, burn: 0 }, swaps: 0, fizzles: 0, ults: 0, deaths: 0,
+  }));
   for (const id of HERO_IDS) {
     const a = heroAcc[id];
-    heroes[id] = { picks: a.picks, wins: a.wins, winRate: ratio(a.wins, a.picks), avgDamage: ratio(a.damage, a.picks) };
+    const per = (v: number) => ratio(v, a.picks);
+    const t = a.tally;
+    heroes[id] = {
+      picks: a.picks, wins: a.wins, winRate: ratio(a.wins, a.picks),
+      avgDamage: per(t.hits + t.direct + t.burn),
+      damageBy: { hits: per(t.hits), direct: per(t.direct), burn: per(t.burn) },
+      swaps: per(t.swaps), fizzles: per(t.fizzles), ults: per(t.ults), deaths: per(t.deaths),
+    };
   }
   const cards = emptyRecord(CARD_IDS, () => ({ picks: 0, plays: 0, winRate: 0 }));
   for (const id of CARD_IDS) {
     const a = cardAcc[id];
     cards[id] = { picks: a.picks, plays: a.plays, winRate: ratio(a.wins, a.picks) };
   }
+  const perMatch = <T extends Record<string, number>>(o: T): T =>
+    Object.fromEntries(Object.entries(o).map(([k, v]) => [k, ratio(v, n)])) as T;
+  const avgByRound = (arr: number[]) => arr.map((v, r) => ratio(v, roundsPlayed[r] ?? 0));
   return {
     matches: n,
     avgRounds: ratio(totalRounds, n),
     roundHistogram: histogram,
     drawRate: ratio(draws, n),
+    roundLimitRate: ratio(ROUND_LIMIT_REASONS.reduce((acc, r) => acc + resultReasons[r], 0), n),
+    resultReasons,
     bloodMoonRate: ratio(bloodMoonMatches, n),
     bloodMoonComebackRate: ratio(bloodMoonWins, bloodMoonMatches),
+    perRound: { hpLost: avgByRound(perRound.hpLost), healed: avgByRound(perRound.healed), shielded: avgByRound(perRound.shielded) },
+    totals: perMatch(totals),
+    fizzlesByReason: perMatch(fizzlesByReason),
     heroes,
     cards,
   };
