@@ -83,7 +83,13 @@ function parseArgs(argv: string[]): Options | string {
   return opts;
 }
 
-const describeError = (e: unknown): string => (e instanceof ImagesError ? `HTTP ${e.status}` : 'сбой запроса');
+/** Причина сбоя без деталей запроса: статус HTTP или код сетевой ошибки (ENOTFOUND, ECONNRESET, …). */
+const describeError = (e: unknown): string => {
+  if (e instanceof ImagesError) return `HTTP ${e.status}`;
+  const cause = e instanceof Error ? (e.cause as { code?: unknown } | undefined) : undefined;
+  const code = cause && typeof cause.code === 'string' ? cause.code : null;
+  return code ? `сбой запроса (${code})` : 'сбой запроса';
+};
 
 export interface RunDeps {
   env: Record<string, string | undefined>;
@@ -98,6 +104,11 @@ export async function run(argv: string[], deps: RunDeps): Promise<number> {
   const apiKey = env.OPENAI_API_KEY;
   if (!apiKey) {
     log('Нет ключа OpenAI. Запустите так: OPENAI_API_KEY=ваш_ключ npm run art -- [--only aira] [--kind portrait|full] [--force]');
+    return 1;
+  }
+  // Ключ попадает в заголовок HTTP: не-ASCII символы (например, оставленный шаблон «ваш_ключ») ломают каждый запрос.
+  if (!/^[\x21-\x7e]+$/.test(apiKey)) {
+    log('Ключ OpenAI содержит недопустимые символы: подставьте настоящий ключ вместо шаблона.');
     return 1;
   }
   const opts = parseArgs(argv);

@@ -37,6 +37,14 @@ function harness(argv: string[], env: Record<string, string | undefined>, fetchI
 }
 
 describe('gen-art', () => {
+  it('ключ с не-ASCII символами (оставленный шаблон) отклоняется до первого запроса', async () => {
+    const fetch = vi.fn();
+    const { done, lines } = harness(['--only', 'aira'], { OPENAI_API_KEY: 'ваш_ключ' }, fetch as unknown as typeof globalThis.fetch, tempDir());
+    expect(await done).toBe(1);
+    expect(fetch).not.toHaveBeenCalled();
+    expect(lines.join('\n')).toMatch(/недопустимые символы/);
+  });
+
   it('без OPENAI_API_KEY выходит с подсказкой и не ходит в сеть', async () => {
     const { fetch, calls } = fakeFetch(() => ok('x'));
     const { done, lines } = harness([], {}, fetch, tempDir());
