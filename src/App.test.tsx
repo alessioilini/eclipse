@@ -19,11 +19,11 @@ describe('App', () => {
     expect(screen.getByTestId('wins')).toHaveTextContent('0');
   });
 
-  it('кнопка «Героини» переключает на заглушку экрана', async () => {
+  it('кнопка «Героини» открывает сетку героинь', async () => {
     render(<App />);
     await userEvent.click(screen.getByRole('button', { name: ru.menu.heroes }));
     expect(window.location.hash).toBe('#/heroes');
-    expect(await screen.findByText(ru.common.soon)).toBeInTheDocument();
+    expect(await screen.findByTestId('hero-tile-aira')).toBeInTheDocument();
   });
 
   it('экран результата показывает исход и «В меню» сбрасывает матч', async () => {

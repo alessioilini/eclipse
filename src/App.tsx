@@ -3,6 +3,8 @@ import { useRoute } from './router';
 import { Battle } from './screens/Battle/Battle';
 import { DeckBuilder } from './screens/DeckBuilder';
 import { Decks } from './screens/Decks';
+import { HeroDetail } from './screens/HeroDetail';
+import { Heroes } from './screens/Heroes';
 import { Menu } from './screens/Menu';
 import { Result } from './screens/Result';
 
@@ -20,6 +22,10 @@ export function App() {
         <Decks />
       ) : route.name === 'deck' ? (
         <DeckBuilder key={route.id} id={route.id} />
+      ) : route.name === 'heroes' ? (
+        <Heroes />
+      ) : route.name === 'hero' ? (
+        <HeroDetail key={route.id} id={route.id} />
       ) : (
         <p style={{ padding: 'var(--sp-24)' }}>{ru.common.soon}</p>
       )}
