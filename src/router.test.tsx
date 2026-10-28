@@ -27,6 +27,11 @@ describe('parseHash', () => {
     expect(parseHash('#/decks/d1')).toEqual({ name: 'deck', id: 'd1' });
   });
 
+  it('битая percent-последовательность ведёт в меню, а не бросает исключение', () => {
+    expect(parseHash('#/heroes/%')).toEqual({ name: 'menu' });
+    expect(parseHash('#/decks/%E0%A4%A')).toEqual({ name: 'menu' });
+  });
+
   it('неизвестный путь ведёт в меню', () => {
     expect(parseHash('#/nope')).toEqual({ name: 'menu' });
     expect(parseHash('#/battle/extra')).toEqual({ name: 'menu' });

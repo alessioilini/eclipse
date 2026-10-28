@@ -13,6 +13,15 @@ export type Route =
 
 const MENU: Route = { name: 'menu' };
 
+/** Decodes a path segment; a malformed escape (`%`, `%E0%A4%A`) falls back to the menu. */
+function withId(raw: string, make: (id: string) => Route): Route {
+  try {
+    return make(decodeURIComponent(raw));
+  } catch {
+    return MENU;
+  }
+}
+
 /** Parses `location.hash` into a route; anything unknown falls back to the menu. */
 export function parseHash(hash: string): Route {
   const path = hash.replace(/^#\/?/, '');
@@ -35,10 +44,10 @@ export function parseHash(hash: string): Route {
     case 'heroes':
       if (arg === undefined) return { name: 'heroes' };
       // The id is not checked against the roster here: the screen shows a stub for unknown heroes.
-      return arg === '' ? MENU : { name: 'hero', id: decodeURIComponent(arg) as HeroId };
+      return arg === '' ? MENU : withId(arg, (id) => ({ name: 'hero', id: id as HeroId }));
     case 'decks':
       if (arg === undefined) return { name: 'decks' };
-      return arg === '' ? MENU : { name: 'deck', id: decodeURIComponent(arg) };
+      return arg === '' ? MENU : withId(arg, (id) => ({ name: 'deck', id }));
     default:
       return MENU;
   }
