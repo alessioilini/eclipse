@@ -1,5 +1,5 @@
 import type { StateCreator } from 'zustand';
-import type { CardPlay, Deck, EngineEvent, HeroAction, Slot } from '../engine';
+import type { CardPlay, Deck, EngineEvent, HeroAction, MatchState, Slot } from '../engine';
 import type { Beat } from '../game/playback/toBeats';
 import { toBeats } from '../game/playback/toBeats';
 import type { ViewState } from '../game/playback/types';
@@ -29,6 +29,8 @@ export type MatchSlice = {
   viewBeforePlayback: ViewState | null;
   /** Шаг сценария обучения, сохраняемый вместе с матчем (SaveV1.match.tutorialStepIndex). */
   tutorialStepIndex: number | null;
+  /** Состояние завершённого матча, итог которого уже занесён в статистику (сравнение по ссылке). */
+  resultRecordedFor: MatchState | null;
   startMatch(playerDeck: Deck, opts: NewMatchOpts): void;
   setAction(slot: Slot, action: HeroAction | null): void;
   setCard(play: CardPlay | null): void;
@@ -38,6 +40,8 @@ export type MatchSlice = {
   finishPlayback(): void;
   surrender(): void;
   clearMatch(): void;
+  /** Заносит итог завершённого матча в статистику ровно один раз на матч; повторные вызовы ничего не делают. */
+  recordMatchResult(): void;
 };
 
 export const blankDraft = (): Draft => ({ actions: [null, null, null], card: null });
@@ -46,9 +50,10 @@ export const blankDraft = (): Draft => ({ actions: [null, null, null], card: nul
 export const noMatch = (): Pick<
   MatchSlice,
   'session' | 'draft' | 'phase' | 'beats' | 'beatIndex' | 'lastEvents' | 'allEvents' | 'viewBeforePlayback' | 'tutorialStepIndex'
+  | 'resultRecordedFor'
 > => ({
   session: null, draft: blankDraft(), phase: 'planning', beats: [], beatIndex: 0, lastEvents: [], allEvents: [],
-  viewBeforePlayback: null, tutorialStepIndex: null,
+  viewBeforePlayback: null, tutorialStepIndex: null, resultRecordedFor: null,
 });
 
 function requireSession(session: MatchSession | null): MatchSession {
@@ -105,5 +110,12 @@ export const createMatchSlice: StateCreator<StoreState, [], [], MatchSlice> = (s
   },
   clearMatch() {
     set(noMatch());
+  },
+  recordMatchResult() {
+    const { session, resultRecordedFor, recordResult } = get();
+    const result = session?.state.result;
+    if (!session || !result || resultRecordedFor === session.state) return;
+    set({ resultRecordedFor: session.state });
+    recordResult(result.winner === 'A' ? 'win' : result.winner === 'B' ? 'loss' : 'draw');
   },
 });

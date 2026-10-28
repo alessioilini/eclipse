@@ -26,13 +26,13 @@ describe('App', () => {
     expect(await screen.findByText(ru.common.soon)).toBeInTheDocument();
   });
 
-  it('заглушка результата показывает исход и «В меню» сбрасывает матч', async () => {
+  it('экран результата показывает исход и «В меню» сбрасывает матч', async () => {
     hydrate(defaultSave());
     useStore.getState().startMatch(randomDeck(createRng(1)), { opponentDeck: randomDeck(createRng(2)), seed: 1, mode: 'free' });
     useStore.getState().surrender();
     window.location.hash = '#/result';
     render(<App />);
-    const placeholder = screen.getByTestId('result-placeholder');
+    const placeholder = screen.getByTestId('result');
     expect(placeholder).toHaveTextContent(ru.result.loss);
     await userEvent.click(screen.getByRole('button', { name: ru.result.menu }));
     expect(useStore.getState().session).toBeNull();

@@ -103,6 +103,9 @@ export const ru = {
     draw: 'Ничья',
     again: 'Ещё раз',
     menu: 'В меню',
+    byRounds: 'Лимит раундов: {n}',
+    surrender: 'Вы сдались',
+    rounds: 'Раундов: {n}',
   },
   heroes: {
     title: 'Героини',
