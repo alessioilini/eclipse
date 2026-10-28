@@ -113,6 +113,12 @@ describe('keyMoment: пять правил по приоритету', () => {
     expect(keyMoment(events, final('A'), 'A').rule).toBe('rounds');
   });
 
+  it('история не с раунда 1 (после перезагрузки) даёт правило раундов', () => {
+    const tail = [{ ...dmg('A', 0, 'aira', 30), round: 4 }, { ...bloodMoon('A'), round: 4 }];
+    expect(keyMoment(tail, final('A', 7), 'A').rule).toBe('rounds');
+    expect(keyMoment([{ ...dmg('A', 0, 'aira', 30), round: 1 }], final('A', 7), 'A').rule).toBe('topDamage');
+  });
+
   it('5. иначе: число раундов матча', () => {
     const k = keyMoment([], final('A', 7), 'A');
     expect(k.rule).toBe('rounds');

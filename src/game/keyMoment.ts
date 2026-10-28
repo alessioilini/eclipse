@@ -45,6 +45,10 @@ function trackOccupants(ev: EngineEvent, occ: Occupants): void {
  * Ожоги не имеют атакующего, поэтому в доле урона не участвуют.
  */
 export function keyMoment(events: EngineEvent[], final: MatchState, side: Side): KeyMoment {
+  const rounds: KeyMoment = { rule: 'rounds', text: fmt(ru.keyMoment.rounds, { n: final.round }) };
+  // События не сохраняются: после перезагрузки история неполна (не с раунда 1), и доли урона, щиты и
+  // ульты считались бы по её хвосту. Тогда — только число раундов.
+  if (events[0]?.round !== 1) return rounds;
   const won = final.result?.winner === side;
 
   // 1. Кровавая Луна у стороны и её победа.
@@ -120,5 +124,5 @@ export function keyMoment(events: EngineEvent[], final: MatchState, side: Side):
   if (ultKiller) return { rule: 'ultKill', text: fmt(ru.keyMoment.ultKill, { name: nameOf(ultKiller) }) };
 
   // 5. Иначе — число раундов.
-  return { rule: 'rounds', text: fmt(ru.keyMoment.rounds, { n: final.round }) };
+  return rounds;
 }
