@@ -7,6 +7,8 @@ export type Role = 'guardian' | 'striker' | 'mage' | 'support';
 export type Rarity = 'common' | 'rare' | 'epic' | 'legendary';
 export type MoonPhase = 'new' | 'waxing' | 'full' | 'waning';
 export const MOON_ORDER: MoonPhase[] = ['new', 'waxing', 'full', 'waning'];
+/** Luna cap per side (spec §2.3). */
+export const MAX_LUNA = 5;
 export type Timing = 'swift' | 'reaction' | 'standard';
 
 export type HeroId = 'aira' | 'fenna' | 'nerisa' | 'tali' | 'zefira' | 'liraya'

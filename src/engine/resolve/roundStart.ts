@@ -1,4 +1,4 @@
-import { MOON_ORDER } from '../types';
+import { MAX_LUNA, MOON_ORDER } from '../types';
 import type { Side } from '../types';
 import { energyBudget } from '../validate';
 import type { Ctx } from './context';
@@ -7,7 +7,6 @@ import { fire } from './triggers';
 import { drawCard } from './deck';
 
 const SIDES: Side[] = ['A', 'B'];
-const MAX_LUNA = 5;
 
 /** Spec §2.5 step 1. `nextCardCostUp` survives: it is cleared by a card play or in End Round. */
 export function roundStart(ctx: Ctx): void {

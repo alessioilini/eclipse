@@ -1,12 +1,12 @@
 import { BUFF_IDS } from '../types';
-import type { Duration, Element, MoonPhase, SlotRef, StatusId } from '../types';
+import type { Duration, Element, HeroState, MoonPhase, Side, Slot, SlotRef, StatusId } from '../types';
 import { HEROES } from '../data/heroes';
 import { elementMultiplier } from '../data/elements';
 import {
   applyHeal, applyShield, applyToHero, computeDamage, healAmount, roundHalfUp, shieldAmount,
 } from '../damage';
 import { applyStatus, effectiveAtk, hasStatus, removeStatus, statusValue } from '../status';
-import { heroAt, interceptSingleHit, setHeroAt } from '../targeting';
+import { heroAt, interceptSingleHit, sameRef, setHeroAt } from '../targeting';
 import type { Ctx } from './context';
 import { emit } from './context';
 import { checkDeath } from './endRound';
@@ -16,8 +16,6 @@ import { fire } from './triggers';
 // the effect. Kept apart from actions.ts so that hooks never import actions.ts (no cycle).
 
 const MARK_BONUS = 3;
-
-const sameRef = (a: SlotRef, b: SlotRef): boolean => a.side === b.side && a.slot === b.slot;
 
 /** Buff class (spec §3.4): BUFF_IDS, or SPD/ATK modifiers with a positive value. */
 export function isBuff(id: StatusId, value: number): boolean {
@@ -136,10 +134,14 @@ function mirrorShield(ctx: Ctx, attacker: SlotRef, target: SlotRef, absorbed: nu
 }
 
 const REFLECT_DAMAGE = 2;
+const REFLECT_ROUND_KEY = 'zefira.reflectRound';
+const REFLECT_SEQ_KEY = 'zefira.reflectSeq';
 
 /**
- * Zefira's ultimate: a hit by an enemy on the side of a living active heroine holding `reflect`
- * (value = charges left) returns 2 direct damage to the attacker and spends one charge.
+ * Zefira's ultimate: an enemy ACTION (ruling: «каждая атака противника» = one action, however many
+ * hits) on the side of a living active heroine holding `reflect` (value = charges left) returns
+ * 2 direct damage to the attacker and spends one charge. The first hit of the action triggers it;
+ * the holder's `once` remembers (round, ctx.actionSeq) so further hits of that action do not.
  */
 function reflect(ctx: Ctx, attacker: SlotRef, target: SlotRef): void {
   const s = ctx.s;
@@ -149,6 +151,9 @@ function reflect(ctx: Ctx, attacker: SlotRef, target: SlotRef): void {
     .find(ref => heroAt(s, ref).hp > 0 && statusValue(heroAt(s, ref), 'reflect') > 0);
   if (!holder) return;
   const h = heroAt(s, holder);
+  if (h.once[REFLECT_ROUND_KEY] === s.round && h.once[REFLECT_SEQ_KEY] === ctx.actionSeq) return;
+  h.once[REFLECT_ROUND_KEY] = s.round;
+  h.once[REFLECT_SEQ_KEY] = ctx.actionSeq;
   const charges = statusValue(h, 'reflect') - 1;
   setHeroAt(s, holder, charges > 0
     ? { ...h, statuses: h.statuses.map(st => (st.id === 'reflect' ? { ...st, value: charges } : { ...st })) }
@@ -202,13 +207,38 @@ export function healHero(ctx: Ctx, source: SlotRef, target: SlotRef, base: numbe
   emit(ctx, { type: 'heal', source, target, amount, healed, hp: next.hp });
 }
 
-/** Spec §3.3: shield with eclipse/moon modifiers; fires `onShieldGranted` and `onEnemyBuffed`. */
-export function grantShield(ctx: Ctx, source: SlotRef, target: SlotRef, base: number): void {
+/** A heroine in a reserve slot (Fenna's revive can shield her there). */
+export type ReserveRef = { side: Side; reserveIndex: Slot };
+
+const isReserve = (r: SlotRef | ReserveRef): r is ReserveRef => 'reserveIndex' in r;
+
+/**
+ * Spec §3.3: shield with eclipse/moon modifiers; fires `onShieldGranted` and `onEnemyBuffed`.
+ * A reserve heroine is described by `side` + `reserveIndex` in the event and by `side` in the payload.
+ */
+export function grantShield(ctx: Ctx, source: SlotRef, target: SlotRef | ReserveRef, base: number): void {
   const s = ctx.s;
   const amount = shieldAmount(base, s.moon, s.round);
-  const next = applyShield(heroAt(s, target), amount, s.round);
-  setHeroAt(s, target, next);
-  emit(ctx, { type: 'shield', source, target, amount, shield: next.shield });
-  fire(ctx, 'onShieldGranted', { source, target });
-  fire(ctx, 'onEnemyBuffed', { source, target });
+  const sd = s.sides[target.side];
+  const hero: HeroState = isReserve(target) ? sd.reserve[target.reserveIndex] : heroAt(s, target);
+  const next = applyShield(hero, amount, s.round);
+  if (isReserve(target)) sd.reserve[target.reserveIndex] = next;
+  else setHeroAt(s, target, next);
+  const who = isReserve(target) ? { side: target.side, reserveIndex: target.reserveIndex } : { target };
+  emit(ctx, { type: 'shield', source, ...who, amount, shield: next.shield });
+  const payload = isReserve(target) ? { source, side: target.side } : { source, target };
+  fire(ctx, 'onShieldGranted', payload);
+  fire(ctx, 'onEnemyBuffed', payload);
+}
+
+const BURN_PER_STACK = 2;
+
+/**
+ * Damage of one Burn tick on `ref`: 2 per stack, then `burnTick` fires with the mutable amount
+ * (Aira's «Жар» +1). Used by the End Round tick and by Aira's ultimate (one extra tick).
+ */
+export function burnTickAmount(ctx: Ctx, ref: SlotRef, stacks: number): number {
+  const amount = { v: BURN_PER_STACK * stacks };
+  fire(ctx, 'burnTick', { target: ref, amount });
+  return amount.v;
 }

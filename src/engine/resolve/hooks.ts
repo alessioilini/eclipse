@@ -1,16 +1,15 @@
+import { MAX_LUNA } from '../types';
 import type { CardId, Side, Slot, SlotRef } from '../types';
 import { CARDS } from '../data/cards';
-import { applyShield, shieldAmount } from '../damage';
 import { effectiveAtk, hasStatus, isAlive } from '../status';
-import { aliveActive, findLowestHpEnemy, heroAt, other, REDIRECT_NERISA } from '../targeting';
+import { aliveActive, findLowestHpEnemy, heroAt, other, REDIRECT_NERISA, sameRef } from '../targeting';
 import type { Ctx } from './context';
 import { emit } from './context';
-import { burnTickAmount, checkDeath, DEATH_KEY } from './endRound';
+import { checkDeath, DEATH_KEY } from './endRound';
 import { drawCard } from './deck';
 import { replayCard } from './cards';
-import { fire } from './triggers';
 import {
-  applyStatusTo, dealHit, directHit, grantShield, healHero, removeStatusFrom, takeInterception,
+  applyStatusTo, burnTickAmount, dealHit, directHit, grantShield, healHero, removeStatusFrom, takeInterception,
 } from './effects';
 import type { HitOpts } from './effects';
 
@@ -31,13 +30,11 @@ export type HookPayload = {
 /** Returning `false` means "did not apply": a `once` trigger is then not consumed. */
 export type HookFn = (ctx: Ctx, self: SlotRef, payload: HookPayload) => boolean | void;
 
-const sameRef = (a: SlotRef | undefined, b: SlotRef): boolean => !!a && a.side === b.side && a.slot === b.slot;
 const below50 = (ctx: Ctx, ref: SlotRef): boolean => {
   const h = heroAt(ctx.s, ref);
   return h.hp * 2 < h.maxHp;
 };
 
-const MAX_LUNA = 5;
 const AIRA_BURN_BONUS = 1;
 const FENNA_FIRST_HEAL_BONUS = 2;
 const FENNA_REVIVE_HP = 9;
@@ -94,18 +91,13 @@ function reviveLastFallen(ctx: Ctx, self: SlotRef): boolean {
     // She comes back clean: statuses and any old shield are cleared before Shield 3 (controller ruling).
     const back = { ...dead, hp: FENNA_REVIVE_HP, shield: 0, shieldExpiresAtRound: null, statuses: [], once };
     if (slot >= 0) {
-      const ref: SlotRef = { side: self.side, slot: slot as Slot };
       sd.active[slot] = back;
       emit(ctx, { type: 'revive', side: self.side, heroId: back.id, hp: back.hp, slot });
-      grantShield(ctx, self, ref, FENNA_REVIVE_SHIELD);
+      grantShield(ctx, self, { side: self.side, slot: slot as Slot }, FENNA_REVIVE_SHIELD);
     } else {
-      const amount = shieldAmount(FENNA_REVIVE_SHIELD, s.moon, s.round);
-      const shielded = applyShield(back, amount, s.round);
-      sd.reserve[reserveIndex] = shielded;
+      sd.reserve[reserveIndex] = back;
       emit(ctx, { type: 'revive', side: self.side, heroId: back.id, hp: back.hp, reserveIndex });
-      emit(ctx, { type: 'shield', source: self, side: self.side, reserveIndex, amount, shield: shielded.shield });
-      fire(ctx, 'onShieldGranted', { source: self, side: self.side });
-      fire(ctx, 'onEnemyBuffed', { source: self, side: self.side });
+      grantShield(ctx, self, { side: self.side, reserveIndex: reserveIndex as Slot }, FENNA_REVIVE_SHIELD);
     }
     return true;
   }

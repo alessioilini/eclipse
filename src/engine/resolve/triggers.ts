@@ -36,11 +36,16 @@ export function fire(ctx: Ctx, event: TriggerEvent, payload: TriggerPayload = {}
         // The flag is set before the call so that a hook re-entering `fire` (Justina's SPD buff is
         // itself a buff) cannot trigger itself again; it is restored when the hook returns false.
         if (trig.once) hero.once[trig.hook] = trig.once === 'round' ? ctx.s.round : ONCE_MATCH;
-        const applied = hook(ctx, self, payload);
-        if (applied === false && trig.once) {
-          const once = heroAt(ctx.s, self).once;
-          if (used === undefined) delete once[trig.hook];
-          else once[trig.hook] = used;
+        let applied: boolean | void = false;
+        try {
+          applied = hook(ctx, self, payload);
+        } finally {
+          // Restored when the hook did not apply, or threw.
+          if (applied === false && trig.once) {
+            const once = heroAt(ctx.s, self).once;
+            if (used === undefined) delete once[trig.hook];
+            else once[trig.hook] = used;
+          }
         }
       }
     }

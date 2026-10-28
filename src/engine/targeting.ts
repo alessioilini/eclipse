@@ -49,7 +49,10 @@ export function resolveTarget(state: MatchState, ref: SlotRef): SlotRef | null {
   return findLowestHpEnemy(state, other(ref.side));
 }
 
-const sameRef = (a: SlotRef, b: SlotRef): boolean => a.side === b.side && a.slot === b.slot;
+/** Same active slot; `undefined` never matches. */
+export function sameRef(a: SlotRef | undefined, b: SlotRef | undefined): boolean {
+  return !!a && !!b && a.side === b.side && a.slot === b.slot;
+}
 
 /**
  * Single-hit interception chain (spec 2.6): Taunt -> cover card -> Nerisa -> Zefira passive.

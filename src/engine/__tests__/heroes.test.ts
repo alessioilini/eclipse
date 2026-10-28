@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { startRound } from '../resolve/round';
 import { makeCtx } from '../resolve/context';
-import { runAbility } from '../resolve/actions';
+import { runAbility, runHeroAction } from '../resolve/actions';
 import { dealHit } from '../resolve/effects';
 import { fire } from '../resolve/triggers';
 import { cardCost } from '../validate';
@@ -211,18 +211,41 @@ describe('хуки героинь', () => {
     expect(statusIds(ctx2.s, enemy(1))).not.toContain('mark');
   });
 
-  it('zefira.reflect: 3 срабатывания по 2 прямого урона атакующим, четвёртое нет', () => {
-    const ctx = ctxFor(['zefira', 'fenna', 'nerisa', 'aira', 'tali', 'liraya'], undefined, x => { x.sides.A.luna = 3; });
-    runAbility(ctx, ally(0), HEROES.zefira.ultimate, undefined, 'ultimate');
+  it('zefira.reflect: 3 срабатывания по 2 прямого урона атакующим, четвёртое нет; один заряд за действие врага', () => {
+    const a: HeroId[] = ['zefira', 'fenna', 'nerisa', 'aira', 'tali', 'liraya'];
+    const withReflect = (b?: HeroId[]) => {
+      const ctx = ctxFor(a, b, x => { x.sides.A.luna = 3; x.sides.B.luna = 3; });
+      runAbility(ctx, ally(0), HEROES.zefira.ultimate, undefined, 'ultimate');
+      return ctx;
+    };
+
+    // Три отдельные Basic → три отражения, четвёртая — нет, статус снят.
+    const ctx = withReflect();
     expect(findSt(ctx.s, ally(0), 'reflect')).toMatchObject({ value: 3, expiresAtRound: 2 });
-    dealHit(ctx, enemy(1), ally(1), 1, 0, { single: true });
-    dealHit(ctx, enemy(2), ally(2), 1, 0, { single: true });
-    dealHit(ctx, enemy(1), ally(0), 1, 0, { single: true });
-    dealHit(ctx, enemy(1), ally(1), 1, 0, { single: true });
+    runHeroAction(ctx, enemy(1), { type: 'basic', target: ally(1) });
+    runHeroAction(ctx, enemy(2), { type: 'basic', target: ally(2) });
+    runHeroAction(ctx, enemy(1), { type: 'basic', target: ally(0) });
+    runHeroAction(ctx, enemy(1), { type: 'basic', target: ally(1) });
     expect(ofType(ctx.events, 'reflect').map(e => [e.from, e.to, e.dmg]))
       .toEqual([[ally(0), enemy(1), 2], [ally(0), enemy(2), 2], [ally(0), enemy(1), 2]]);
     expect([hpOf(ctx.s, enemy(1)), hpOf(ctx.s, enemy(2))]).toEqual([19, 18]);
     expect(findSt(ctx.s, ally(0), 'reflect')).toBeUndefined();
+
+    // «Звездопад» Селены (три удара одним действием) → одно отражение, осталось 2 заряда.
+    const ctx2 = withReflect(['selena', 'justina', 'nokta', 'aurora', 'mira', 'kira']);
+    runHeroAction(ctx2, enemy(0), { type: 'ultimate', target: ally(1) });
+    expect(hits(ctx2.events, enemy(0)).length).toBe(3);
+    expect(ofType(ctx2.events, 'reflect').map(e => [e.to, e.dmg])).toEqual([[enemy(0), 2]]);
+    expect(hpOf(ctx2.s, enemy(0))).toBe(20);
+    expect(findSt(ctx2.s, ally(0), 'reflect')).toMatchObject({ value: 2 });
+
+    // Ульта Нокты по трём союзницам (AoE) → одно отражение, осталось 2 заряда.
+    const ctx3 = withReflect();
+    runHeroAction(ctx3, enemy(2), { type: 'ultimate' });
+    expect(hits(ctx3.events, enemy(2)).length).toBe(3);
+    expect(ofType(ctx3.events, 'reflect').map(e => [e.to, e.dmg])).toEqual([[enemy(2), 2]]);
+    expect(hpOf(ctx3.s, enemy(2))).toBe(18);
+    expect(findSt(ctx3.s, ally(0), 'reflect')).toMatchObject({ value: 2 });
   });
 
   it('aurora.unshaken: Shield 4 всем, nextCardCostUp противника 1 до конца следующего раунда: его карта за 1 стоит 2, через два раунда снова 1', () => {

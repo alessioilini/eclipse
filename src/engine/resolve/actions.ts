@@ -1,26 +1,24 @@
-import { MOON_ORDER } from '../types';
+import { MAX_LUNA, MOON_ORDER } from '../types';
 import type { Ability, Condition, HeroAction, Primitive, SlotRef, TargetType } from '../types';
 import { HEROES } from '../data/heroes';
 import { directDamage } from '../damage';
 import { cleanse, hasStatus, isAlive, removeStatus } from '../status';
 import {
-  aliveActive, findLowestHpEnemy, heroAt, interceptSingleHit, other, resolveTarget, setHeroAt,
+  aliveActive, findLowestHpEnemy, heroAt, interceptSingleHit, other, resolveTarget, sameRef, setHeroAt,
 } from '../targeting';
 import { ULTIMATE_ENERGY_COST, ultimateLunaCost } from '../validate';
 import type { Ctx } from './context';
-import { emit } from './context';
+import { emit, nextAction } from './context';
 import { fire } from './triggers';
 import { HOOKS } from './hooks';
 import { drawCard } from './deck';
 import { applyStatusTo, dealHit, grantShield, healHero, isBuff, takeInterception } from './effects';
 import type { AbilityInterception } from './effects';
 
-const MAX_LUNA = 5;
 const ENTERED_KEY = 'enteredRound';
 
 export type AbilityKind = 'skill' | 'ultimate';
 
-const sameRef = (a: SlotRef, b: SlotRef): boolean => a.side === b.side && a.slot === b.slot;
 
 // ---------------------------------------------------------------------------------------------
 // Abilities as data (spec §6.2).
@@ -257,6 +255,7 @@ function doSwap(ctx: Ctx, ref: SlotRef, reserveIndex: 0 | 1 | 2): void {
 
 /** Runs the planned action of the heroine standing in `ref` now (spec §2.5 step 6, §2.6). */
 export function runHeroAction(ctx: Ctx, ref: SlotRef, action: HeroAction): void {
+  nextAction(ctx);
   const hero = heroAt(ctx.s, ref);
   if (!isAlive(hero)) { skip(ctx, ref, 'dead'); return; }
   if (hero.once[ENTERED_KEY] === ctx.s.round) { skip(ctx, ref, 'entered'); return; }

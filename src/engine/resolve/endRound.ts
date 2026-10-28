@@ -1,3 +1,4 @@
+import { MAX_LUNA } from '../types';
 import type { HeroState, Side, Slot, SlotRef } from '../types';
 import { getWinner } from '../match';
 import { cleanse, expireStatuses, isAlive } from '../status';
@@ -5,12 +6,10 @@ import { directDamage } from '../damage';
 import { heroAt, setHeroAt } from '../targeting';
 import type { Ctx } from './context';
 import { emit } from './context';
-import { fire } from './triggers';
+import { burnTickAmount } from './effects';
 
 const SIDES: Side[] = ['A', 'B'];
 const SLOTS: Slot[] = [0, 1, 2];
-const MAX_LUNA = 5;
-const BURN_PER_STACK = 2;
 /** `hero.once` key set when a death is recorded; Fenna's revive clears it. */
 export const DEATH_KEY = 'deathRecorded';
 
@@ -43,16 +42,6 @@ export function freezeTimers(hero: HeroState): HeroState {
     statuses: hero.statuses.map(st => ({ ...st, expiresAtRound: st.expiresAtRound === null ? null : st.expiresAtRound + 1 })),
     shieldExpiresAtRound: hero.shieldExpiresAtRound === null ? null : hero.shieldExpiresAtRound + 1,
   };
-}
-
-/**
- * Damage of one Burn tick on `ref`: 2 per stack, then `burnTick` fires with the mutable amount
- * (Aira's «Жар» +1). Used by the End Round tick and by Aira's ultimate (one extra tick).
- */
-export function burnTickAmount(ctx: Ctx, ref: SlotRef, stacks: number): number {
-  const amount = { v: BURN_PER_STACK * stacks };
-  fire(ctx, 'burnTick', { target: ref, amount });
-  return amount.v;
 }
 
 function burnTick(ctx: Ctx): void {
