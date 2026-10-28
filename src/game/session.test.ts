@@ -1,0 +1,141 @@
+import { describe, expect, it } from 'vitest';
+import { createRng, validateDeck } from '../engine';
+import type { HeroAction, SideCommands, Slot } from '../engine';
+import { randomDeck } from '../engine/sim';
+import {
+  confirmRound, draftToCommands, draftIssues, emptyDraft, isFinished, newMatch, opponentDeckFor, playerView, surrender,
+} from './session';
+import type { Draft, MatchSession } from './session';
+
+const basicOn = (slot: Slot): HeroAction => ({ type: 'basic', target: { side: 'B', slot } });
+
+function fullDraft(): Draft {
+  return { actions: [basicOn(0), basicOn(1), basicOn(2)], card: null };
+}
+
+function start(seed = 5): MatchSession {
+  return newMatch(randomDeck(createRng(seed)), { opponentDeck: randomDeck(createRng(seed + 100)), seed, mode: 'free' });
+}
+
+describe('игровая сессия', () => {
+  it('newMatch даёт раунд 1 и ожидание команд', () => {
+    const s = start();
+    expect(s.state.round).toBe(1);
+    expect(s.state.awaitingCommands).toBe(true);
+    expect(s.botSeed).toBe(5);
+    expect(s.mode).toBe('free');
+    expect(isFinished(s)).toBe(false);
+    expect(playerView(s).sides.A).not.toHaveProperty('deck');
+  });
+
+  it('draftToCommands возвращает null при пустом слоте', () => {
+    const s = start();
+    const d = emptyDraft(s.state);
+    expect(d.actions).toEqual([null, null, null]);
+    expect(draftToCommands(d)).toBeNull();
+    expect(draftToCommands({ ...fullDraft(), actions: [basicOn(0), null, basicOn(2)] })).toBeNull();
+    expect(draftIssues(s.state, d)).toEqual([]);
+  });
+
+  it('draftToCommands копирует карту как есть', () => {
+    const d: Draft = { ...fullDraft(), card: { handIndex: 0 } };
+    expect(draftToCommands(d)).toEqual({ actions: d.actions, card: { handIndex: 0 } });
+    expect(draftToCommands(fullDraft())).not.toHaveProperty('card');
+  });
+
+  it('draftIssues отдаёт ошибки движка для полного черновика', () => {
+    const s = start();
+    const bad: Draft = { actions: [{ type: 'none' }, basicOn(1), basicOn(2)], card: null };
+    expect(draftIssues(s.state, bad).map(i => i.code)).toContain('NONE_ONLY_DEAD');
+    expect(draftIssues(s.state, fullDraft())).toEqual([]);
+  });
+
+  it('confirmRound с неполным черновиком бросает', () => {
+    const s = start();
+    expect(() => confirmRound(s, emptyDraft(s.state))).toThrow('draft incomplete');
+  });
+
+  it('confirmRound с невалидным черновиком бросает с кодами', () => {
+    const s = start();
+    const bad: Draft = { actions: [{ type: 'none' }, basicOn(1), basicOn(2)], card: null };
+    expect(() => confirmRound(s, bad)).toThrow(/^invalid draft: .*NONE_ONLY_DEAD/);
+  });
+
+  it('полный раунд даёт раунд 2, не мутирует сессию и не раскрывает чужие cardId в draw', () => {
+    const s = start();
+    const before = structuredClone(s);
+    const { session, events } = confirmRound(s, fullDraft());
+    expect(s).toEqual(before);
+    expect(session.state.round).toBe(2);
+    expect(session.state.awaitingCommands).toBe(true);
+    const draws = events.filter(e => e.type === 'draw');
+    expect(draws.length).toBeGreaterThan(0);
+    for (const e of draws) {
+      if (e.type === 'draw' && e.side === 'B') expect(e.cardId).toBeUndefined();
+    }
+    // события нового раунда идут после событий разрешённого
+    const types = events.map(e => e.type);
+    expect(types.indexOf('reveal')).toBeLessThan(types.lastIndexOf('roundStart'));
+    expect(events.filter(e => e.type === 'roundStart')).toHaveLength(1);
+  });
+
+  it('детерминизм: два одинаковых сеанса дают равные состояния', () => {
+    const a = confirmRound(start(9), fullDraft());
+    const b = confirmRound(start(9), fullDraft());
+    expect(a.session.state).toEqual(b.session.state);
+    expect(a.events).toEqual(b.events);
+  });
+
+  it('enemy подменяет бота', () => {
+    const s0 = start();
+    const enemyCmds: SideCommands = { actions: [{ type: 'basic', target: { side: 'A', slot: 0 } }, { type: 'basic', target: { side: 'A', slot: 0 } }, { type: 'basic', target: { side: 'A', slot: 0 } }] };
+    const calls: number[] = [];
+    const s: MatchSession = { ...s0, enemy: (round) => { calls.push(round); return enemyCmds; } };
+    const { events } = confirmRound(s, fullDraft());
+    expect(calls).toEqual([1]);
+    const reveal = events.find(e => e.type === 'reveal');
+    expect(reveal && reveal.type === 'reveal' ? reveal.commands.B : null).toEqual(enemyCmds);
+  });
+
+  it('emptyDraft ставит none погибшей героине слота 1 и черновик остаётся собираемым (Review Focus 2)', () => {
+    const s0 = start();
+    const state = structuredClone(s0.state);
+    state.sides.A.active[1].hp = 1;
+    state.sides.A.active[1].shield = 0;
+    for (const h of state.sides.A.reserve) h.hp = 0; // некому заменить погибшую
+    const target = { side: 'A' as const, slot: 1 as Slot };
+    const hit: HeroAction = { type: 'basic', target };
+    const s: MatchSession = { ...s0, state, enemy: () => ({ actions: [hit, hit, hit] }) };
+    const { session } = confirmRound(s, fullDraft());
+    expect(session.state.result).toBeNull();
+    expect(session.state.sides.A.active[1].hp).toBe(0);
+
+    const d = emptyDraft(session.state);
+    expect(d.actions[1]).toEqual({ type: 'none' });
+    expect(d.actions[0]).toBeNull();
+    expect(d.actions[2]).toBeNull();
+    const filled: Draft = { ...d, actions: [basicOn(0), d.actions[1], basicOn(2)] };
+    expect(draftToCommands(filled)).not.toBeNull();
+    expect(draftIssues(session.state, filled)).toEqual([]);
+  });
+
+  it('surrender завершает матч поражением и не меняет исходную сессию', () => {
+    const s = start();
+    const before = structuredClone(s);
+    const r = surrender(s);
+    expect(s).toEqual(before);
+    expect(isFinished(r)).toBe(true);
+    expect(r.surrendered).toBe(true);
+    expect(r.state.result).toEqual({ winner: 'B', reason: 'wipe' });
+    expect(r.state.awaitingCommands).toBe(false);
+    expect(isFinished(s)).toBe(false);
+  });
+
+  it('opponentDeckFor возвращает легальную детерминированную колоду', () => {
+    for (const seed of [0, 1, 2, 3, 42, 1234]) {
+      const d = opponentDeckFor(seed);
+      expect(validateDeck(d)).toEqual([]);
+      expect(opponentDeckFor(seed)).toEqual(d);
+    }
+  });
+});
