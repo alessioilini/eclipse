@@ -6,23 +6,11 @@ import type { Rng } from '../rng';
 import { resolveRound, startRound } from '../resolve/round';
 import { validateCommands } from '../validate';
 import { viewFor } from '../view';
-import { CARD_IDS, CARDS } from '../data/cards';
-import { HERO_IDS } from '../data/heroes';
-import type { CardId, Deck, HeroAction, MatchState, Side, SideCommands, SlotRef } from '../types';
+import { randomDeck } from '../sim';
+import type { HeroAction, MatchState, Side, SideCommands, SlotRef } from '../types';
 import { makeMatch, setHp, setLuna } from './helpers';
 
 const SIDES: Side[] = ['A', 'B'];
-
-/** A random legal deck (spec §2.1); Task 14 brings the real generator. */
-function randomDeck(rng: Rng): Deck {
-  const heroes = rng.shuffle(HERO_IDS).slice(0, 6);
-  const pool: CardId[] = [];
-  for (const id of CARD_IDS) {
-    const copies = CARDS[id].rarity === 'legendary' ? 1 : 2;
-    for (let i = 0; i < copies; i++) pool.push(id);
-  }
-  return { heroes, starting: [0, 1, 2], cards: rng.shuffle(pool).slice(0, 12) };
-}
 
 /** An Rng whose `next()` never triggers the 10% noise. */
 function quietRng(): Rng {

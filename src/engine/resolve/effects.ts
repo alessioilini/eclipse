@@ -121,7 +121,7 @@ export function dealHit(ctx: Ctx, attacker: SlotRef, target: SlotRef, mod: numbe
   const hpLoss = victim.hp - hit.hp; // overkill beyond the victim's HP is not HP loss
   setHeroAt(s, tgt, hit);
   emit(ctx, {
-    type: 'damage', attacker, target: tgt, raw, flat: totalFlat, reductions,
+    type: 'damage', attacker, target: tgt, attackerId: att.id, targetId: victim.id, raw, flat: totalFlat, reductions,
     dmg, absorbed, hpLoss, hp: hit.hp, shield: hit.shield,
   });
   s.sides[attacker.side].damageDealt += hpLoss;
