@@ -82,6 +82,19 @@ describe('gen-art', () => {
     expect(await harness(['--only', 'aira', '--variants', '9'], { OPENAI_API_KEY: KEY }, fetch, outDir).done).toBe(1);
   });
 
+  it('портрет при готовом арте в рост рисуется через edits с ним как референсом', async () => {
+    const outDir = tempDir();
+    writeFileSync(join(outDir, 'aira-full.png'), 'full-bytes');
+    const { fetch, calls } = fakeFetch(() => ok('x'));
+    const { done } = harness(['--only', 'aira', '--kind', 'portrait'], { OPENAI_API_KEY: KEY }, fetch, outDir);
+    expect(await done).toBe(0);
+    expect(calls).toHaveLength(1);
+    expect(calls[0]!.url).toMatch(/\/images\/edits$/);
+    const form = calls[0]!.init.body as FormData;
+    expect(form.get('size')).toBe('1024x1024');
+    expect(existsSync(join(outDir, 'aira-portrait.png'))).toBe(true);
+  });
+
   it('без OPENAI_API_KEY выходит с подсказкой и не ходит в сеть', async () => {
     const { fetch, calls } = fakeFetch(() => ok('x'));
     const { done, lines } = harness([], {}, fetch, tempDir());
