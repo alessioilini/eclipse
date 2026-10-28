@@ -1,16 +1,52 @@
+import { useState } from 'react';
 import type { CSSProperties } from 'react';
+import { BASE } from '../config';
 import { HEROES } from '../engine';
 import type { HeroId } from '../engine';
 import styles from './HeroArt.module.css';
 import { cx } from './cx';
 
-/** Placeholder art (spec §9): an element-coloured circle with the heroine's initial. */
-export function HeroArt({ heroId, size }: { heroId: HeroId; size: 'sm' | 'md' | 'lg' }) {
+export type HeroArtKind = 'portrait' | 'full';
+export type HeroArtSize = 'sm' | 'md' | 'lg';
+
+/** Rendered widths in px, mirroring `--art-sm/md/lg` in `styles/tokens.css`: the `sizes` hint for `srcSet`. */
+const WIDTH_PX: Record<HeroArtSize, number> = { sm: 32, md: 48, lg: 96 };
+
+/** WebP widths packed by `scripts/art-pack.ts` (spec §7); the first one is the plain `src`. */
+const WIDTHS: Record<HeroArtKind, readonly [number, number]> = { portrait: [128, 512], full: [512, 1024] };
+
+const artUrl = (id: HeroId, kind: HeroArtKind, width: number) => `${BASE}art/${id}-${kind}-${width}.webp`;
+
+/**
+ * Heroine art (spec §7): a WebP portrait (circle) or full-body art (2:3, element gradient at the bottom).
+ * Until the art is generated, or if it fails to load, falls back to the element-coloured circle with the initial.
+ */
+export function HeroArt({ heroId, kind = 'portrait', size }: { heroId: HeroId; kind?: HeroArtKind; size: HeroArtSize }) {
+  const [failed, setFailed] = useState(false);
   const hero = HEROES[heroId];
   const style = { '--art-color': `var(--el-${hero.element})` } as CSSProperties;
+  const [small, large] = WIDTHS[kind];
   return (
-    <span role="img" aria-label={hero.name} className={cx(styles.art, styles[size])} style={style}>
-      <span aria-hidden="true">{hero.name.charAt(0)}</span>
+    <span
+      role="img"
+      aria-label={hero.name}
+      className={cx(styles.art, styles[size], kind === 'full' && styles.full, !failed && styles.withImage)}
+      style={style}
+    >
+      {failed ? (
+        <span aria-hidden="true">{hero.name.charAt(0)}</span>
+      ) : (
+        <img
+          className={styles.img}
+          src={artUrl(heroId, kind, small)}
+          srcSet={`${artUrl(heroId, kind, small)} ${small}w, ${artUrl(heroId, kind, large)} ${large}w`}
+          sizes={`${WIDTH_PX[size]}px`}
+          loading="lazy"
+          decoding="async"
+          alt=""
+          onError={() => setFailed(true)}
+        />
+      )}
     </span>
   );
 }

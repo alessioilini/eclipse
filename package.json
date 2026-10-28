@@ -9,6 +9,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "sim": "tsx scripts/sim.ts",
+    "art": "tsx scripts/gen-art.ts",
+    "art:pack": "tsx scripts/art-pack.ts",
     "e2e": "playwright test"
   },
   "type": "module",
@@ -29,6 +31,7 @@
     "@types/react-dom": "^18.3.7",
     "@vitejs/plugin-react": "^4.7.0",
     "jsdom": "^25.0.1",
+    "sharp": "^0.33.5",
     "tsx": "^4.23.15",
     "typescript": "^5.9.3",
     "vite": "^5.4.21",

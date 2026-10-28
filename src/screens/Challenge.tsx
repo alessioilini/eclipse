@@ -16,7 +16,7 @@ function HeroRow({ heroes, size, testId }: { heroes: HeroId[]; size: 'md' | 'lg'
     <ul className={styles.row} data-testid={testId}>
       {heroes.map((id) => (
         <li key={id} className={styles.hero}>
-          <HeroArt heroId={id} size={size} />
+          <HeroArt heroId={id} kind="full" size={size} />
           <span className={styles.name}>{HEROES[id].name}</span>
         </li>
       ))}

@@ -1,13 +1,22 @@
 .art {
+  position: relative;
   display: inline-flex;
   flex: none;
   align-items: center;
   justify-content: center;
+  overflow: hidden;
   border-radius: 50%;
   background: var(--art-color);
   color: var(--bg);
   font-weight: 700;
   line-height: 1;
+}
+
+.img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .sm {
@@ -26,4 +35,29 @@
   width: var(--art-lg);
   height: var(--art-lg);
   font-size: var(--fs-28);
+}
+
+/* Full-body art: 2:3, rounded corners, element-colour gradient over the image rising from the bottom. */
+.full {
+  border-radius: var(--r-8);
+}
+
+.full.sm {
+  height: calc(var(--art-sm) * 1.5);
+}
+
+.full.md {
+  height: calc(var(--art-md) * 1.5);
+}
+
+.full.lg {
+  height: calc(var(--art-lg) * 1.5);
+}
+
+.full.withImage::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, var(--art-color) 0%, transparent 45%);
+  pointer-events: none;
 }

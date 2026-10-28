@@ -131,7 +131,7 @@ export function DeckBuilder({ id }: { id: string }) {
                   </span>
                   {h ? (
                     <>
-                      <HeroArt heroId={h} size="sm" />
+                      <HeroArt heroId={h} kind="full" size="sm" />
                       <span className={styles.slotText}>
                         <span className={styles.slotName}>{HEROES[h].name}</span>
                         <span className={styles.slotMeta}>

@@ -33,8 +33,9 @@ describe('Button', () => {
 });
 
 describe('HeroArt', () => {
-  it('рисует круг с инициалом и подписью имени', () => {
-    render(<HeroArt heroId="aira" size="lg" />);
+  it('без картинки рисует круг с инициалом и подписью имени', () => {
+    const { container } = render(<HeroArt heroId="aira" size="lg" />);
+    fireEvent.error(container.querySelector('img')!);
     const art = screen.getByRole('img', { name: HEROES.aira.name });
     expect(art).toHaveTextContent(HEROES.aira.name[0]!);
   });
