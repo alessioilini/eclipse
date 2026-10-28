@@ -484,7 +484,9 @@ describe('карты: общие правила', () => {
         s.sides.A.luna = 3;
         setCards(s, 'B', ['fieldKit']);
       }, makeMatch({ a, b: B_TEAM }));
-    expect(ofType(r.events, 'fizzle').map(e => [e.side, e.card, e.reason, e.phase])).toEqual([['B', 'fieldKit', 'energy', 'standard']]);
+    expect(ofType(r.events, 'fizzle').map(e => [e.side, e.cardId, e.action, e.reason, e.phase]))
+      .toEqual([['B', 'fieldKit', 'card', 'energy', 'standard']]);
+    expect(ofType(r.events, 'fizzle').every(e => !('card' in e))).toBe(true);
     expect(ofType(r.events, 'cardPlayed')).toEqual([]);
     expect(ofType(r.events, 'heal')).toEqual([]);
     expect(r.state.sides.B.hand).toEqual([]);

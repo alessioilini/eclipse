@@ -66,6 +66,15 @@ function line(ev: GameEvent, names: NameMap): string {
       return `${heroName(ev['heroId'])} dies`;
     case 'cardPlayed':
       return `${side} plays ${cardName(ev['cardId'])}${ev['replay'] ? ' (replay)' : ''}`;
+    case 'fizzle':
+      // A heroine's skill/ultimate (heroId) or a card (cardId, action 'card').
+      return ev['action'] === 'card'
+        ? `${side} ${cardName(ev['cardId'])} fizzles (${ev['reason']})`
+        : `${side} ${heroName(ev['heroId'])}.${cap(ev['action'])} fizzles (${ev['reason']})`;
+    case 'reactionArmed':
+      return `${side} arms ${cardName(ev['cardId'])}${isRef(ev['target']) ? ` → ${refText(ev['target'])}` : ''}`;
+    case 'reactionTriggered':
+      return `${side} ${cardName(ev['cardId'])} triggers${isRef(ev['target']) ? ` → ${refText(ev['target'])}` : ''}`;
     case 'moonChanged':
       return `Moon ${ev['from']} → ${ev['to']}`;
     case 'lunaChanged':

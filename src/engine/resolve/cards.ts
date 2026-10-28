@@ -96,12 +96,12 @@ export function playCard(ctx: Ctx, side: Side, card: PlannedCard): void {
   const cost = cardCost(ctx.s, side, cardId);
   sd.nextCardCostUp = null;
   if (sd.energy < cost) {
-    emit(ctx, { type: 'fizzle', side, card: cardId, reason: 'energy' });
+    emit(ctx, { type: 'fizzle', side, cardId, action: 'card', reason: 'energy' });
     return;
   }
   const checked = checkCardTargets(ctx, side, cardId, play.target, play.secondary);
   if (typeof checked === 'string') {
-    emit(ctx, { type: 'fizzle', side, card: cardId, reason: checked });
+    emit(ctx, { type: 'fizzle', side, cardId, action: 'card', reason: checked });
     return;
   }
 
@@ -124,7 +124,7 @@ export function playCard(ctx: Ctx, side: Side, card: PlannedCard): void {
 export function replayCard(ctx: Ctx, side: Side, cardId: CardId, target?: SlotRef, secondary?: Secondary): void {
   const checked = checkCardTargets(ctx, side, cardId, target, secondary);
   if (typeof checked === 'string') {
-    emit(ctx, { type: 'fizzle', side, card: cardId, reason: checked, replay: true });
+    emit(ctx, { type: 'fizzle', side, cardId, action: 'card', reason: checked, replay: true });
     return;
   }
   emit(ctx, { type: 'cardPlayed', side, cardId, ...withTargets(target, secondary), cost: 0, replay: true });
@@ -176,7 +176,7 @@ function checkCardTargets(
 function runCardEffects(ctx: Ctx, side: Side, cardId: CardId, checked: Checked): void {
   const s = ctx.s;
   const def = CARDS[cardId];
-  const source: CardSource = { side, card: cardId };
+  const source: CardSource = { side, cardId };
   const targets = (): SlotRef[] => {
     if (def.target === 'allies') return aliveActive(s, side);
     if (def.target === 'enemies') return aliveActive(s, other(side));

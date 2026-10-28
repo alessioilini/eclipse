@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { formatLog } from '../log';
+import { formatEvent, formatLog } from '../log';
 import { resolveRound, startRound } from '../resolve/round';
 import { hasStatus } from '../status';
 import type { GameEvent } from '../types';
@@ -58,5 +58,18 @@ describe('текстовый лог', () => {
     for (const n of [1, 2, 3]) expect(log).toMatch(new RegExp(`^R${n} Moon=\\w+$`, 'm'));
     expect(log).toContain('Moon=waxing');
     expect(log.split('\n').filter(l => l.startsWith('  ')).length).toBeGreaterThan(10);
+  });
+
+  it('fizzle героини и карты, взвод и срабатывание Reaction печатаются по cardId', () => {
+    const s = makeMatch();
+    const ev = (type: string, extra: Record<string, unknown>): GameEvent => ({ type, round: 1, phase: 'heroes', ...extra });
+    expect(formatEvent(ev('fizzle', { side: 'A', slot: 0, heroId: 'aira', action: 'skill', reason: 'energy' }), s))
+      .toBe('A Айра.Skill fizzles (energy)');
+    expect(formatEvent(ev('fizzle', { side: 'B', cardId: 'fieldKit', action: 'card', reason: 'target dead' }), s))
+      .toBe('B Полевая аптечка fizzles (target dead)');
+    expect(formatEvent(ev('reactionArmed', { side: 'A', cardId: 'lastWord', target: ally(0), heroId: 'aira' }), s))
+      .toBe('A arms Последнее слово → A0');
+    expect(formatEvent(ev('reactionTriggered', { side: 'A', cardId: 'rewriteFate', target: ally(1), heroId: 'fenna' }), s))
+      .toBe('A Переписать судьбу triggers → A1');
   });
 });

@@ -16,8 +16,8 @@ import { fire } from './triggers';
 // `source` is the heroine causing the effect, or a card. Kept apart from actions.ts so that hooks
 // and cards never import actions.ts (no cycle).
 
-/** A tactic card as the source of an effect (it has no slot). */
-export type CardSource = { side: Side; card: CardId };
+/** A tactic card as the source of an effect (it has no slot); `cardId` like every card event. */
+export type CardSource = { side: Side; cardId: CardId };
 /** Who causes an effect: a heroine in an active slot, or a card played by a side. */
 export type Source = SlotRef | CardSource;
 

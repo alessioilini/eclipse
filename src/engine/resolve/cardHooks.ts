@@ -19,7 +19,7 @@ const ASH_TRAIL_TARGETS = 2;
 const ECLIPSE_ULT_LUNA = 1;
 const SEAL_BREAK_DAMAGE = 2;
 
-const src = (side: Side, card: CardId): CardSource => ({ side, card });
+const src = (side: Side, cardId: CardId): CardSource => ({ side, cardId });
 const isSlotRef = (x: CardHookPlay['secondary']): x is SlotRef => !!x && 'slot' in x;
 
 /** Shield of `target` to 0 (an effect that says «снять Shield»); `shieldRemoved` if there was one. */
