@@ -10,7 +10,7 @@ export function validateDeck(deck: Deck): string[] {
   if (deck.heroes.length !== 6) errors.push('deck must have exactly 6 heroes');
   const seenHeroes = new Set<HeroId>();
   for (const id of deck.heroes) {
-    if (!(id in HEROES)) errors.push(`unknown hero: ${id}`);
+    if (!Object.hasOwn(HEROES, id)) errors.push(`unknown hero: ${id}`);
     else if (seenHeroes.has(id)) errors.push(`duplicate hero: ${id}`);
     seenHeroes.add(id);
   }
@@ -26,8 +26,8 @@ export function validateDeck(deck: Deck): string[] {
   for (const id of deck.cards) counts.set(id, (counts.get(id) ?? 0) + 1);
   let legendaryTotal = 0;
   for (const [id, n] of counts) {
+    if (!Object.hasOwn(CARDS, id)) { errors.push(`unknown card: ${id}`); continue; }
     const def = CARDS[id];
-    if (!def) { errors.push(`unknown card: ${id}`); continue; }
     if (n > 2) errors.push(`more than 2 copies of ${id}`);
     if (def.rarity === 'legendary') {
       legendaryTotal += n;
@@ -60,8 +60,13 @@ function createSide(deck: Deck, shuffled: CardId[]): SideState {
   };
 }
 
-/** Builds the initial state: shuffles both decks (A first, then B) and draws the starting hands of 3. */
+/**
+ * Builds the initial state: shuffles both decks (A first, then B) and draws the starting hands of 3.
+ * Throws `Error('invalid deck: …')` if either deck breaks validateDeck.
+ */
 export function createMatch(deckA: Deck, deckB: Deck, seed: number): MatchState {
+  const errors = [...validateDeck(deckA), ...validateDeck(deckB)];
+  if (errors.length > 0) throw new Error('invalid deck: ' + errors.join('; '));
   const rng = createRng(seed);
   const shuffledA = rng.shuffle(deckA.cards);
   const shuffledB = rng.shuffle(deckB.cards);

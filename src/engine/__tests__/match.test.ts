@@ -55,6 +55,15 @@ describe('validateDeck', () => {
     expect(errors).toContain('unknown hero: ghost');
     expect(errors).toContain('unknown card: nothing');
   });
+
+  it('ключи прототипа (constructor, toString) не считаются героиней или картой', () => {
+    const d = deckA();
+    d.heroes[0] = 'constructor' as never;
+    d.cards[0] = 'toString' as never;
+    const errors = validateDeck(d);
+    expect(errors).toContain('unknown hero: constructor');
+    expect(errors).toContain('unknown card: toString');
+  });
 });
 
 describe('createMatch', () => {
@@ -110,7 +119,15 @@ describe('createMatch', () => {
     expect(results.size).toBeGreaterThan(1);
   });
 
-  it('не мутирует входные колоды', () => {
+  it('невалидная колода → Error("invalid deck: …")', () => {
+    const d = deckA();
+    d.heroes[0] = 'constructor' as never;
+    expect(() => createMatch(d, deckA(), 1)).toThrow('invalid deck: unknown hero: constructor');
+    expect(() => createMatch(deckA(), { ...deckA(), cards: deckA().cards.slice(0, 11) }, 1))
+      .toThrow('invalid deck: deck must have exactly 12 cards');
+  });
+
+    it('не мутирует входные колоды', () => {
     const d = deckA();
     const copy = structuredClone(d);
     createMatch(d, deckA(), 1);

@@ -36,21 +36,29 @@ export function cardCost(state: PlanningState, side: Side, cardId: CardId): numb
   return Math.max(0, cost);
 }
 
-/** Checks a target against the target type; returns an error string or null. */
+/** A well-formed SlotRef: an object with `side` A or B and `slot` 0, 1 or 2 (input may be anything). */
+function isSlotRef(x: unknown): x is SlotRef {
+  if (typeof x !== 'object' || x === null) return false;
+  const r = x as { side?: unknown; slot?: unknown };
+  return (r.side === 'A' || r.side === 'B') && (r.slot === 0 || r.slot === 1 || r.slot === 2);
+}
+
+/** Checks a target against the target type; returns an error string or null. Malformed refs never throw. */
 function checkTarget(state: PlanningState, side: Side, type: TargetType, target: SlotRef | undefined): string | null {
   switch (type) {
     case 'ally':
     case 'allyAndGuardian':
     case 'slotAndReserve':
     case 'reserveSlot':
-      if (!target || target.side !== side) return 'wrong target type';
+      if (!isSlotRef(target) || target.side !== side) return 'wrong target type';
       return isAlive(heroAt(state, target)) ? null : 'target slot is dead';
     case 'enemy':
-      if (!target || target.side !== other(side)) return 'wrong target type';
+      if (!isSlotRef(target) || target.side !== other(side)) return 'wrong target type';
       // A dead enemy is retargeted by the engine, so it is only an error when none is left.
       return aliveActive(state, other(side)).length > 0 ? null : 'target slot is dead';
     default:
-      return null; // self / allies / enemies / none: a supplied target is ignored
+      // self / allies / enemies / none: a supplied target is ignored, but it must not be malformed.
+      return target === undefined || isSlotRef(target) ? null : 'wrong target type';
   }
 }
 
@@ -105,6 +113,7 @@ export function validateCommands(state: PlanningState, side: Side, cmds: SideCom
   const errors: string[] = [];
   let energy = 0;
   let ultimates = 0;
+  const swapInto = new Set<unknown>();
 
   cmds.actions.forEach((action, i) => {
     const slot = i as 0 | 1 | 2;
@@ -113,6 +122,10 @@ export function validateCommands(state: PlanningState, side: Side, cmds: SideCom
     if (!isAlive(hero)) return;
     if (action.type === 'skill') energy += HEROES[hero.id].skill.cost;
     if (action.type === 'ultimate') { energy += ULTIMATE_ENERGY_COST; ultimates += 1; }
+    if (action.type === 'swap') {
+      if (swapInto.has(action.reserveIndex)) errors.push('duplicate reserve index');
+      swapInto.add(action.reserveIndex);
+    }
   });
 
   let budget = energyBudget(state, side);
@@ -126,13 +139,15 @@ export function validateCommands(state: PlanningState, side: Side, cmds: SideCom
       const def = CARDS[cardId];
       const targetError = checkTarget(state, side, def.target, cmds.card.target);
       if (targetError) errors.push(targetError);
-      const sec = cmds.card.secondary;
-      if (def.target === 'allyAndGuardian') {
-        const guardian = sec && 'slot' in sec && sec.side === side ? heroAt(state, sec) : null;
+      const sec: unknown = cmds.card.secondary;
+      const secIsObject = typeof sec === 'object' && sec !== null;
+      if (sec !== undefined && !secIsObject) {
+        errors.push('wrong target type');
+      } else if (def.target === 'allyAndGuardian') {
+        const guardian = isSlotRef(sec) && sec.side === side ? heroAt(state, sec) : null;
         if (!guardian || !isAlive(guardian) || HEROES[guardian.id].role !== 'guardian') errors.push('wrong target type');
-      }
-      if (def.target === 'slotAndReserve') {
-        if (!sec || !('reserveIndex' in sec)) errors.push('wrong target type');
+      } else if (def.target === 'slotAndReserve') {
+        if (!secIsObject || !('reserveIndex' in sec)) errors.push('wrong target type');
         else {
           const reserveError = checkReserve(s, sec.reserveIndex);
           if (reserveError) errors.push(reserveError);

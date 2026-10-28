@@ -63,10 +63,11 @@ describe('validateCommands', () => {
   });
 
   it('bloodPact в команде позволяет потратить 6 в раунде 1', () => {
-    // три aira: skill по 2 Energy, всего 6
-    let s = setRound(makeMatch({ a: ['aira', 'aira', 'aira', 'fenna', 'nerisa', 'tali'] }), 1);
-    s = setLuna(s, 'A', 0);
-    const skills = cmd(skill(0, enemy(0)), skill(1, enemy(0)), skill(2, enemy(0)));
+    // Айра skill 2 + ульты Фенны и Нерисы по 2 = 6 Energy (Полнолуние: две ульты по 2 Luna)
+    let s = setRound(makeMatch(), 1);
+    s = setLuna(s, 'A', 4);
+    s.moon = 'full';
+    const skills = cmd(skill(0, enemy(0)), ult(1), ult(2));
     expect(validateCommands(setHand(s, 'A', ['lunarSpark']), 'A', { ...skills, card: { handIndex: 0 } }))
       .toEqual(['not enough energy']);
     const pact = setHand(s, 'A', ['bloodPact']);
@@ -99,6 +100,47 @@ describe('cover: secondary guardian', () => {
     expect(play(killActive(base(), ally(2)), ally(2))).toEqual(['dead hero cannot act', 'wrong target type']);
     expect(play(base(), enemy(2))).toEqual(['wrong target type']);
     expect(play(base())).toEqual(['wrong target type']);
+  });
+});
+
+describe('validateCommands: некорректный ввод не бросает исключение', () => {
+  const card = (cardId: Parameters<typeof setHand>[2][number], play: Record<string, unknown>) =>
+    validateCommands(setHand(base(), 'A', [cardId]), 'A', {
+      ...cmd(basic(0, enemy(0)), basic(1, enemy(0)), basic(2, enemy(0))),
+      card: { handIndex: 0, ...play } as never,
+    });
+
+  it('basic по слоту 5 → wrong target type', () => {
+    const bad = { type: 'basic', target: { side: 'B', slot: 5 } } as unknown as HeroAction;
+    expect(validateCommands(base(), 'A', cmd(bad, basic(1, enemy(0)), basic(2, enemy(0))))).toEqual(['wrong target type']);
+    const badSide = { type: 'basic', target: { side: 'C', slot: 0 } } as unknown as HeroAction;
+    expect(validateCommands(base(), 'A', cmd(badSide, basic(1, enemy(0)), basic(2, enemy(0))))).toEqual(['wrong target type']);
+  });
+
+  it('союзная цель вне диапазона и не-объект → wrong target type', () => {
+    expect(card('fieldKit', { target: { side: 'A', slot: 3 } })).toEqual(['wrong target type']);
+    expect(card('fieldKit', { target: 'A0' })).toEqual(['wrong target type']);
+    expect(card('fieldKit', { target: null })).toEqual(['wrong target type']);
+  });
+
+  it('secondary не объект или вне диапазона → wrong target type', () => {
+    expect(card('emergencySwap', { target: ally(0), secondary: 1 })).toEqual(['wrong target type']);
+    expect(card('cover', { target: ally(0), secondary: 'nerisa' })).toEqual(['wrong target type']);
+    expect(card('cover', { target: ally(0), secondary: { side: 'A', slot: 7 } })).toEqual(['wrong target type']);
+    expect(card('fieldKit', { target: ally(0), secondary: 42 })).toEqual(['wrong target type']);
+  });
+
+  it('два swap в один и тот же слот резерва → duplicate reserve index', () => {
+    const c = cmd({ type: 'swap', reserveIndex: 1 }, { type: 'swap', reserveIndex: 1 }, basic(2, enemy(0)));
+    expect(validateCommands(base(), 'A', c)).toEqual(['duplicate reserve index']);
+    const ok = cmd({ type: 'swap', reserveIndex: 0 }, { type: 'swap', reserveIndex: 1 }, basic(2, enemy(0)));
+    expect(validateCommands(base(), 'A', ok)).toEqual([]);
+  });
+
+  it('validateCommands на представлении стороны A для стороны B бросает', () => {
+    const s = base();
+    expect(() => validateCommands(viewFor(s, 'A'), 'B', cmd(basic(0, ally(0)), basic(1, ally(0)), basic(2, ally(0)))))
+      .toThrow('hidden');
   });
 });
 
