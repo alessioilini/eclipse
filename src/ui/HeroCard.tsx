@@ -33,11 +33,13 @@ export type HeroCardProps = {
   dimmed?: boolean;
   /** Overrides `hero.chip` (the planning screen passes the player's draft action). */
   chip?: HeroAction;
+  /** The planned action fizzled: the chip is struck through (round playback). */
+  chipStruck?: boolean;
   onTap?: () => void;
   onLongPress?: () => void;
 };
 
-export function HeroCard({ hero, side, slot, selected, dimmed, chip, onTap, onLongPress }: HeroCardProps) {
+export function HeroCard({ hero, side, slot, selected, dimmed, chip, chipStruck, onTap, onLongPress }: HeroCardProps) {
   const def = HEROES[hero.heroId];
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const longFired = useRef(false);
@@ -109,7 +111,7 @@ export function HeroCard({ hero, side, slot, selected, dimmed, chip, onTap, onLo
           ))}
         </span>
       )}
-      {chipText && <span className={styles.chip}>{chipText}</span>}
+      {chipText && <span className={cx(styles.chip, chipStruck && 'struck')}>{chipText}</span>}
     </button>
   );
 }

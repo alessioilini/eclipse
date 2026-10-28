@@ -103,8 +103,8 @@ describe('экран боя: планирование', () => {
     expect(screen.getByText(fmt(ru.battle.round, { n: 1, max: 10 }))).toBeInTheDocument();
     await user.click(confirm());
     expect(useStore.getState().phase).toBe('playback');
-    const placeholder = screen.getByTestId('playback-placeholder');
-    await user.click(within(placeholder).getByRole('button', { name: ru.battle.next }));
+    expect(screen.getByTestId('playback-board')).toBeInTheDocument();
+    await user.click(screen.getByTestId('skip'));
     expect(useStore.getState().phase).toBe('planning');
     expect(screen.getByText(fmt(ru.battle.round, { n: 2, max: 10 }))).toBeInTheDocument();
     expect(screen.getByTestId('confirm')).toBeDisabled();

@@ -42,9 +42,14 @@ export type NewMatchOpts = {
 
 /** createMatch + startRound: сессия ждёт команд первого раунда. */
 export function newMatch(playerDeck: Deck, opts: NewMatchOpts): MatchSession {
+  return openMatch(playerDeck, opts).session;
+}
+
+/** Как `newMatch`, плюс события начала первого раунда для игрока (roundStart, добор) — для журнала. */
+export function openMatch(playerDeck: Deck, opts: NewMatchOpts): { session: MatchSession; events: EngineEvent[] } {
   const created = createMatch(playerDeck, opts.opponentDeck, opts.seed);
-  const { state } = startRound(created);
-  return {
+  const { state, events } = startRound(created);
+  const session: MatchSession = {
     state,
     botSeed: opts.seed,
     mode: opts.mode,
@@ -53,6 +58,7 @@ export function newMatch(playerDeck: Deck, opts: NewMatchOpts): MatchSession {
     opponentDeck: opts.opponentDeck,
     ...(opts.enemy ? { enemy: opts.enemy } : {}),
   };
+  return { session, events: eventsFor(events, 'A') };
 }
 
 /** Погибшие слоты получают `none` сразу (движок принимает только его), живые ждут выбора. */

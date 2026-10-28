@@ -13,6 +13,7 @@
   --el-dark: #b48cff;
   --el-star: #ff9ad5;
 
+  --font-mono: ui-monospace, Menlo, Consolas, monospace;
   --font: system-ui, -apple-system, 'Segoe UI', Roboto, Inter, 'Helvetica Neue', Arial, sans-serif;
   --fs-12: 12px;
   --fs-14: 14px;
@@ -44,5 +45,6 @@
 
   /* Translucent layers */
   --scrim: rgba(5, 7, 18, 0.72);
+  --blood-flash: rgba(255, 92, 122, 0.45);
   --hp: var(--el-wind);
 }

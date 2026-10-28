@@ -4,7 +4,9 @@ import type { HeroAction, Slot } from '../engine';
 import { randomDeck } from '../engine/sim';
 import { defaultSave, type SaveV1 } from '../game/save/defaults';
 import { SAVE_KEY } from '../game/save/storage';
-import { newMatch } from '../game/session';
+import { formatLog } from '../engine/log';
+import { viewFromPublic } from '../game/playback/viewReducer';
+import { newMatch, playerView } from '../game/session';
 import { attachPersistence, hydrate, toSave, useStore } from './index';
 
 type FakeStorage = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>;
@@ -113,6 +115,18 @@ describe('сохранение стора', () => {
     expect(storage.setItem).not.toHaveBeenCalled();
   });
 
+  it('advanceBeat и skipPlayback не пишут сохранение', () => {
+    const storage = fakeStorage();
+    useStore.getState().startMatch(playerDeck(), opts());
+    fillDraft();
+    useStore.getState().confirm();
+    detach = attachPersistence(storage);
+    useStore.getState().advanceBeat();
+    useStore.getState().skipPlayback();
+    expect(useStore.getState().beatIndex).toBe(useStore.getState().beats.length);
+    expect(storage.setItem).not.toHaveBeenCalled();
+  });
+
   it('после отписки сохранение не пишется', () => {
     const storage = fakeStorage();
     attachPersistence(storage)();
@@ -149,7 +163,12 @@ describe('матч в сторе', () => {
     expect(s.session?.state.round).toBe(1);
     expect(s.phase).toBe('planning');
     expect(s.draft).toEqual({ actions: [null, null, null], card: null });
-    expect(s.allEvents).toEqual([]);
+    // События начала первого раунда (roundStart, добор) уже в журнале.
+    expect(s.lastEvents.length).toBeGreaterThan(0);
+    expect(s.lastEvents.every(e => e.round === 1 && e.phase === 'roundStart')).toBe(true);
+    expect(s.lastEvents.some(e => e.type === 'roundStart')).toBe(true);
+    expect(s.allEvents).toEqual(s.lastEvents);
+    expect(s.viewBeforePlayback).toBeNull();
   });
 
   it('startMatch сбрасывает выбранную героиню и открытый лист', () => {
@@ -208,7 +227,50 @@ describe('матч в сторе', () => {
     fillDraft();
     useStore.getState().confirm();
     s = useStore.getState();
-    expect(s.allEvents).toEqual([...first, ...s.lastEvents]);
+    // lastEvents: начало раунда 2 (хвост прошлого журнала) + его разрешение + начало раунда 3.
+    const start2 = first.filter(e => e.round === 2);
+    expect(start2.length).toBeGreaterThan(0);
+    expect(s.lastEvents.slice(0, start2.length)).toEqual(start2);
+    expect(s.allEvents).toEqual([...first, ...s.lastEvents.slice(start2.length)]);
+  });
+
+  it('журнал последнего раунда начинается со строки «R1 Moon=new»', () => {
+    useStore.getState().startMatch(playerDeck(), opts());
+    fillDraft();
+    useStore.getState().confirm();
+    const s = useStore.getState();
+    expect(formatLog(s.lastEvents, s.session!.state).split('\n')[0]).toBe('R1 Moon=new');
+  });
+
+  it('confirm запоминает отображение до раунда', () => {
+    useStore.getState().startMatch(playerDeck(), opts());
+    const before = viewFromPublic(playerView(useStore.getState().session!));
+    fillDraft();
+    useStore.getState().confirm();
+    expect(useStore.getState().viewBeforePlayback).toEqual(before);
+    expect(useStore.getState().session?.state.round).toBe(2);
+  });
+
+  it('confirm вне планирования ничего не делает', () => {
+    useStore.getState().startMatch(playerDeck(), opts());
+    fillDraft();
+    useStore.getState().confirm();
+    const during = useStore.getState();
+    during.confirm();
+    const after = useStore.getState();
+    expect(after.session).toBe(during.session);
+    expect(after.beats).toBe(during.beats);
+    expect(after.allEvents).toBe(during.allEvents);
+    expect(after.phase).toBe('playback');
+  });
+
+  it('finishPlayback вне проигрывания ничего не делает', () => {
+    useStore.getState().startMatch(playerDeck(), opts());
+    useStore.getState().setAction(0, basicOn(1));
+    const draft = useStore.getState().draft;
+    useStore.getState().finishPlayback();
+    expect(useStore.getState().phase).toBe('planning');
+    expect(useStore.getState().draft).toBe(draft);
   });
 
   it('surrender завершает матч, finishPlayback после конца даёт finished', () => {
@@ -235,7 +297,18 @@ describe('матч в сторе', () => {
     expect(s.beatIndex).toBe(0);
     expect(s.lastEvents).toEqual([]);
     expect(s.allEvents).toEqual([]);
+    expect(s.viewBeforePlayback).toBeNull();
     expect(toSave(s).match).toBeNull();
+  });
+
+  it('hydrate сбрасывает отображение до раунда', () => {
+    useStore.getState().startMatch(playerDeck(), opts());
+    fillDraft();
+    useStore.getState().confirm();
+    expect(useStore.getState().viewBeforePlayback).not.toBeNull();
+    const restored = hydrate(toSave(useStore.getState()));
+    expect(restored.viewBeforePlayback).toBeNull();
+    expect(restored.phase).toBe('planning');
   });
 });
 

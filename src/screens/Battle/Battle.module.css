@@ -79,6 +79,7 @@
 }
 
 .center {
+  position: relative;
   display: flex;
   justify-content: center;
 }
@@ -98,13 +99,6 @@
 .confirm {
   display: flex;
   flex-direction: column;
-}
-
-.placeholder {
-  display: flex;
-  flex: 1;
-  align-items: center;
-  justify-content: center;
 }
 
 .empty {
@@ -149,4 +143,112 @@
 .sheetTitle {
   margin: 0;
   font-size: var(--fs-20);
+}
+
+/* Проигрывание раунда: поле целиком — зона тапа «следующий бит». */
+.board {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-8);
+  cursor: pointer;
+}
+
+/* Карточка с её эффектами бита (числа, срыв) поверх. */
+.slot {
+  position: relative;
+}
+
+.shake {
+  animation: shake 400ms ease-in-out;
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(calc(-1 * var(--sp-4))); }
+  40%, 80% { transform: translateX(var(--sp-4)); }
+}
+
+.fx {
+  position: absolute;
+  inset: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  pointer-events: none;
+}
+
+.fxItem {
+  position: relative;
+  width: 100%;
+  height: var(--sp-24);
+}
+
+.fizzleNote {
+  padding: 0 var(--sp-4);
+  border-radius: var(--r-8);
+  background: var(--scrim);
+  color: var(--danger);
+  font-size: var(--fs-12);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.flights {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-8);
+  pointer-events: none;
+}
+
+.flight {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: var(--card-w);
+  padding: var(--sp-8);
+  border: var(--border) solid var(--accent);
+  border-radius: var(--r-8);
+  background: var(--surface);
+  font-size: var(--fs-14);
+  font-weight: 600;
+}
+
+.struck .flightName {
+  text-decoration: line-through;
+  color: var(--muted);
+}
+
+.flightReason {
+  color: var(--danger);
+  font-size: var(--fs-12);
+}
+
+/* Вспышка Кровавой Луны на весь экран. */
+.flash {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--blood-flash);
+  color: var(--text);
+  font-size: var(--fs-28);
+  font-weight: 700;
+  pointer-events: none;
+}
+
+/* Журнал: прокручиваемый моноширинный список строк formatLog. */
+.logBody {
+  max-height: 60dvh;
+  overflow-y: auto;
+  font-family: var(--font-mono);
+  font-size: var(--fs-12);
+}
+
+.logLine {
+  white-space: pre-wrap;
 }

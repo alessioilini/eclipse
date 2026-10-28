@@ -2,8 +2,10 @@ import type { StateCreator } from 'zustand';
 import type { CardPlay, Deck, EngineEvent, HeroAction, Slot } from '../engine';
 import type { Beat } from '../game/playback/toBeats';
 import { toBeats } from '../game/playback/toBeats';
+import type { ViewState } from '../game/playback/types';
+import { viewFromPublic } from '../game/playback/viewReducer';
 import {
-  confirmRound, emptyDraft, isFinished, newMatch, surrender as surrenderSession,
+  confirmRound, emptyDraft, isFinished, openMatch, playerView, surrender as surrenderSession,
 } from '../game/session';
 import type { Draft, MatchSession, NewMatchOpts } from '../game/session';
 import type { StoreState } from './index';
@@ -16,10 +18,15 @@ export type MatchSlice = {
   phase: MatchPhase;
   beats: Beat[];
   beatIndex: number;
-  /** События последнего подтверждённого раунда (вместе с началом следующего). */
+  /**
+   * События последнего раунда для журнала: его начало (roundStart, добор), разрешение после
+   * подтверждения и начало следующего. До первого подтверждения — только начало первого раунда.
+   */
   lastEvents: EngineEvent[];
-  /** Все события матча с начала (для журнала). */
+  /** Все события матча с начала (для журнала), без повторов. */
   allEvents: EngineEvent[];
+  /** Отображение перед проигрыванием: с него экран проигрывания применяет биты. */
+  viewBeforePlayback: ViewState | null;
   /** Шаг сценария обучения, сохраняемый вместе с матчем (SaveV1.match.tutorialStepIndex). */
   tutorialStepIndex: number | null;
   startMatch(playerDeck: Deck, opts: NewMatchOpts): void;
@@ -37,10 +44,11 @@ export const blankDraft = (): Draft => ({ actions: [null, null, null], card: nul
 
 /** Данные среза без матча. */
 export const noMatch = (): Pick<
-  MatchSlice, 'session' | 'draft' | 'phase' | 'beats' | 'beatIndex' | 'lastEvents' | 'allEvents' | 'tutorialStepIndex'
+  MatchSlice,
+  'session' | 'draft' | 'phase' | 'beats' | 'beatIndex' | 'lastEvents' | 'allEvents' | 'viewBeforePlayback' | 'tutorialStepIndex'
 > => ({
   session: null, draft: blankDraft(), phase: 'planning', beats: [], beatIndex: 0, lastEvents: [], allEvents: [],
-  tutorialStepIndex: null,
+  viewBeforePlayback: null, tutorialStepIndex: null,
 });
 
 function requireSession(session: MatchSession | null): MatchSession {
@@ -51,8 +59,11 @@ function requireSession(session: MatchSession | null): MatchSession {
 export const createMatchSlice: StateCreator<StoreState, [], [], MatchSlice> = (set, get) => ({
   ...noMatch(),
   startMatch(playerDeck, opts) {
-    const session = newMatch(playerDeck, opts);
-    set({ ...noMatch(), session, draft: emptyDraft(session.state), selectedSlot: null, sheet: null });
+    const { session, events } = openMatch(playerDeck, opts);
+    set({
+      ...noMatch(), session, draft: emptyDraft(session.state), lastEvents: events, allEvents: events,
+      selectedSlot: null, sheet: null,
+    });
   },
   setAction(slot, action) {
     const { draft } = get();
@@ -64,10 +75,15 @@ export const createMatchSlice: StateCreator<StoreState, [], [], MatchSlice> = (s
     set({ draft: { ...get().draft, card: play } });
   },
   confirm() {
-    const { session: current, draft, allEvents } = get();
-    const { session, events } = confirmRound(requireSession(current), draft);
+    const { session: current, draft, allEvents, lastEvents, phase } = get();
+    if (phase !== 'planning') return;
+    const before = requireSession(current);
+    const viewBeforePlayback = viewFromPublic(playerView(before));
+    const { session, events } = confirmRound(before, draft);
+    // Начало этого раунда уже в хвосте прошлого журнала: журнал раунда начинается с него.
+    const roundStart = lastEvents.filter(e => e.round === before.state.round);
     set({
-      session, lastEvents: events, allEvents: [...allEvents, ...events],
+      session, viewBeforePlayback, lastEvents: [...roundStart, ...events], allEvents: [...allEvents, ...events],
       beats: toBeats(events), beatIndex: 0, phase: 'playback',
     });
   },
@@ -79,8 +95,8 @@ export const createMatchSlice: StateCreator<StoreState, [], [], MatchSlice> = (s
     set({ beatIndex: get().beats.length });
   },
   finishPlayback() {
-    const { session } = get();
-    if (!session) return;
+    const { session, phase } = get();
+    if (!session || phase !== 'playback') return;
     if (isFinished(session)) set({ phase: 'finished' });
     else set({ phase: 'planning', draft: emptyDraft(session.state) });
   },

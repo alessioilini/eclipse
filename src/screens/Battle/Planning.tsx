@@ -20,6 +20,7 @@ import { MoonWidget } from '../../ui/MoonWidget';
 import { ReserveCard } from '../../ui/ReserveCard';
 import { ResourceBar } from '../../ui/ResourceBar';
 import styles from './Battle.module.css';
+import { LayoutSlot } from './BeatEffects';
 
 const SLOTS: Slot[] = [0, 1, 2];
 
@@ -121,6 +122,31 @@ function HeroSheet({ display, target, onClose }: { display: ViewState; target: S
         </Button>
       </div>
     </div>
+  );
+}
+
+/** Резерв противника, рубашки его руки, размер колоды и Luna (общая полоса планирования и проигрывания). */
+export function OpponentBar({ foe, deckSize }: { foe: ViewState['sides']['B']; deckSize: number }) {
+  return (
+    <section className={styles.oppReserve}>
+      <div className={styles.reserveRow}>
+        {foe.reserve.map((h, i) => (
+          <LayoutSlot key={h.heroId} id={`B-${h.heroId}`}>
+            <ReserveCard hero={h} side="B" index={i as Slot} />
+          </LayoutSlot>
+        ))}
+      </div>
+      <div className={styles.oppInfo}>
+        <span className={styles.oppHand} data-testid="opp-hand" aria-label={fmt(ru.battle.hand, { n: foe.handSize })}>
+          {Array.from({ length: foe.handSize }, (_, i) => (
+            <span key={i} className={styles.cardBack} aria-hidden="true" />
+          ))}
+          <span className={styles.count}>{foe.handSize}</span>
+        </span>
+        <span className={styles.muted}>{fmt(ru.battle.deck, { n: deckSize })}</span>
+        <span className={styles.muted}>{fmt(ru.battle.lunaCount, { n: foe.luna })}</span>
+      </div>
+    </section>
   );
 }
 
@@ -232,23 +258,7 @@ export function Planning({ session }: { session: MatchSession }) {
 
   return (
     <>
-      <section className={styles.oppReserve}>
-        <div className={styles.reserveRow}>
-          {foe.reserve.map((h, i) => (
-            <ReserveCard key={i} hero={h} side="B" index={i as Slot} />
-          ))}
-        </div>
-        <div className={styles.oppInfo}>
-          <span className={styles.oppHand} data-testid="opp-hand" aria-label={fmt(ru.battle.hand, { n: foe.handSize })}>
-            {Array.from({ length: foe.handSize }, (_, i) => (
-              <span key={i} className={styles.cardBack} aria-hidden="true" />
-            ))}
-            <span className={styles.count}>{foe.handSize}</span>
-          </span>
-          <span className={styles.muted}>{fmt(ru.battle.deck, { n: foeView.deckSize })}</span>
-          <span className={styles.muted}>{fmt(ru.battle.lunaCount, { n: foe.luna })}</span>
-        </div>
-      </section>
+      <OpponentBar foe={foe} deckSize={foeView.deckSize} />
 
       <section className={styles.row}>
         {foe.active.map((h, i) => {

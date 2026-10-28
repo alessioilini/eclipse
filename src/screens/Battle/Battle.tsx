@@ -4,32 +4,16 @@ import { navigate } from '../../router';
 import { useStore } from '../../store';
 import { Button } from '../../ui/Button';
 import styles from './Battle.module.css';
+import { LogDrawer } from './LogDrawer';
 import { Planning } from './Planning';
-
-/** Заглушка проигрывания: Task 10 заменит её анимацией битов. */
-function PlaybackPlaceholder() {
-  const skipPlayback = useStore((s) => s.skipPlayback);
-  const finishPlayback = useStore((s) => s.finishPlayback);
-  return (
-    <div className={styles.placeholder} data-testid="playback-placeholder">
-      <Button
-        variant="primary"
-        size="lg"
-        onClick={() => {
-          skipPlayback();
-          finishPlayback();
-        }}
-      >
-        {ru.battle.next}
-      </Button>
-    </div>
-  );
-}
+import { Playback } from './Playback';
 
 export function Battle() {
   const session = useStore((s) => s.session);
   const phase = useStore((s) => s.phase);
   const openSheet = useStore((s) => s.openSheet);
+  const sheet = useStore((s) => s.sheet);
+  const before = useStore((s) => s.viewBeforePlayback);
   const back = () => navigate({ name: 'menu' });
 
   if (!session) {
@@ -51,15 +35,22 @@ export function Battle() {
         </Button>
         <span className={styles.title}>
           <span className={styles.opponent}>{ru.battle.opponent}</span>
-          <span className={styles.round}>{fmt(ru.battle.round, { n: session.state.round, max: MAX_ROUNDS })}</span>
+          <span className={styles.round}>
+            {fmt(ru.battle.round, {
+              // Во время проигрывания движок уже в следующем раунде; шапка показывает проигрываемый.
+              n: phase === 'playback' && before ? before.round : session.state.round,
+              max: MAX_ROUNDS,
+            })}
+          </span>
         </span>
         <Button variant="ghost" onClick={() => openSheet({ kind: 'log' })}>
           {ru.battle.log}
         </Button>
       </header>
       {phase === 'planning' && <Planning session={session} />}
-      {phase === 'playback' && <PlaybackPlaceholder />}
+      {phase === 'playback' && <Playback session={session} />}
       {phase === 'finished' && <p className={styles.empty}>{ru.common.soon}</p>}
+      {sheet?.kind === 'log' && <LogDrawer session={session} />}
     </main>
   );
 }

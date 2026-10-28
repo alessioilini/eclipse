@@ -110,3 +110,8 @@
   font-weight: 600;
   white-space: nowrap;
 }
+
+.chip:global(.struck) {
+  text-decoration: line-through;
+  opacity: 0.6;
+}

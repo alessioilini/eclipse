@@ -1,4 +1,6 @@
-import type { BlockReason, Element, Role, StatusId, Timing, ValidationCode } from '../engine';
+import type {
+  BlockReason, CardFizzleReason, Element, HeroFizzleReason, Role, StatusId, Timing, ValidationCode,
+} from '../engine';
 
 // Re-exported for UI modules that already import them from here.
 export type { BlockReason, ValidationCode };
@@ -52,6 +54,19 @@ export const ru = {
     energy: 'Энергия',
     luna: 'Luna',
     shield: 'Щит',
+    fizzle: 'Сорвано',
+    fizzleReasons: {
+      silence: 'Молчание',
+      freeze: 'Заморозка',
+      energy: 'нет энергии',
+      luna: 'нет Luna',
+      'target dead': 'цель пала',
+      'reserve dead': 'резерв пал',
+      'no target': 'нет цели',
+      'no guardian': 'нет стража',
+    } satisfies Record<HeroFizzleReason | CardFizzleReason, string>,
+    cardBack: 'Карта',
+    logEmpty: 'Журнал пуст',
   },
   statuses: {
     burn: { short: 'Г', name: 'Горение' },
