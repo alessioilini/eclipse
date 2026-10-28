@@ -1,0 +1,22 @@
+.number {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: var(--fs-20);
+  font-weight: 700;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.damage {
+  color: var(--danger);
+}
+
+.heal {
+  color: var(--el-wind);
+}
+
+.shield {
+  color: var(--el-water);
+}

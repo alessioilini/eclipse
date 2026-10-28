@@ -1,0 +1,162 @@
+.screen {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-16);
+  min-height: 100dvh;
+  padding: var(--sp-16);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-8);
+}
+
+.title {
+  margin: 0;
+  font-size: var(--fs-28);
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-4);
+}
+
+.chip {
+  min-height: var(--tap);
+  padding: 0 var(--sp-12);
+  border: 1px solid var(--muted);
+  border-radius: var(--r-16);
+  background: var(--bg);
+  color: var(--text);
+  font-size: var(--fs-14);
+  cursor: pointer;
+}
+
+.chipOn {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--bg);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--sp-8);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-4);
+  width: 100%;
+  min-height: var(--tap);
+  padding: var(--sp-4);
+  border: var(--border) solid var(--tile-color);
+  border-radius: var(--r-16);
+  background: var(--surface);
+  color: var(--text);
+  font-size: var(--fs-14);
+  cursor: pointer;
+}
+
+.locked {
+  opacity: 0.45;
+  border-color: var(--muted);
+  cursor: default;
+}
+
+.name {
+  font-weight: 600;
+}
+
+.meta {
+  color: var(--muted);
+  font-size: var(--fs-12);
+}
+
+.detail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-16);
+}
+
+.hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-4);
+}
+
+.heroName {
+  margin: 0;
+  font-size: var(--fs-28);
+}
+
+.stats {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--sp-8);
+}
+
+.stat {
+  padding: var(--sp-4) var(--sp-12);
+  border-radius: var(--r-8);
+  background: var(--surface);
+  font-size: var(--fs-14);
+}
+
+.block {
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  padding: var(--sp-12);
+  border-radius: var(--r-16);
+  background: var(--surface);
+}
+
+.blockHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--sp-8);
+}
+
+.blockLabel {
+  color: var(--muted);
+  font-size: var(--fs-12);
+}
+
+.abilityName {
+  font-size: var(--fs-16);
+  font-weight: 600;
+}
+
+.cost {
+  margin-left: auto;
+  color: var(--accent);
+  font-size: var(--fs-14);
+}
+
+.text {
+  margin: 0;
+  font-size: var(--fs-14);
+}
+
+.note {
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--fs-14);
+}
+
+.stub {
+  align-items: flex-start;
+}

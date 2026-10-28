@@ -1,0 +1,54 @@
+import { Suspense, lazy, useEffect } from 'react';
+import { ru } from './i18n/ru';
+import { navigate, toHash, useRoute } from './router';
+import { Crashed } from './screens/Crashed';
+import { Decks } from './screens/Decks';
+import { Menu } from './screens/Menu';
+import { useStore } from './store';
+import { ErrorBoundary } from './ui/ErrorBoundary';
+
+// Меню и список колод — в основном чанке (первый экран); остальные экраны грузятся по маршруту:
+// бой с framer-motion и проигрыванием не задерживает первую отрисовку меню (критерий 6 спеки).
+const Battle = lazy(() => import('./screens/Battle/Battle').then((m) => ({ default: m.Battle })));
+const Tutorial = lazy(() => import('./screens/Tutorial').then((m) => ({ default: m.Tutorial })));
+const DeckBuilder = lazy(() => import('./screens/DeckBuilder').then((m) => ({ default: m.DeckBuilder })));
+const Heroes = lazy(() => import('./screens/Heroes').then((m) => ({ default: m.Heroes })));
+const HeroDetail = lazy(() => import('./screens/HeroDetail').then((m) => ({ default: m.HeroDetail })));
+const Result = lazy(() => import('./screens/Result').then((m) => ({ default: m.Result })));
+
+export function App() {
+  const route = useRoute();
+  // Бой обучения живёт только на #/tutorial/:id (оверлей, награды); #/battle с ним перенаправляется туда.
+  const tutorialId = useStore((s) => (s.session?.mode === 'tutorial' ? s.session.tutorialId ?? null : null));
+  const redirect = route.name === 'battle' ? tutorialId : null;
+  useEffect(() => {
+    if (redirect !== null) navigate({ name: 'tutorial', id: redirect });
+  }, [redirect]);
+  return (
+    <div className="app">
+      <ErrorBoundary resetKey={toHash(route)} fallback={(reset) => <Crashed onDone={reset} />}>
+        <Suspense fallback={<div className="app" />}>
+          {route.name === 'menu' ? (
+            <Menu />
+          ) : route.name === 'tutorial' ? (
+            <Tutorial key={route.id} id={route.id} />
+          ) : route.name === 'battle' ? (
+            redirect === null && <Battle />
+          ) : route.name === 'result' ? (
+            <Result />
+          ) : route.name === 'decks' ? (
+            <Decks />
+          ) : route.name === 'deck' ? (
+            <DeckBuilder key={route.id} id={route.id} />
+          ) : route.name === 'heroes' ? (
+            <Heroes />
+          ) : route.name === 'hero' ? (
+            <HeroDetail key={route.id} id={route.id} />
+          ) : (
+            <p style={{ padding: 'var(--sp-24)' }}>{ru.common.soon}</p>
+          )}
+        </Suspense>
+      </ErrorBoundary>
+    </div>
+  );
+}

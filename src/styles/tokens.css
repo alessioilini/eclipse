@@ -1,0 +1,50 @@
+:root {
+  --bg: #0b0e1f;
+  --surface: #161a33;
+  --text: #e8e6ff;
+  --muted: #8f8fb3;
+  --accent: #f2c76b;
+  --danger: #ff5c7a;
+
+  --el-fire: #ff7a45;
+  --el-water: #4cc3ff;
+  --el-wind: #7ee787;
+  --el-light: #ffe08a;
+  --el-dark: #b48cff;
+  --el-star: #ff9ad5;
+
+  --font-mono: ui-monospace, Menlo, Consolas, monospace;
+  --font: system-ui, -apple-system, 'Segoe UI', Roboto, Inter, 'Helvetica Neue', Arial, sans-serif;
+  --fs-12: 12px;
+  --fs-14: 14px;
+  --fs-16: 16px;
+  --fs-20: 20px;
+  --fs-28: 28px;
+
+  --sp-4: 4px;
+  --sp-8: 8px;
+  --sp-12: 12px;
+  --sp-16: 16px;
+  --sp-24: 24px;
+
+  --r-8: 8px;
+  --r-16: 16px;
+
+  --tap: 44px;
+
+  /* Component sizes */
+  --art-sm: 32px;
+  --art-md: 48px;
+  --art-lg: 96px;
+  --moon: 64px;
+  --bar-h: 6px;
+  --card-w: 112px;
+  --hero-w: 104px;
+  --dot: 12px;
+  --border: 2px;
+
+  /* Translucent layers */
+  --scrim: rgba(5, 7, 18, 0.72);
+  --blood-flash: rgba(255, 92, 122, 0.45);
+  --hp: var(--el-wind);
+}

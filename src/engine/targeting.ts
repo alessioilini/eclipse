@@ -1,4 +1,5 @@
 import type { HeroState, MatchState, Side, SideState, Slot, SlotRef } from './types';
+import type { RedirectReason } from './events';
 import { hasStatus, isAlive } from './status';
 
 const SLOTS: Slot[] = [0, 1, 2];
@@ -10,7 +11,7 @@ export const REDIRECT_COVER = 2;
 export const ZEFIRA_INTERCEPT_KEY = 'zefira.intercept';
 export const ZEFIRA_REDUCTION = 2;
 
-export type InterceptReason = 'taunt' | 'cover' | 'nerisa' | 'zefira' | null;
+export type InterceptReason = RedirectReason | null;
 export type InterceptResult = { target: SlotRef; reason: InterceptReason; reduction: number };
 
 /** The part of a state that the read-only lookups need: a full MatchState or a PublicState. */

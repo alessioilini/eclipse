@@ -2,6 +2,7 @@ import { createMatch } from '../match';
 import { resolveRound, startRound } from '../resolve/round';
 import { CARD_IDS } from '../data/cards';
 import type { CardId, CardPlay, GameEvent, HeroAction, HeroId, MatchState, Side, Slot, SideCommands, SlotRef } from '../types';
+import type { EngineEvent, EventOf } from '../events';
 
 export function makeMatch(opts: { a?: HeroId[]; b?: HeroId[]; cardsA?: CardId[]; cardsB?: CardId[]; seed?: number } = {}): MatchState {
   const heroesA = opts.a ?? ['aira', 'fenna', 'nerisa', 'tali', 'zefira', 'liraya'];
@@ -12,6 +13,10 @@ export function makeMatch(opts: { a?: HeroId[]; b?: HeroId[]; cardsA?: CardId[];
     opts.seed ?? 1,
   );
 }
+
+/** Events of one type, narrowed to that member of EngineEvent. */
+export const ofType = <T extends EngineEvent['type']>(events: EngineEvent[], type: T): EventOf<T>[] =>
+  events.filter((e): e is EventOf<T> => e.type === type);
 
 export const enemy = (slot: Slot): SlotRef => ({ side: 'B', slot });
 export const ally = (slot: Slot): SlotRef => ({ side: 'A', slot });

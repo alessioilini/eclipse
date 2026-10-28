@@ -6,12 +6,11 @@ import { playStandard, playSwift, revealCards } from '../resolve/cards';
 import { cardCost, ultimateLunaCost, validateCommands } from '../validate';
 import { HEROES } from '../data/heroes';
 import type { CardId, CardPlay, GameEvent, HeroAction, HeroId, MatchState, Side, SideCommands, Slot, SlotRef, Status } from '../types';
-import { makeMatch, cmd, basic, skill, ult, swap, enemy, ally, setRound } from './helpers';
+import { makeMatch, cmd, basic, skill, ult, swap, enemy, ally, setRound, ofType } from './helpers';
 
 const A_TEAM: HeroId[] = ['tali', 'liraya', 'aira', 'fenna', 'nerisa', 'zefira'];
 const B_TEAM: HeroId[] = ['kira', 'nokta', 'justina', 'aurora', 'mira', 'selena'];
 
-const ofType = (events: GameEvent[], type: string) => events.filter(e => e.type === type);
 const isRef = (a: unknown, b: SlotRef) => {
   const r = a as SlotRef | undefined;
   return !!r && r.side === b.side && r.slot === b.slot;
@@ -177,7 +176,7 @@ describe('Swift-карты', () => {
     const started = startRound(makeMatch({ a: A_TEAM, b: B_TEAM })).state;
     started.sides.A.luna = 3;
     setCards(started, 'A', ['bloodPact']);
-    expect(validateCommands(started, 'A', a())).toEqual(['not enough energy']);
+    expect(validateCommands(started, 'A', a())).toEqual([{ code: 'ENERGY' }]);
     expect(validateCommands(started, 'A', a(play(ally(0))))).toEqual([]);
 
     const r = resolveRound(started, { A: a(play(ally(0))), B: bCmd(undefined, ally(2), ally(1), ally(1)) });
@@ -472,8 +471,8 @@ describe('карты: общие правила', () => {
     const started = startRound(makeMatch({ a: A_TEAM, b: B_TEAM })).state;
     setCards(started, 'A', ['lunarSpark', 'reserveImpulse']);
     const two = { ...aCmd(), card: [play(), { handIndex: 1 }] } as unknown as SideCommands;
-    expect(validateCommands(started, 'A', two)).toEqual(['one card per round']);
-    expect(() => resolveRound(started, { A: two, B: bCmd() })).toThrow('A: one card per round');
+    expect(validateCommands(started, 'A', two)).toEqual([{ code: 'ONE_CARD', card: true }]);
+    expect(() => resolveRound(started, { A: two, B: bCmd() })).toThrow('A: ONE_CARD');
   });
 
   it('ульта Авроры после планирования поднимает цену Standard-карты → карта сгорает (fizzle)', () => {

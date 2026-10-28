@@ -82,6 +82,9 @@ function allHeroes(side: SideState): HeroState[] {
   return [...side.active, ...side.reserve];
 }
 
+/** Spec §2.2: a match lasts at most this many rounds; the last one ends with the tie-break. */
+export const MAX_ROUNDS = 10;
+
 /** Spec §2.2. Pure: returns null while the match is not over. */
 export function getWinner(state: MatchState): MatchState['result'] {
   const a = state.sides.A, b = state.sides.B;
@@ -91,7 +94,7 @@ export function getWinner(state: MatchState): MatchState['result'] {
   if (aliveA === 0 && aliveB === 0) return { winner: 'draw', reason: 'wipe' };
   if (aliveB === 0) return { winner: 'A', reason: 'wipe' };
   if (aliveA === 0) return { winner: 'B', reason: 'wipe' };
-  if (state.round < 10) return null;
+  if (state.round < MAX_ROUNDS) return null;
 
   if (aliveA !== aliveB) return { winner: aliveA > aliveB ? 'A' : 'B', reason: 'heroes' };
 

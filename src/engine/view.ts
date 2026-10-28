@@ -1,4 +1,5 @@
-import type { GameEvent, MatchState, Side, SideState } from './types';
+import type { EngineEvent } from './events';
+import type { MatchState, Side, SideState } from './types';
 import { other } from './targeting';
 
 /** The viewer's own side: hand and discard visible, the deck order hidden behind its size (ruling R33). */
@@ -25,17 +26,15 @@ export function viewFor(state: MatchState, side: Side): PublicState {
   return { ...copy, sides: { [side]: own, [foe]: opponent } as Record<Side, OwnView | OpponentView> };
 }
 
-/** Events that reveal a card id privately to its owner: the opponent sees only that it happened. */
-const PRIVATE_CARD_EVENTS = new Set(['draw', 'discardOverflow']);
-
 /**
  * Events as seen by `side` (ruling R33): a copy in which the opponent's `draw` and `discardOverflow`
- * events lose their `cardId`; every other event is copied unchanged.
+ * events (they reveal a card id privately to its owner) lose their `cardId`; every other event is
+ * copied unchanged.
  */
-export function eventsFor(events: GameEvent[], side: Side): GameEvent[] {
+export function eventsFor(events: EngineEvent[], side: Side): EngineEvent[] {
   return events.map(ev => {
     const copy = structuredClone(ev);
-    if (PRIVATE_CARD_EVENTS.has(ev.type) && ev['side'] !== side) delete copy['cardId'];
+    if ((copy.type === 'draw' || copy.type === 'discardOverflow') && copy.side !== side) delete copy.cardId;
     return copy;
   });
 }

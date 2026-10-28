@@ -1,0 +1,45 @@
+.screen {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-12);
+  min-height: 100dvh;
+  padding: var(--sp-24) var(--sp-16);
+  text-align: center;
+}
+
+.title {
+  margin: 0;
+  font-size: var(--fs-28);
+  color: var(--accent);
+}
+
+.lost {
+  color: var(--danger);
+}
+
+.reason,
+.rounds {
+  margin: 0;
+  font-size: var(--fs-14);
+  color: var(--muted);
+}
+
+.moment {
+  margin: var(--sp-12) 0;
+  padding: var(--sp-16);
+  max-width: 100%;
+  border: var(--border) solid var(--accent);
+  border-radius: var(--r-16);
+  background: var(--surface);
+  font-size: var(--fs-20);
+}
+
+.actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-8);
+  width: 100%;
+  max-width: calc(var(--card-w) * 3);
+}

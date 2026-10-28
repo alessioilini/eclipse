@@ -3,7 +3,7 @@ import { elementMultiplier } from './data/elements';
 import { hasStatus, removeStatus } from './status';
 
 const BLOOD_MOON_DAMAGE_MULT = 1.2;
-const ECLIPSE_ROUND = 7;
+export const ECLIPSE_ROUND = 7;
 const ECLIPSE_DAMAGE_MULT = 1.25;
 const ECLIPSE_HEAL_MULT = 0.5;
 const ECLIPSE_SHIELD_MULT = 0.75;

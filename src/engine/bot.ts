@@ -14,8 +14,8 @@ export { scoreCommands } from './botScoring';
 const SLOTS: Slot[] = [0, 1, 2];
 /** Spec §6.4: with this probability the bot plays its second-best command set. */
 const NOISE = 0.1;
-/** Error that a `none` placeholder for a not-yet-planned living heroine produces; it is not the candidate's. */
-const PLACEHOLDER_ERROR = 'none only for dead hero';
+/** Issue that a `none` placeholder for a not-yet-planned living heroine produces; it is not the candidate's. */
+const PLACEHOLDER_ERROR = 'NONE_ONLY_DEAD';
 
 type Scored<T> = { item: T; score: number };
 type Actions = SideCommands['actions'];
@@ -68,7 +68,7 @@ function rankSlot(view: PublicState, side: Side, prefix: HeroAction[], plan: Pla
   const ranked: Scored<HeroAction>[] = [];
   for (const action of heroCandidates(view, side, slot, isThreatened(plan, slot))) {
     const actions = [...prefix, action, ...SLOTS.slice(slot + 1).map((): HeroAction => ({ type: 'none' }))] as Actions;
-    if (validateCommands(view, side, withCard(actions, card)).some(e => e !== PLACEHOLDER_ERROR)) continue;
+    if (validateCommands(view, side, withCard(actions, card)).some(e => e.code !== PLACEHOLDER_ERROR)) continue;
     const p = clonePlan(plan);
     const spentBefore = p.energy;
     const score = scoreAction(p, slot, action) - WASTED_ENERGY * (p.energy - spentBefore);

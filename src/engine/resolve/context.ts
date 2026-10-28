@@ -1,8 +1,9 @@
-import type { CardId, CardPlay, GameEvent, MatchState, Side, SideCommands } from '../types';
+import type { CardId, CardPlay, MatchState, Side, SideCommands } from '../types';
+import type { EngineEvent, EventInput, Phase } from '../events';
 import type { Rng } from '../rng';
 import { createRngFromState } from '../rng';
 
-export type Phase = 'roundStart' | 'reveal' | 'swift' | 'reactions' | 'heroes' | 'standard' | 'endRound';
+export type { EventInput, Phase } from '../events';
 
 /** `hero.once` key: the round in which the heroine entered an active slot (swap, cards); she does not act in it. */
 export const ENTERED_KEY = 'enteredRound';
@@ -18,12 +19,9 @@ export type PlannedCard = { cardId: CardId; play: CardPlay };
  * revealCards (resolve/cards.ts).
  */
 export type Ctx = {
-  s: MatchState; events: GameEvent[]; rng: Rng; phase: Phase; actionSeq: number;
+  s: MatchState; events: EngineEvent[]; rng: Rng; phase: Phase; actionSeq: number;
   cmds?: Record<Side, SideCommands>; table?: Partial<Record<Side, PlannedCard>>;
 };
-
-/** An event before `round` and `phase` are stamped on it. */
-export type EventInput = { type: string; [k: string]: unknown };
 
 /** A fresh context on a clone of `state` (the input is never mutated); the Rng resumes from `state.rngState`. */
 export function makeCtx(state: MatchState, phase: Phase = 'heroes'): Ctx {

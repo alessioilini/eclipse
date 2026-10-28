@@ -7,9 +7,8 @@ import { validateCommands } from '../validate';
 import { HEROES } from '../data/heroes';
 import { MOON_ORDER } from '../types';
 import type { GameEvent, MatchState, MoonPhase, SlotRef, Status } from '../types';
-import { makeMatch, cmd, basic, skill, ult, enemy, ally, setHp, setLuna, playRound } from './helpers';
+import { makeMatch, cmd, basic, skill, ult, enemy, ally, setHp, setLuna, playRound, ofType } from './helpers';
 
-const ofType = (events: GameEvent[], type: string) => events.filter(e => e.type === type);
 const isRef = (a: unknown, b: SlotRef) => {
   const r = a as SlotRef | undefined;
   return !!r && r.side === b.side && r.slot === b.slot;
@@ -208,8 +207,8 @@ describe('умения героинь через данные', () => {
     // Повторная ульта той же героини.
     const next = setLuna(r2.state, 'A', 5);
     const started = startRound(next).state;
-    expect(validateCommands(started, 'A', plan())).toEqual(['ultimate already used']);
-    expect(() => playRound(next, plan(), bPlan())).toThrow('ultimate already used');
+    expect(validateCommands(started, 'A', plan())).toEqual([{ code: 'ULT_USED', slot: 2 }]);
+    expect(() => playRound(next, plan(), bPlan())).toThrow('A: ULT_USED');
   });
 
   it('ультa Лираи: 100% всем, луна становится full', () => {
