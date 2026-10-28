@@ -61,7 +61,7 @@ export function HeroDetail({ id }: { id: HeroId }) {
       <header className={styles.header}>{back}</header>
       <div className={styles.detail}>
         <div className={styles.hero}>
-          <HeroArt heroId={id} kind="full" size="lg" />
+          <HeroArt heroId={id} kind="full" size="xl" />
           <h1 className={styles.heroName}>{hero.name}</h1>
           <span className={styles.note}>{ru.elements[hero.element]} · {ru.roles[hero.role]}</span>
         </div>

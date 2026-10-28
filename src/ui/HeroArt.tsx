@@ -7,21 +7,28 @@ import styles from './HeroArt.module.css';
 import { cx } from './cx';
 
 export type HeroArtKind = 'portrait' | 'full';
-export type HeroArtSize = 'sm' | 'md' | 'lg';
+export type HeroArtSize = 'sm' | 'md' | 'lg' | 'xl';
 
-/** Rendered widths in px, mirroring `--art-sm/md/lg` in `styles/tokens.css`: the `sizes` hint for `srcSet`. */
-const WIDTH_PX: Record<HeroArtSize, number> = { sm: 32, md: 48, lg: 96 };
+/** Rendered widths in px, mirroring `--art-sm/md/lg/xl` in `styles/tokens.css`: the `sizes` hint for `srcSet`. */
+const WIDTH_PX: Record<HeroArtSize, number> = { sm: 32, md: 48, lg: 96, xl: 160 };
 
 /** WebP widths packed by `scripts/art-pack.ts` (spec §7); the first one is the plain `src`. */
 const WIDTHS: Record<HeroArtKind, readonly [number, number]> = { portrait: [128, 512], full: [512, 1024] };
 
 const artUrl = (id: HeroId, kind: HeroArtKind, width: number) => `${BASE}art/${id}-${kind}-${width}.webp`;
 
+type Props = { heroId: HeroId; kind?: HeroArtKind; size: HeroArtSize };
+
 /**
  * Heroine art (spec §7): a WebP portrait (circle) or full-body art (2:3, element gradient at the bottom).
  * Until the art is generated, or if it fails to load, falls back to the element-coloured circle with the initial.
  */
-export function HeroArt({ heroId, kind = 'portrait', size }: { heroId: HeroId; kind?: HeroArtKind; size: HeroArtSize }) {
+export function HeroArt({ heroId, kind = 'portrait', size }: Props) {
+  // A new heroine or kind is a new image: the key drops the previous load error.
+  return <Art key={`${heroId}-${kind}`} heroId={heroId} kind={kind} size={size} />;
+}
+
+function Art({ heroId, kind, size }: Required<Props>) {
   const [failed, setFailed] = useState(false);
   const hero = HEROES[heroId];
   const style = { '--art-color': `var(--el-${hero.element})` } as CSSProperties;

@@ -150,5 +150,10 @@ const entry = process.argv[1];
 if (entry && import.meta.url === pathToFileURL(entry).href) {
   const outDir = fileURLToPath(new URL('../art/out/', import.meta.url));
   run(process.argv.slice(2), { env: process.env, fetchImpl: fetch, outDir, log: (l) => console.log(l) })
-    .then((code) => { process.exitCode = code; });
+    .then((code) => { process.exitCode = code; })
+    // Only the message: error objects could carry request details. Messages here never contain the key.
+    .catch((e: unknown) => {
+      console.error(`gen-art: ${e instanceof Error ? e.message : 'ошибка'}`);
+      process.exitCode = 1;
+    });
 }

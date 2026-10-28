@@ -37,6 +37,13 @@
   font-size: var(--fs-28);
 }
 
+.xl {
+  width: var(--art-xl);
+  height: var(--art-xl);
+  /* No font token this large: the initial keeps the lg proportion (28 / 96). */
+  font-size: calc(var(--art-xl) * 0.3);
+}
+
 /* Full-body art: 2:3, rounded corners, element-colour gradient over the image rising from the bottom. */
 .full {
   border-radius: var(--r-8);
@@ -52,6 +59,10 @@
 
 .full.lg {
   height: calc(var(--art-lg) * 1.5);
+}
+
+.full.xl {
+  height: calc(var(--art-xl) * 1.5);
 }
 
 .full.withImage::after {

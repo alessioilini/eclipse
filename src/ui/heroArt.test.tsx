@@ -62,4 +62,17 @@ describe('HeroArt: картинки', () => {
     expect(container.querySelectorAll('img')).toHaveLength(1);
     expect(screen.getByRole('img', { name: HEROES.aira.name })).toHaveTextContent(HEROES.aira.name[0]!);
   });
+
+  it('размер xl: sizes 160px', () => {
+    const { container } = render(<HeroArt heroId="aira" kind="full" size="xl" />);
+    expect(imgOf(container).getAttribute('sizes')).toBe('160px');
+  });
+
+  it('смена героини сбрасывает запасной вариант: снова рисуется <img>', () => {
+    const { container, rerender } = render(<HeroArt heroId="aira" size="md" />);
+    fireEvent.error(imgOf(container));
+    expect(container.querySelector('img')).toBeNull();
+    rerender(<HeroArt heroId="fenna" size="md" />);
+    expect(imgOf(container).getAttribute('src')).toBe(`${BASE}art/fenna-portrait-128.webp`);
+  });
 });

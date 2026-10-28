@@ -104,6 +104,7 @@ describe('gen-art', () => {
     expect(form.get('prompt')).toBe(prompt('nerisa', 'full'));
     expect(form.get('size')).toBe('1024x1536');
     expect(form.get('n')).toBe('1');
+    expect(form.get('quality')).toBe('medium');
     const image = form.get('image') as Blob;
     expect(image).toBeInstanceOf(Blob);
     expect(Buffer.from(await image.arrayBuffer()).toString('utf8')).toBe('PORTRAIT-BYTES');
