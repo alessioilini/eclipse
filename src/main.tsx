@@ -9,8 +9,8 @@ type SaveStorage = Parameters<typeof loadSave>[0];
 
 /** Загружает сохранение в стор и подключает его запись; возвращает отписку записи. */
 export function boot(storage?: SaveStorage): () => void {
-  hydrate(storage ? loadSave(storage) : loadSave());
-  return storage ? attachPersistence(storage) : attachPersistence();
+  hydrate(loadSave(storage));
+  return attachPersistence(storage);
 }
 
 const root = document.getElementById('root');
