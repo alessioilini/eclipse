@@ -40,14 +40,16 @@ function seatOf(ev: EngineEvent): { side: Side; slot: Slot; heroId: HeroId } | n
       return ev.action === 'card' ? null : { side: ev.side, slot: ev.slot, heroId: ev.heroId };
     case 'revive':
       return ev.slot !== undefined ? { side: ev.side, slot: ev.slot, heroId: ev.heroId } : null;
-    case 'bloodMoon':
-      return ev.slot !== null ? { side: ev.side, slot: ev.slot, heroId: ev.heroId } : null;
     default:
       return null;
   }
 }
 
 function learn(ev: EngineEvent, names: NameMap): void {
+  if (ev.type === 'bloodMoon') {
+    for (const h of ev.heroes) if (h.slot !== null) names.set(`${ev.side}${h.slot}`, heroName(h.heroId));
+    return;
+  }
   const seat = seatOf(ev);
   if (seat) names.set(`${seat.side}${seat.slot}`, heroName(seat.heroId));
 }
@@ -93,6 +95,11 @@ function line(ev: EngineEvent, names: NameMap): string {
       return `${ev.side} Luna ${ev.luna} (${signed(ev.delta)} ${ev.reason})`;
     case 'matchEnd':
       return `Winner ${ev.winner} (${ev.reason})`;
+    case 'bloodMoon':
+      return `${ev.side} Blood Moon: ` + ev.heroes.map(h => {
+        const ref = h.slot !== null ? { side: ev.side, slot: h.slot } : { side: ev.side, reserveIndex: h.reserveIndex };
+        return `${heroName(h.heroId)}(${refText(ref)})` + (h.cleansed ? ` −${h.cleansed.join(',')}` : '');
+      }).join(', ');
     default:
       return `${ev.type} ${payloadOf(ev)}`;
   }
