@@ -196,6 +196,9 @@ export async function run(argv: string[], deps: RunDeps): Promise<number> {
   for (const id of opts.ids) {
     const portraitPath = join(outDir, `${id}-portrait.png`);
     const fullPath = join(outDir, `${id}-full.png`);
+    // A kept full-body art (a chosen variant) is the portrait's reference; when the full is about to be redrawn
+    // in this run, the portrait is drawn fresh and the full then follows it as usual.
+    const fullWillBeRedrawn = opts.kinds.includes('full') && (opts.force || !existsSync(fullPath));
     for (const kind of opts.kinds) {
       const file = join(outDir, `${id}-${kind}.png`);
       if (opts.variants === 1 && existsSync(file) && !opts.force) {
@@ -208,7 +211,7 @@ export async function run(argv: string[], deps: RunDeps): Promise<number> {
         const label = opts.variants === 1 ? `${id} ${kind}` : `${id} ${kind} v${v}`;
         try {
           let png: Buffer;
-          if (kind === 'portrait' && existsSync(fullPath)) {
+          if (kind === 'portrait' && existsSync(fullPath) && !fullWillBeRedrawn) {
             // The full-body art already exists (a chosen variant): it is the reference so the face matches.
             try {
               const image = readFileSync(fullPath);
