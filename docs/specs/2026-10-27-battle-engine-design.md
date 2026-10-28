@@ -290,7 +290,7 @@ API раунда: `startRound(state)` → состояние для планир
 
 Цели по типу умения или карты. `self`, `allies`, `enemies`, `none` выбираются автоматически: SlotRef не нужен, переданный игнорируется. `ally`, `enemy`, `allyAndGuardian`, `slotAndReserve`, `reserveSlot` требуют выбранную цель (у двух последних ещё `secondary`).
 
-`validateCommands(state, side, cmds): string[]` проверяет: живость героини, тип цели и её форму (сторона A/B, слот 0–2, `secondary` объект), запрет Skill при Freeze/Silence, запрет Ultimate при Silence или уже использованной ульте, суммарную стоимость Energy с учётом скидок и «Кровавой сделки», стоимость Luna, легальность резерва для Swap, два Swap в один слот резерва (`duplicate reserve index`), наличие карты в руке. Некорректный ввод даёт ошибку, а не исключение. Вызов на `PublicState` за чужую сторону бросает исключение.
+`validateCommands(state, side, cmds): ValidationIssue[]` проверяет: живость героини, тип цели и её форму (сторона A/B, слот 0–2, `secondary` объект), запрет Skill при Freeze/Silence, запрет Ultimate при Silence или уже использованной ульте, суммарную стоимость Energy с учётом скидок и «Кровавой сделки», стоимость Luna, легальность резерва для Swap, два Swap в один слот резерва, наличие карты в руке. Каждое нарушение возвращается как `ValidationIssue = { code: ValidationCode; slot?: Slot; card?: true }` (`slot` у нарушений действия героини, `card` у нарушений карты, у `ENERGY` и `LUNA` ни того ни другого), русские тексты кодов живут вне движка, в `src/i18n/ru.ts`. Коды (15): `DEAD_HERO`, `NONE_ONLY_DEAD`, `TARGET_DEAD`, `WRONG_TARGET`, `SKILL_FREEZE`, `SKILL_SILENCE`, `ULT_SILENCE`, `ULT_USED`, `ENERGY`, `LUNA`, `RESERVE_DEAD`, `DUPLICATE_RESERVE`, `SWAP_BANNED`, `CARD_NOT_IN_HAND`, `ONE_CARD`. Некорректный ввод даёт нарушение, а не исключение. Вызов на `PublicState` за чужую сторону бросает исключение.
 
 Fizzle: если в момент разрешения Skill или Ultimate стали недоступны (не хватает Energy или Luna, получены Freeze или Silence), героиня делает Basic Attack по той же вражеской цели, а при автоматической цели по врагу с наименьшим HP; событие `fizzle`. Карта, на которую не хватает Energy или у которой пропала цель, сгорает без эффекта с событием `fizzle`.
 
@@ -354,7 +354,7 @@ type Primitive =
 
 ### 6.3. События
 
-Каждое изменение состояния порождает событие с `round` и `phase`. Из событий собирается текстовый лог в формате примера из GDD §77 (функция `formatLog(events, state)`, одна строка `formatEvent`), это и отладка, и основа для «ключевого момента» в подпроекте 2.
+Каждое изменение состояния порождает событие с `round` и `phase`. В коде события описаны типом `EngineEvent` (`src/engine/events.ts`): размеченное объединение по `type`, по одному варианту на каждый из 36 типов ниже, с полями, которые реально эмитятся; `emit` принимает `EventInput` (событие без `round` и `phase`), `GameEvent` оставлен как синоним. Из событий собирается текстовый лог в формате примера из GDD §77 (функция `formatLog(events, state)`, одна строка `formatEvent`), это и отладка, и основа для «ключевого момента» в подпроекте 2.
 
 Общие имена полей: `side`; `slot` или `reserveIndex`; ссылки на слот `target`, `source`, `attacker`, `from`, `to` (вида `{ side, slot }`; источник-карта `{ side, cardId }`); `heroId`; `cardId` у всех карточных событий; в `damage` также `attackerId` и `targetId`; `reason` объясняет причину; `hp` и `shield` это значения после события.
 

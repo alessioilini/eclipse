@@ -1,5 +1,4 @@
-import type { Element, Role, StatusId, Timing } from '../engine/types';
-import type { BlockReason, ValidationCode } from '../engine';
+import type { BlockReason, Element, Role, StatusId, Timing, ValidationCode } from '../engine';
 
 // Re-exported for UI modules that already import them from here.
 export type { BlockReason, ValidationCode };

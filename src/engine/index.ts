@@ -13,9 +13,24 @@ export { MOON_ORDER } from './types';
 
 export type {
   MatchState, SideCommands, HeroAction, CardPlay, Deck, HeroId, CardId, Slot, Side, SlotRef, StatusId, Status,
-  MoonPhase, Element, Role, HeroDef, CardDef, GameEvent,
+  MoonPhase, Element, Role, HeroDef, CardDef, GameEvent, HeroState, SideState, TargetType, Timing, Rarity,
 } from './types';
-export type { PublicState } from './view';
+export type { PublicState, OwnView, OpponentView } from './view';
+export type { PlanningState } from './validate';
 export type { ValidationIssue, ValidationCode } from './errors';
-export type { LegalActions, BlockReason } from './legal';
+export type { LegalActions, LegalCardPlay, BlockReason } from './legal';
+export type {
+  EngineEvent, EventInput, EventOf, EventBase, EventPayload, Phase, CardSource, EventSource,
+  SkipReason, HeroFizzleReason, CardFizzleReason, RedirectReason, SwapReason, DirectDamageReason, EnergyReason,
+  LunaReason, MatchEndReason,
+  RoundStartEvent, DrawEvent, DiscardOverflowEvent, ReshuffleEvent, RevealEvent, MatchEndEvent,
+  CardPlayedEvent, ReactionArmedEvent, ReactionTriggeredEvent, FizzleEvent, HeroFizzleEvent, CardFizzleEvent,
+  SwapBannedEvent, UltCostUpEvent, CardCostUpEvent,
+  HeroActionEvent, RetargetEvent, RedirectEvent, SwapEvent, AutoFillEvent,
+  DamageEvent, DirectDamageEvent, SelfHpEvent, BurnEvent, DetonateEvent, ReflectEvent, HealEvent, ShieldEvent,
+  ShieldRemovedEvent, ShieldExpiredEvent,
+  StatusAppliedEvent, StatusRemovedEvent,
+  EnergyChangedEvent, LunaChangedEvent, MoonChangedEvent,
+  DeathEvent, ReviveEvent, BloodMoonEvent,
+} from './events';
 export type { Rng } from './rng';
