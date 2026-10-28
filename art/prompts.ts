@@ -16,7 +16,8 @@ export const STYLE =
   + 'no interior, nothing that competes with the character. One consistent palette for the whole roster: warm fair '
   + 'skin with a light blush, thin dark plum line art, painterly shading without hard cel-shading. A single adult '
   + 'young woman as the only subject, correct human anatomy, anatomically correct hands with exactly five fingers '
-  + 'each, clearly visible hands in relaxed natural poses, strong recognizable silhouette. Forbidden: no text, no letters, '
+  + 'each, hands kept simple: relaxed, partly hidden in sleeves or behind the body, never spread or gesturing, '
+  + 'strong recognizable silhouette. Forbidden: no text, no letters, '
   + 'no numbers, no logos, no watermark, no UI, no card frame, no chibi, no cartoon proportions, no photorealism, '
   + 'no revealing outfits, no close-up weapons, no other characters.';
 
@@ -50,7 +51,7 @@ export const PROMPTS: Record<HeroId, HeroPrompt> = {
     + 'that must stay consistent in every image: 1) crimson-to-amber hair with embers; 2) glowing amber eyes; '
     + '3) a small ornate black lacquered casket with gold hinges floating beside her at waist height, sparks leaking '
     + 'from its lid; 4) smouldering hems. Magic: thin orange ember trails and slow drifting sparks, a warm orange '
-    + 'glow on the face from below, no big flames, no smoke. Hands: relaxed at her sides or lightly raised, '
+    + 'glow on the face from below, no big flames, no smoke. Hands: hidden in her wide sleeves, at most the fingertips of one relaxed hand showing, '
     + 'never clutching anything.',
   ),
   // Fire · support. Passive "Warmth", skill "Spark of Life", ultimate "From the Ashes" (revive).
