@@ -10,6 +10,7 @@ import {
 import type { Draft, MatchSession, NewMatchOpts } from '../game/session';
 import { allowed, onConfirm, onDraftChange, onPlaybackDone } from '../game/tutorial/runner';
 import type { AllowSet, RunnerState } from '../game/tutorial/runner';
+import type { HiddenElement } from '../game/tutorial/types';
 import type { StoreState } from './index';
 
 export type MatchPhase = 'planning' | 'playback' | 'finished';
@@ -67,6 +68,13 @@ const runnerFields = (r: RunnerState | null) => ({ tutorial: r, tutorialStepInde
 /** Что разрешает обучение в планировании; null — свободный матч (разрешено всё, что легально). */
 export function selectAllowed(s: Pick<StoreState, 'tutorial' | 'session'>): AllowSet | null {
   return s.tutorial && s.session ? allowed(s.tutorial, s.session.state) : null;
+}
+
+const NONE_HIDDEN: HiddenElement[] = [];
+
+/** Элементы интерфейса, скрытые сценарием обучения; вне обучения — один и тот же пустой массив. */
+export function selectHidden(s: Pick<StoreState, 'tutorial'>): HiddenElement[] {
+  return s.tutorial?.script.hidden ?? NONE_HIDDEN;
 }
 
 function requireSession(session: MatchSession | null): MatchSession {

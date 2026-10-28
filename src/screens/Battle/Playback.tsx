@@ -9,7 +9,7 @@ import type { MatchSession } from '../../game/session';
 import { ru } from '../../i18n/ru';
 import { navigate } from '../../router';
 import { useStore } from '../../store';
-import { useHidden } from '../../store/tutorial';
+import { useHidden } from './tutorialHooks';
 import { Button } from '../../ui/Button';
 import { Hand } from '../../ui/Hand';
 import { HeroCard } from '../../ui/HeroCard';

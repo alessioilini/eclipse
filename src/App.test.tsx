@@ -5,6 +5,8 @@ import { App } from './App';
 import { createRng } from './engine';
 import { randomDeck } from './engine/sim';
 import { defaultSave } from './game/save/defaults';
+import { createRunner } from './game/tutorial/runner';
+import { SCRIPTS } from './game/tutorial/scripts';
 import { ru } from './i18n/ru';
 import { hydrate, useStore } from './store';
 
@@ -38,4 +40,20 @@ describe('App', () => {
     expect(useStore.getState().session).toBeNull();
     expect(window.location.hash).toBe('#/');
   });
+
+  it('#/battle с боем обучения ведёт на экран обучения', async () => {
+    hydrate(defaultSave());
+    const script = SCRIPTS[2];
+    useStore.getState().startMatch(script.decks.A, {
+      opponentDeck: script.decks.B, seed: script.seed, mode: 'tutorial', tutorialId: 2, enemy: script.enemy,
+    });
+    useStore.getState().setTutorialRunner(createRunner(script));
+    const session = useStore.getState().session;
+    window.location.hash = '#/battle';
+    render(<App />);
+    expect(window.location.hash).toBe('#/tutorial/2');
+    expect(await screen.findByRole('status')).toHaveTextContent(ru.tutorial.scripts[2].steps[0]);
+    expect(useStore.getState().session).toBe(session);
+  });
 });
+

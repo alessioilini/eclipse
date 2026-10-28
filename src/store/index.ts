@@ -5,6 +5,7 @@ import { emptyDraft, isFinished } from '../game/session';
 import type { MatchSession } from '../game/session';
 import { createRunner } from '../game/tutorial/runner';
 import { SCRIPTS } from '../game/tutorial/scripts';
+import type { TutorialScript } from '../game/tutorial/types';
 import { createDecksSlice, type DecksSlice } from './decks';
 import { createMatchSlice, noMatch, type MatchSlice } from './match';
 import { createProfileSlice, type ProfileSlice } from './profile';
@@ -31,6 +32,16 @@ export const useStore = create<StoreState>()((...a) => ({
 export const store = useStore;
 
 /**
+ * Шаг сценария после восстановления: черновик не сохраняется, поэтому шаг внутри раунда откатывается к
+ * первому шагу этого раунда, не являющемуся текстом после проигрывания; ещё не закрытый текст после
+ * проигрывания прошлого раунда (он раньше) остаётся.
+ */
+export function restoredStep(script: TutorialScript, round: number, saved: number): number {
+  const first = script.steps.findIndex(step => step.round === round && !('afterPlayback' in step));
+  return first >= 0 && saved > first ? first : saved;
+}
+
+/**
  * Загружает сохранение в стор и возвращает новое состояние. Матч восстанавливается в планирование
  * текущего раунда: в сохранении всегда состояние после `startRound` (или завершённый матч).
  */
@@ -46,9 +57,10 @@ export function hydrate(save: SaveV1): StoreState {
       ...(script ? { enemy: script.enemy } : {}),
     }
     : null;
-  // Матч восстанавливается в планировании текущего раунда: исполнитель на том же раунде и шаге.
+  // Матч восстанавливается в планировании текущего раунда с пустым черновиком: исполнитель на том же
+  // раунде, а шаг откатывается к началу раунда (требования уже пройденных шагов черновик больше не держит).
   const tutorial = script && m
-    ? { ...createRunner(script), stepIndex: m.tutorialStepIndex ?? 0, round: m.state.round }
+    ? { ...createRunner(script), stepIndex: restoredStep(script, m.state.round, m.tutorialStepIndex ?? 0), round: m.state.round }
     : null;
   useStore.setState({
     unlocked: save.profile.unlocked,

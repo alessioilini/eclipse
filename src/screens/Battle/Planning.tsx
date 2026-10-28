@@ -12,7 +12,7 @@ import type { AllowSet } from '../../game/tutorial/runner';
 import { fmt, ru } from '../../i18n/ru';
 import { useStore } from '../../store';
 import type { Sheet } from '../../store';
-import { useAllowed, useHidden } from '../../store/tutorial';
+import { useAllowed, useHidden } from './tutorialHooks';
 import { ActionSheet, type SheetItem } from '../../ui/ActionSheet';
 import { Button } from '../../ui/Button';
 import type { CardBlock } from '../../ui/CardView';

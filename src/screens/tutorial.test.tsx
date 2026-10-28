@@ -142,7 +142,7 @@ describe('экран обучения', () => {
     expect(screen.getByRole('status')).toHaveTextContent(steps[0]);
   });
 
-  it('восстановленный бой обучения продолжается с сохранённого шага', () => {
+  it('бой, восстановленный посреди раунда, начинает раунд с его первого шага', () => {
     st().startMatch(SCRIPTS[1].decks.A, {
       opponentDeck: SCRIPTS[1].decks.B, seed: SCRIPTS[1].seed, mode: 'tutorial', tutorialId: 1,
       enemy: SCRIPTS[1].enemy, opponentHp: SCRIPTS[1].enemyHp!,
@@ -153,8 +153,9 @@ describe('экран обучения', () => {
     hydrate(JSON.parse(JSON.stringify(save)));
     const session = st().session;
     setup();
+    // Тот же матч, не перезапуск; черновик не сохраняется, поэтому шаг откатан к началу раунда.
     expect(st().session).toBe(session);
-    expect(st().tutorialStepIndex).toBe(2);
-    expect(screen.getByRole('status')).toHaveTextContent(steps[2]);
+    expect(st().tutorialStepIndex).toBe(0);
+    expect(screen.getByRole('status')).toHaveTextContent(steps[0]);
   });
 });

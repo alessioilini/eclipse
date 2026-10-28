@@ -2,7 +2,7 @@ import { MAX_ROUNDS } from '../../game/session';
 import { fmt, ru } from '../../i18n/ru';
 import { navigate } from '../../router';
 import { useStore } from '../../store';
-import { useHidden } from '../../store/tutorial';
+import { useHidden } from './tutorialHooks';
 import { Button } from '../../ui/Button';
 import styles from './Battle.module.css';
 import { LogDrawer } from './LogDrawer';

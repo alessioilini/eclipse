@@ -9,7 +9,7 @@ import { viewFromPublic } from '../game/playback/viewReducer';
 import { newMatch, playerView } from '../game/session';
 import { createRunner, current, dismissSay } from '../game/tutorial/runner';
 import { SCRIPTS } from '../game/tutorial/scripts';
-import { attachPersistence, hydrate, toSave, useStore } from './index';
+import { attachPersistence, hydrate, restoredStep, toSave, useStore } from './index';
 import { selectAllowed } from './match';
 
 type FakeStorage = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>;
@@ -93,7 +93,8 @@ describe('сохранение стора', () => {
       activeDeckId: 'd1',
       settings: { speed: 'fast', sound: false },
       match: {
-        state: session.state, botSeed: 5, mode: 'tutorial', tutorialId: 2, tutorialStepIndex: 3,
+        // Шаг 0 — начало раунда 1: шаг внутри раунда при восстановлении откатывается (тест ниже).
+        state: session.state, botSeed: 5, mode: 'tutorial', tutorialId: 2, tutorialStepIndex: 0,
         playerDeck: session.playerDeck, opponentDeck: session.opponentDeck,
       },
     };
@@ -416,6 +417,33 @@ describe('обучение в сторе', () => {
     useStore.getState().confirm();
     const reveal = useStore.getState().lastEvents.find(e => e.type === 'reveal');
     expect(reveal?.type === 'reveal' ? reveal.commands.B : null).toEqual(script.enemy(before.round, viewFor(before, 'B')));
+  });
+
+  it.each([2, 4])('перезагрузка посреди раунда 1 (шаг %i) откатывает шаг, и раунд доходит до проигрывания', (saved) => {
+    startTutorial();
+    const st = () => useStore.getState();
+    st().setTutorialRunner({ ...st().tutorial!, stepIndex: saved });
+    const restored = hydrate(JSON.parse(JSON.stringify(toSave(st()))) as SaveV1);
+    expect(restored.tutorialStepIndex).toBe(0);
+    expect(restored.draft.actions).toEqual([null, null, null]);
+    // Проходим раунд через стор, как это делает интерфейс.
+    st().setTutorialRunner(dismissSay(st().tutorial!));
+    st().setAction(0, basicOn(0));
+    st().setTutorialRunner(dismissSay(st().tutorial!));
+    st().setAction(1, { type: 'skill', target: { side: 'A', slot: 2 } });
+    st().setAction(2, basicOn(1));
+    expect(selectAllowed(st())?.confirm).toBe(true);
+    st().confirm();
+    expect(st().phase).toBe('playback');
+    expect(st().tutorialStepIndex).toBe(6);
+  });
+
+  it('restoredStep оставляет незакрытый текст после проигрывания и не трогает свободную игру', () => {
+    const s3 = SCRIPTS[3];
+    expect(restoredStep(s3, 2, 3)).toBe(3); // текст после проигрывания раунда 1
+    expect(restoredStep(s3, 2, 6)).toBe(4); // середина раунда 2 → его первый шаг
+    expect(restoredStep(s3, 2, 4)).toBe(4);
+    expect(restoredStep(SCRIPTS[1], 3, 7)).toBe(7); // после всех шагов
   });
 
   it('hydrate свободного матча не создаёт исполнителя', () => {

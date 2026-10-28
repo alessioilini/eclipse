@@ -1,5 +1,6 @@
+import { useEffect } from 'react';
 import { ru } from './i18n/ru';
-import { useRoute } from './router';
+import { navigate, useRoute } from './router';
 import { Battle } from './screens/Battle/Battle';
 import { DeckBuilder } from './screens/DeckBuilder';
 import { Decks } from './screens/Decks';
@@ -8,9 +9,16 @@ import { Heroes } from './screens/Heroes';
 import { Menu } from './screens/Menu';
 import { Result } from './screens/Result';
 import { Tutorial } from './screens/Tutorial';
+import { useStore } from './store';
 
 export function App() {
   const route = useRoute();
+  // Бой обучения живёт только на #/tutorial/:id (оверлей, награды); #/battle с ним перенаправляется туда.
+  const tutorialId = useStore((s) => (s.session?.mode === 'tutorial' ? s.session.tutorialId ?? null : null));
+  const redirect = route.name === 'battle' ? tutorialId : null;
+  useEffect(() => {
+    if (redirect !== null) navigate({ name: 'tutorial', id: redirect });
+  }, [redirect]);
   return (
     <div className="app">
       {route.name === 'menu' ? (
@@ -18,7 +26,7 @@ export function App() {
       ) : route.name === 'tutorial' ? (
         <Tutorial key={route.id} id={route.id} />
       ) : route.name === 'battle' ? (
-        <Battle />
+        redirect === null && <Battle />
       ) : route.name === 'result' ? (
         <Result />
       ) : route.name === 'decks' ? (
