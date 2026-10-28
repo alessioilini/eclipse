@@ -124,7 +124,7 @@ export const HEROES: Record<HeroId, HeroDef> = {
     id: 'justina', name: 'Юстина', element: 'light', role: 'striker', rarity: 'rare', hp: 23, atk: 7, spd: 8,
     passive: {
       name: 'Преследование',
-      text: 'Когда противник получает Shield или бафф, Юстина получает +1 SPD до конца раунда (раз в раунд).',
+      text: 'Когда противник получает Shield или бафф, Юстина получает +1 SPD до конца следующего раунда (раз в раунд).',
       triggers: [{ on: 'onEnemyBuffed', once: 'round', hook: 'justina.pursuit' }],
     },
     skill: {

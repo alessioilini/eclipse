@@ -244,11 +244,15 @@ export const HOOKS: Record<string, HookFn> = {
     emit(ctx, { type: 'cardCostUp', source: self, side, value: AURORA_CARD_COST_UP, untilRound });
   },
 
-  /** Passive «Преследование» (onEnemyBuffed, once per round): an enemy got a Shield or buff → Justina +1 SPD this round. */
+  /**
+   * Passive «Преследование» (onEnemyBuffed, once per round): an enemy got a Shield or buff → Justina
+   * +1 SPD until the end of the next round (balance pass 1: the hero-phase order is fixed before a
+   * buff granted in that phase, so a this-round bonus was lost in 43% of the cases).
+   */
   'justina.pursuit': (ctx, self, p) => {
     const side = p.target?.side ?? p.side;
     if (side === undefined || side === self.side) return false;
-    applyStatusTo(ctx, self, self, 'spd', JUSTINA_PURSUIT_SPD, 'thisRound');
+    applyStatusTo(ctx, self, self, 'spd', JUSTINA_PURSUIT_SPD, 'nextRound');
   },
 
   /** Ultimate «Приговор» (after the 200% hit): the target died → Luna +1 (cap 5). */

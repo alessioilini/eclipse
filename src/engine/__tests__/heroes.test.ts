@@ -261,14 +261,14 @@ describe('хуки героинь', () => {
     expect(cardCost(startRound(r2.state).state, 'A', 'lunarDash')).toBe(1);
   });
 
-  it('justina.pursuit: враг получил щит → +1 SPD до конца раунда, раз в раунд; justina.verdict: 200%, убийство → +1 Luna', () => {
+  it('justina.pursuit: враг получил щит → +1 SPD до конца следующего раунда, раз в раунд; justina.verdict: 200%, убийство → +1 Luna', () => {
     const ctx = ctxFor(['aira', 'fenna', 'nerisa', 'tali', 'zefira', 'liraya']);
     runAbility(ctx, enemy(0), HEROES.aurora.skill, undefined, 'skill'); // свой бафф — нет
     runAbility(ctx, ally(2), HEROES.nerisa.skill, ally(1), 'skill');    // щит врагу — да
     runAbility(ctx, ally(2), HEROES.nerisa.skill, ally(0), 'skill');    // второй раз в раунде — нет
     expect(ofType(ctx.events, 'statusApplied').filter(e => e.status === 'spd').map(e => [e.target, e.value]))
       .toEqual([[enemy(1), 1]]);
-    expect(findSt(ctx.s, enemy(1), 'spd')).toMatchObject({ value: 1, expiresAtRound: 1 });
+    expect(findSt(ctx.s, enemy(1), 'spd')).toMatchObject({ value: 1, expiresAtRound: 2 });
 
     // Две Юстины: бафф одной — «вражеский бафф» для другой; каждая получает +1 ровно один раз.
     const ctxJ = ctxFor(['justina', 'fenna', 'nerisa', 'aira', 'zefira', 'liraya'], ['justina', 'aurora', 'nokta', 'kira', 'mira', 'selena']);
