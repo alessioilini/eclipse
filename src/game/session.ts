@@ -1,10 +1,10 @@
 import {
-  chooseCommands, createMatch, createRng, eventsFor, resolveRound, startRound, validateCommands, viewFor,
+  chooseCommands, createMatch, createRng, eventsFor, HERO_IDS, resolveRound, startRound, validateCommands, viewFor,
 } from '../engine';
 import type {
   CardPlay, Deck, EngineEvent, HeroAction, MatchState, PublicState, SideCommands, Slot, SlotRef, ValidationIssue,
 } from '../engine';
-import { randomDeck } from '../engine/sim';
+import { ARCHETYPE_KEYS, buildPreset } from './decks/presets';
 import {
   actionEnergy, cardEnergy, energyBudget, isCoverGuardian, livingReserve, ownSide,
 } from '../engine/validate';
@@ -152,7 +152,7 @@ export function isFinished(session: MatchSession): boolean {
   return session.state.result !== null;
 }
 
-// TODO(Task 12): заменить на архетип по `seed % 4` через buildPreset.
+/** Бот играет колодой архетипа по seed матча из всех 12 героинь. */
 export function opponentDeckFor(seed: number): Deck {
-  return randomDeck(createRng(seed));
+  return buildPreset(ARCHETYPE_KEYS[Math.abs(seed) % 4]!, HERO_IDS);
 }
