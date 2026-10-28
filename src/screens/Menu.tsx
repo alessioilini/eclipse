@@ -38,7 +38,8 @@ export function Menu({ now = Date.now }: Props) {
       navigate({ name: 'decks' });
       return;
     }
-    const seed = now();
+    // seed матча — uint32 (Date.now() не помещается в генератор без потерь, I5).
+    const seed = now() >>> 0;
     s.startMatch(active.deck, { opponentDeck: opponentDeckFor(seed), seed, mode: 'free' });
     navigate({ name: 'battle' });
   };

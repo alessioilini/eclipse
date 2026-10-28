@@ -60,7 +60,8 @@ export function Result({ now = Date.now }: Props) {
       navigate({ name: 'tutorial', id: session.tutorialId });
       return;
     }
-    const seed = now();
+    // seed матча — uint32 (Date.now() не помещается в генератор без потерь, I5).
+    const seed = now() >>> 0;
     startMatch(session.playerDeck, { opponentDeck: opponentDeckFor(seed), seed, mode: 'free' });
     navigate({ name: 'battle' });
   };

@@ -55,6 +55,16 @@ describe('главное меню', () => {
     expect(window.location.hash).toBe('#/battle');
   });
 
+  it('seed свободного матча из Date.now() приводится к uint32', () => {
+    st().completeTutorial(3);
+    withDeck();
+    const big = 1_761_652_800_123;
+    render(<Menu now={() => big} />);
+    play();
+    expect(st().session!.botSeed).toBe(big >>> 0);
+    expect(st().session!.state.seed).toBe(big >>> 0);
+  });
+
   it('при tutorialStep 3 без колоды «Играть» ведёт в колоды с подсказкой', async () => {
     st().completeTutorial(3);
     render(<App />);

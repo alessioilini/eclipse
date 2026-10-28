@@ -121,6 +121,14 @@ export function secondaryCandidates(
   return { heroes: refs.filter(ref => isCoverGuardian(view, 'A', ref)) };
 }
 
+/**
+ * Seed генератора бота на раунд `round`. `botSeed` сначала приводится к uint32: иначе при seed размера
+ * `Date.now()` произведение превышает 2^53, и младшие биты (номер раунда) теряются — раунды совпадали бы.
+ */
+export function botRngSeed(botSeed: number, round: number): number {
+  return (((botSeed >>> 0) * 7919) + round) >>> 0;
+}
+
 /** Бот (или сценарный противник) → resolveRound → события игрока → startRound следующего раунда. */
 export function confirmRound(session: MatchSession, draft: Draft): { session: MatchSession; events: EngineEvent[] } {
   const cmds = draftToCommands(draft);
@@ -132,7 +140,7 @@ export function confirmRound(session: MatchSession, draft: Draft): { session: Ma
   const round = session.state.round;
   const bot = session.enemy
     ? session.enemy(round, botView)
-    : chooseCommands(botView, 'B', createRng(session.botSeed * 7919 + round));
+    : chooseCommands(botView, 'B', createRng(botRngSeed(session.botSeed, round)));
 
   const resolved = resolveRound(session.state, { A: cmds, B: bot });
   let state = resolved.state;

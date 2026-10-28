@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { CARD_IDS, HEROES, createRng, validateDeck } from '../engine';
-import type { Deck, HeroAction, SideCommands, Slot } from '../engine';
+import { CARD_IDS, HEROES, chooseCommands, createRng, validateDeck } from '../engine';
+import type { Deck, HeroAction, PublicState, SideCommands, Slot } from '../engine';
 import { randomDeck } from '../engine/sim';
 import {
-  confirmRound, draftEnergy, draftToCommands, secondaryCandidates, draftIssues, emptyDraft, isFinished, newMatch, opponentDeckFor, playerView, surrender,
+  botRngSeed, confirmRound, draftEnergy, draftToCommands, secondaryCandidates, draftIssues, emptyDraft, isFinished, newMatch, opponentDeckFor, playerView, surrender,
 } from './session';
 import type { Draft, MatchSession } from './session';
 
@@ -139,6 +139,50 @@ describe('игровая сессия', () => {
     }
   });
 });
+
+describe('случайность бота', () => {
+  it('seed раунда: (botSeed >>> 0) * 7919 + round, приведённое к uint32', () => {
+    expect(botRngSeed(5, 1)).toBe(5 * 7919 + 1);
+    expect(botRngSeed(5, 2)).toBe(5 * 7919 + 2);
+    expect(botRngSeed(2 ** 32 - 1, 3)).toBe(((2 ** 32 - 1) * 7919 + 3) % 2 ** 32);
+    expect(botRngSeed(-1, 1)).toBe(botRngSeed(2 ** 32 - 1, 1));
+    for (let r = 1; r <= 10; r++) expect(Number.isInteger(botRngSeed(1_761_000_000_000, r))).toBe(true);
+  });
+
+  it('botSeed размера Date.now() даёт раундам 1..6 шесть разных seed (I5)', () => {
+    const big = 1_761_652_800_123;
+    // Старая формула теряла раунд в младших битах: botSeed * 7919 > 2^53, и раунды совпадали.
+    expect(new Set([1, 2, 3, 4, 5, 6].map((r) => big * 7919 + r)).size).toBeLessThan(6);
+    const seeds = [1, 2, 3, 4, 5, 6].map((r) => botRngSeed(big, r));
+    expect(new Set(seeds).size).toBe(6);
+    seeds.forEach((x) => expect(x).toBeGreaterThanOrEqual(0));
+    seeds.forEach((x) => expect(x).toBeLessThan(2 ** 32));
+  });
+
+  it('противник не видит seed и rngState матча', () => {
+    const views: PublicState[] = [];
+    let s = newMatch(randomDeck(createRng(5)), {
+      opponentDeck: randomDeck(createRng(105)), seed: 1_761_652_800_123, mode: 'free',
+      enemy: (_round, view) => {
+        views.push(view);
+        return chooseCommands(view, 'B', createRng(1));
+      },
+    });
+    for (let i = 0; i < 3 && !isFinished(s); i++) s = confirmRound(s, emptyDraftAllBasic(s)).session;
+    expect(views.length).toBeGreaterThan(0);
+    for (const view of views) {
+      expect(view).not.toHaveProperty('seed');
+      expect(view).not.toHaveProperty('rngState');
+      expect(JSON.stringify(view)).not.toMatch(/"(seed|rngState)"/);
+    }
+  });
+});
+
+/** Черновик: базовая атака живыми героинями по противнице того же слота, погибшие — `none`. */
+function emptyDraftAllBasic(s: MatchSession): Draft {
+  const draft = emptyDraft(s.state);
+  return { ...draft, actions: draft.actions.map((a, i) => a ?? basicOn(i as Slot)) as Draft['actions'] };
+}
 
 describe('энергия черновика', () => {
   // Активные A: tali (скилл 1), fenna (скилл 1), nerisa; в руке будет bloodPact (0, бюджет +2).
