@@ -96,8 +96,13 @@ export function Tutorial({ id }: { id: Id }) {
   useLayoutEffect(() => {
     const update = () => setRect(measure(anchor));
     update();
+    // Прокрутка любого контейнера (не всплывает — ловим на погружении) сдвигает якорь на экране.
     window.addEventListener('resize', update);
-    return () => window.removeEventListener('resize', update);
+    window.addEventListener('scroll', update, true);
+    return () => {
+      window.removeEventListener('resize', update);
+      window.removeEventListener('scroll', update, true);
+    };
   }, [anchor, sheet]);
 
   // Чужой матч в сторе ещё не заменён эффектом выше: не показываем его ни кадра.

@@ -1,4 +1,4 @@
-import { act, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { MatchState } from '../engine';
@@ -90,6 +90,23 @@ describe('экран обучения', () => {
     expect(st().draft.actions[0]).toEqual({ type: 'basic', target: { side: 'B', slot: 0 } });
     expect(st().tutorialStepIndex).toBe(2);
     expect(screen.getByRole('status')).toHaveTextContent(steps[2]);
+  });
+
+  it('подсветка якоря пересчитывается при прокрутке любого контейнера (M8)', async () => {
+    const user = setup();
+    await user.click(screen.getByRole('button', { name: ru.tutorial.next }));
+    const overlay = screen.getByTestId('tutorial-overlay');
+    expect(overlay).toHaveAttribute('data-anchor', 'hero-A-0');
+    const rect = { top: 300, left: 20, width: 100, height: 140, right: 120, bottom: 440, x: 20, y: 300 };
+    hero('A', 0).getBoundingClientRect = () => ({ ...rect, toJSON: () => rect }) as DOMRect;
+    // Прокрутка вложенного контейнера не всплывает: слушатель должен ловить её на погружении.
+    const scroller = document.createElement('div');
+    document.body.appendChild(scroller);
+    fireEvent.scroll(scroller);
+    scroller.remove();
+    const ring = overlay.querySelector<HTMLElement>('[style]');
+    expect(ring?.style.top).toBe('300px');
+    expect(ring?.style.height).toBe('140px');
   });
 
   it('«Подтвердить» неактивна, пока шаг не разрешает подтверждение', async () => {
