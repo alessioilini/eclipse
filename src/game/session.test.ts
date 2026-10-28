@@ -3,7 +3,7 @@ import { CARD_IDS, HEROES, createRng, validateDeck } from '../engine';
 import type { Deck, HeroAction, SideCommands, Slot } from '../engine';
 import { randomDeck } from '../engine/sim';
 import {
-  confirmRound, draftEnergy, draftToCommands, draftIssues, emptyDraft, isFinished, newMatch, opponentDeckFor, playerView, surrender,
+  confirmRound, draftEnergy, draftToCommands, secondaryCandidates, draftIssues, emptyDraft, isFinished, newMatch, opponentDeckFor, playerView, surrender,
 } from './session';
 import type { Draft, MatchSession } from './session';
 
@@ -163,5 +163,24 @@ describe('энергия черновика', () => {
     expect(draftEnergy(state, pact)).toEqual({ budget: 6, spent: 0 });
     const cover: Draft = { actions: [{ type: 'skill', target: { side: 'B', slot: 0 } }, null, null], card: { handIndex: 1 } };
     expect(draftEnergy(state, cover)).toEqual({ budget: 4, spent: HEROES.tali.skill.cost + 1 });
+  });
+});
+
+describe('вторые цели карт', () => {
+  const deckA: Deck = { heroes: ['aira', 'fenna', 'nerisa', 'tali', 'zefira', 'liraya'], starting: [3, 2, 4], cards: CARD_IDS.slice(0, 12) };
+  const deckB: Deck = { heroes: ['aurora', 'justina', 'nokta', 'kira', 'mira', 'selena'], starting: [0, 1, 2], cards: CARD_IDS.slice(0, 12) };
+
+  it('стражи — только живые guardian среди активных', () => {
+    // Активные A: tali (маг), nerisa (страж), zefira (страж).
+    const state = structuredClone(newMatch(deckA, { opponentDeck: deckB, seed: 3, mode: 'free' }).state);
+    expect(secondaryCandidates(state, 'guardian')).toEqual({ heroes: [{ side: 'A', slot: 1 }, { side: 'A', slot: 2 }] });
+    state.sides.A.active[2].hp = 0;
+    expect(secondaryCandidates(state, 'guardian', { side: 'A', slot: 0 })).toEqual({ heroes: [{ side: 'A', slot: 1 }] });
+  });
+
+  it('резерв — только живые героини резерва', () => {
+    const state = structuredClone(newMatch(deckA, { opponentDeck: deckB, seed: 3, mode: 'free' }).state);
+    state.sides.A.reserve[1].hp = 0;
+    expect(secondaryCandidates(state, 'reserve')).toEqual({ reserve: [0, 2] });
   });
 });

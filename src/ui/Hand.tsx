@@ -1,7 +1,6 @@
 import { CARDS } from '../engine/data/cards';
 import type { CardId } from '../engine/types';
-import type { BlockReason } from '../i18n/ru';
-import { CardView } from './CardView';
+import { CardView, type CardBlock } from './CardView';
 import styles from './Hand.module.css';
 
 export type HandProps = {
@@ -9,7 +8,7 @@ export type HandProps = {
   selectedIndex: number | null;
   costs: number[];
   onTap: (index: number) => void;
-  blocked?: (BlockReason | undefined)[];
+  blocked?: (CardBlock | undefined)[];
 };
 
 export function Hand({ cards, selectedIndex, costs, onTap, blocked }: HandProps) {

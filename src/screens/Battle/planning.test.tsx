@@ -2,6 +2,7 @@ import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { CARD_IDS, HEROES } from '../../engine';
+import { ECLIPSE_ROUND } from '../../engine/damage';
 import type { CardId, Deck, HeroAction, MatchState, SlotRef } from '../../engine';
 import { defaultSave } from '../../game/save/defaults';
 import { emptyDraft } from '../../game/session';
@@ -128,6 +129,28 @@ describe('экран боя: планирование', () => {
     // Повторный тап снимает карту.
     await user.click(screen.getByTestId('card-0'));
     expect(useStore.getState().draft.card).toBeNull();
+  });
+
+  it('«Прикрытие» без живого стража нельзя выбрать', async () => {
+    const user = setup(['cover', 'lunarDash'], s => { s.sides.A.active[2].hp = 0; });
+    const card = screen.getByTestId('card-0');
+    expect(card).toHaveAttribute('aria-disabled', 'true');
+    expect(card).toHaveTextContent(ru.battle.noTarget);
+    await user.click(card);
+    expect(useStore.getState().sheet).toBeNull();
+    expect(useStore.getState().draft.card).toBeNull();
+    expect(screen.queryByTestId('target-hint')).toBeNull();
+  });
+
+  it('индикатор затмения появляется с раунда ECLIPSE_ROUND движка', () => {
+    setup(undefined, s => { s.round = ECLIPSE_ROUND - 1; });
+    expect(screen.queryByText(ru.battle.eclipse)).toBeNull();
+  });
+
+  it('на раунде ECLIPSE_ROUND луна показывает затмение', () => {
+    setup(undefined, s => { s.round = ECLIPSE_ROUND; });
+    expect(screen.getByText(ru.battle.eclipse)).toBeInTheDocument();
+    expect(screen.getByText(fmt(ru.battle.round, { n: ECLIPSE_ROUND, max: 10 }))).toBeInTheDocument();
   });
 
   it('Review Focus 3: «Замена» после чипа «Скилл → B2» снимает старый чип и показывает резерв', async () => {

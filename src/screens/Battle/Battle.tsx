@@ -1,12 +1,10 @@
+import { MAX_ROUNDS } from '../../game/session';
 import { fmt, ru } from '../../i18n/ru';
 import { navigate } from '../../router';
 import { useStore } from '../../store';
 import { Button } from '../../ui/Button';
 import styles from './Battle.module.css';
 import { Planning } from './Planning';
-
-/** Матч длится не больше 10 раундов (правила, §2 спеки движка). */
-const MAX_ROUNDS = 10;
 
 /** Заглушка проигрывания: Task 10 заменит её анимацией битов. */
 function PlaybackPlaceholder() {

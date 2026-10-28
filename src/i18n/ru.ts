@@ -32,6 +32,7 @@ export const ru = {
     pickTarget: 'Выберите цель',
     pickGuardian: 'Выберите стража',
     pickReserve: 'Выберите героиню из резерва',
+    noTarget: 'Нет цели',
     deck: 'Колода: {n}',
     hand: 'Карт в руке: {n}',
     lunaCount: '{n}☾',

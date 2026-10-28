@@ -4,13 +4,18 @@ import { ru, type BlockReason } from '../i18n/ru';
 import styles from './CardView.module.css';
 import { cx } from './cx';
 
+/** Причина, по которой карту нельзя сыграть: блок движка или отсутствие легальной цели. */
+export type CardBlock = BlockReason | 'noTarget';
+
+const blockText = (b: CardBlock): string => (b === 'noTarget' ? ru.battle.noTarget : ru.blocked[b]);
+
 export type CardViewProps = {
   cardId: CardId;
   /** Current cost (may differ from the printed one because of cost modifiers). */
   cost: number;
   selected?: boolean;
   disabled?: boolean;
-  blockedReason?: BlockReason;
+  blockedReason?: CardBlock;
   onTap?: () => void;
   testId?: string;
 };
@@ -34,7 +39,7 @@ export function CardView({ cardId, cost, selected, disabled, blockedReason, onTa
       </span>
       <span className={cx(styles.timing, styles[card.timing])}>{ru.cardTiming[card.timing]}</span>
       <span className={styles.text}>{card.text}</span>
-      {disabled && blockedReason && <span className={styles.blocked}>{ru.blocked[blockedReason]}</span>}
+      {disabled && blockedReason && <span className={styles.blocked}>{blockText(blockedReason)}</span>}
     </button>
   );
 }

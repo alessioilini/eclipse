@@ -1,10 +1,11 @@
 import { useMemo } from 'react';
 import { CARDS, HEROES, legalActions, legalCardPlays } from '../../engine';
-import type { OpponentView, PublicState, Slot, SlotRef } from '../../engine';
+import { ECLIPSE_ROUND } from '../../engine/damage';
+import type { LegalCardPlay, OpponentView, PublicState, Slot, SlotRef } from '../../engine';
 import { viewFromPublic } from '../../game/playback/viewReducer';
 import type { ViewState } from '../../game/playback/viewReducer';
 import {
-  draftEnergy, draftForEngine, draftIssues, draftToCommands, playerView,
+  draftEnergy, draftForEngine, draftIssues, draftToCommands, playerView, secondaryCandidates,
 } from '../../game/session';
 import type { Draft, MatchSession } from '../../game/session';
 import { fmt, ru } from '../../i18n/ru';
@@ -12,6 +13,7 @@ import { useStore } from '../../store';
 import type { Sheet } from '../../store';
 import { ActionSheet, type SheetItem } from '../../ui/ActionSheet';
 import { Button } from '../../ui/Button';
+import type { CardBlock } from '../../ui/CardView';
 import { Hand } from '../../ui/Hand';
 import { HeroCard } from '../../ui/HeroCard';
 import { MoonWidget } from '../../ui/MoonWidget';
@@ -20,9 +22,12 @@ import { ResourceBar } from '../../ui/ResourceBar';
 import styles from './Battle.module.css';
 
 const SLOTS: Slot[] = [0, 1, 2];
-const ECLIPSE_ROUND = 9;
 
 const refKey = (r: SlotRef) => `${r.side}-${r.slot}`;
+
+/** Почему карту нельзя сыграть: не хватает энергии или нет ни одной легальной цели. */
+const cardBlock = (play: LegalCardPlay): CardBlock | undefined =>
+  play.blocked ?? (play.targets !== 'auto' && play.targets.length === 0 ? 'noTarget' : undefined);
 
 /** Что подсвечено сейчас: легальные цели среди активных героинь или индексы резерва игрока. */
 type Highlight = { heroes: Set<string>; reserve: Set<number>; hint: string } | null;
@@ -30,7 +35,6 @@ type Highlight = { heroes: Set<string>; reserve: Set<number>; hint: string } | n
 function highlightFor(sheet: Sheet | null, view: PublicState, display: ViewState, draft: Draft): Highlight {
   if (!sheet) return null;
   const engineDraft = draftForEngine(draft);
-  const own = display.sides.A;
   switch (sheet.kind) {
     case 'targets': {
       const la = legalActions(view, 'A', sheet.slot, engineDraft);
@@ -43,25 +47,17 @@ function highlightFor(sheet: Sheet | null, view: PublicState, display: ViewState
     }
     case 'card': {
       const play = legalCardPlays(view, 'A', sheet.handIndex, engineDraft);
-      const cardId = own.hand?.[sheet.handIndex];
+      const cardId = display.sides.A.hand?.[sheet.handIndex];
       const name = cardId ? `${CARDS[cardId].name}: ` : '';
       if (sheet.step === 'target') {
         const list = play.targets === 'auto' ? [] : play.targets;
         return { heroes: new Set(list.map(refKey)), reserve: new Set(), hint: name + ru.battle.pickTarget };
       }
-      if (play.secondary === 'reserve') {
-        const living = SLOTS.filter((i) => own.reserve[i]?.alive);
-        return { heroes: new Set(), reserve: new Set(living), hint: name + ru.battle.pickReserve };
+      const candidates = secondaryCandidates(view, play.secondary ?? 'guardian', sheet.target);
+      if ('reserve' in candidates) {
+        return { heroes: new Set(), reserve: new Set(candidates.reserve), hint: name + ru.battle.pickReserve };
       }
-      const guardians = SLOTS.filter((i) => {
-        const h = own.active[i];
-        return h !== undefined && h.alive && HEROES[h.heroId].role === 'guardian';
-      });
-      return {
-        heroes: new Set(guardians.map((slot) => refKey({ side: 'A', slot }))),
-        reserve: new Set(),
-        hint: name + ru.battle.pickGuardian,
-      };
+      return { heroes: new Set(candidates.heroes.map(refKey)), reserve: new Set(), hint: name + ru.battle.pickGuardian };
     }
     default:
       return null;
@@ -148,6 +144,7 @@ export function Planning({ session }: { session: MatchSession }) {
   const energy = draftEnergy(session.state, draft);
   const canConfirm = draftToCommands(draft) !== null && draftIssues(session.state, draft).length === 0;
   const cardPlays = hand.map((_, i) => legalCardPlays(view, 'A', i, draftForEngine(draft)));
+  const cardBlocks = cardPlays.map(cardBlock);
 
   const pickHero = (ref: SlotRef) => {
     if (!sheet) return;
@@ -213,7 +210,7 @@ export function Planning({ session }: { session: MatchSession }) {
       return;
     }
     const play = cardPlays[index];
-    if (!play || play.blocked) return;
+    if (!play || cardBlock(play)) return;
     if (play.targets === 'auto') {
       setCard({ handIndex: index });
       closeSheet();
@@ -324,7 +321,7 @@ export function Planning({ session }: { session: MatchSession }) {
         cards={hand}
         selectedIndex={selectedCard}
         costs={cardPlays.map((p) => p.cost)}
-        blocked={cardPlays.map((p) => p.blocked)}
+        blocked={cardBlocks}
         onTap={onCardTap}
       />
 

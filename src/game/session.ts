@@ -1,11 +1,19 @@
 import {
-  HEROES, chooseCommands, createMatch, createRng, eventsFor, resolveRound, startRound, validateCommands, viewFor,
+  chooseCommands, createMatch, createRng, eventsFor, resolveRound, startRound, validateCommands, viewFor,
 } from '../engine';
 import type {
-  CardPlay, Deck, EngineEvent, HeroAction, MatchState, PublicState, SideCommands, ValidationIssue,
+  CardPlay, Deck, EngineEvent, HeroAction, MatchState, PublicState, SideCommands, Slot, SlotRef, ValidationIssue,
 } from '../engine';
 import { randomDeck } from '../engine/sim';
-import { BLOOD_PACT_BUDGET_BONUS, ULTIMATE_ENERGY_COST, cardCost, energyBudget } from '../engine/validate';
+import {
+  actionEnergy, cardEnergy, energyBudget, isCoverGuardian, livingReserve, ownSide,
+} from '../engine/validate';
+import type { PlanningState } from '../engine/validate';
+
+/** Матч длится не больше 10 раундов (как `MAX_ROUNDS` в `engine/sim.ts`, который движок не экспортирует). */
+export const MAX_ROUNDS = 10;
+
+const SLOTS: Slot[] = [0, 1, 2];
 
 /** Планируемый ход игрока: действие на каждый слот (null = ещё не выбрано) и необязательная карта. */
 export type Draft = {
@@ -73,24 +81,29 @@ export function draftForEngine(draft: Draft): Partial<SideCommands> {
 
 /**
  * Энергия черновика игрока: бюджет раунда (с +2 от Кровавой сделки, если она выбрана) и сумма цен
- * выбранных скиллов, ульт (2) и карты. Действия павших героинь не стоят ничего.
+ * выбранных действий и карты — по тем же функциям, что и `validateCommands`.
  */
-export function draftEnergy(state: MatchState, draft: Draft): { budget: number; spent: number } {
-  const own = state.sides.A;
-  let budget = energyBudget(state, 'A');
-  let spent = 0;
+export function draftEnergy(state: PlanningState, draft: Draft): { budget: number; spent: number } {
+  const card = cardEnergy(state, 'A', draft.card ?? undefined);
+  let spent = card.cost;
   draft.actions.forEach((action, slot) => {
-    const hero = own.active[slot];
-    if (!action || !hero || hero.hp <= 0) return;
-    if (action.type === 'skill') spent += HEROES[hero.id].skill.cost;
-    else if (action.type === 'ultimate') spent += ULTIMATE_ENERGY_COST;
+    spent += actionEnergy(state, 'A', slot as Slot, action ?? undefined);
   });
-  const cardId = draft.card ? own.hand[draft.card.handIndex] : undefined;
-  if (cardId !== undefined) {
-    spent += cardCost(state, 'A', cardId);
-    if (cardId === 'bloodPact') budget += BLOOD_PACT_BUDGET_BONUS;
-  }
-  return { budget, spent };
+  return { budget: energyBudget(state, 'A') + card.bonus, spent };
+}
+
+/**
+ * Кандидаты второй цели карты игрока: живые стражи среди активных («Прикрытие») или живые
+ * героини резерва («Экстренная замена»). Правила — предикаты движка. `target` (первая цель) пока
+ * не сужает список: движок не запрещает совпадение.
+ */
+export function secondaryCandidates(
+  view: PlanningState, kind: 'guardian' | 'reserve', target?: SlotRef,
+): { heroes: SlotRef[] } | { reserve: Slot[] } {
+  void target;
+  if (kind === 'reserve') return { reserve: livingReserve(ownSide(view, 'A')) };
+  const refs = SLOTS.map((slot): SlotRef => ({ side: 'A', slot }));
+  return { heroes: refs.filter(ref => isCoverGuardian(view, 'A', ref)) };
 }
 
 /** Бот (или сценарный противник) → resolveRound → события игрока → startRound следующего раунда. */
