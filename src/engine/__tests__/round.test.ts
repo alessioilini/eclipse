@@ -332,6 +332,31 @@ describe('resolveRound: конец раунда', () => {
     expect(() => resolveRound(r.state, { A: aDefault(), B: bDefault() })).toThrow('match finished');
   });
 
+  it('Blood Moon не срабатывает, если матч уже решён в этом End Round (R34)', () => {
+    let s = killAllBut(makeMatch(), 'A', 0);
+    s = killAllBut(s, 'B', 0);
+    s.sides.B.active[0].hp = 1;
+    // Айра (SPD 6) — последняя у A — добивает Аврору (SPD 5), последнюю у B.
+    const { state, events } = playRound(s, cmd(basic(0, enemy(0)), none(), none()), cmd(basic(0, ally(0)), none(), none()));
+    expect(state.result).toEqual({ winner: 'A', reason: 'wipe' });
+    expect(ofType(events, 'bloodMoon')).toEqual([]);
+    expect(state.sides.A.bloodMoonUsed).toBe(false);
+    expect(events.at(-1)).toMatchObject({ type: 'matchEnd', winner: 'A', reason: 'wipe' });
+  });
+
+  it('урон от Burn засчитывается в damageDealt противоположной стороны (R34)', () => {
+    const s = structuredClone(makeMatch());
+    s.sides.B.active[0].statuses = [{ id: 'burn', value: 0, stacks: 2, expiresAtRound: null }];
+    s.sides.A.active[1].statuses = [{ id: 'burn', value: 0, stacks: 1, expiresAtRound: null }];
+    const { state, events } = playRound(s, cmd(basic(0, enemy(1)), basic(1, enemy(1)), basic(2, enemy(1))), bDefault());
+    const hitsBySide = (side: Side) => ofType(events, 'damage')
+      .filter(e => (e.attacker as SlotRef).side === side).reduce((sum, e) => sum + (e.hpLoss as number), 0);
+    // По Авроре: 2 стака × 2 + 1 (пассивка Айры «Жар») = 5.
+    expect(ofType(events, 'burn').map(e => [e.target, e.dmg])).toEqual([[ally(1), 2], [enemy(0), 5]]);
+    expect(state.sides.A.damageDealt).toBe(hitsBySide('A') + 5);
+    expect(state.sides.B.damageDealt).toBe(hitsBySide('B') + 2);
+  });
+
   it('обе стороны теряют последнюю в одном раунде → draw', () => {
     let s = killAllBut(makeMatch(), 'A', 0);
     s = killAllBut(s, 'B', 0);

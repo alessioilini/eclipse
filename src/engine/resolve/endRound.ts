@@ -2,7 +2,7 @@ import type { HeroState, Side, Slot, SlotRef } from '../types';
 import { getWinner } from '../match';
 import { cleanse, expireStatuses, isAlive } from '../status';
 import { directDamage } from '../damage';
-import { heroAt, setHeroAt } from '../targeting';
+import { heroAt, other, setHeroAt } from '../targeting';
 import type { Ctx } from './context';
 import { emit } from './context';
 import { burnTickAmount, gainLuna } from './effects';
@@ -55,6 +55,7 @@ function burnTick(ctx: Ctx): void {
       const amount = burnTickAmount(ctx, ref, burn.stacks);
       const { hero: next, hpLoss } = directDamage(heroAt(ctx.s, ref), amount);
       setHeroAt(ctx.s, ref, next);
+      ctx.s.sides[other(side)].damageDealt += hpLoss; // ruling R34: Burn counts for the opponent
       emit(ctx, { type: 'burn', target: ref, stacks: burn.stacks, dmg: hpLoss, hp: next.hp });
       checkDeath(ctx, ref);
     }
@@ -110,7 +111,10 @@ function autoFill(ctx: Ctx, side: Side): void {
   }
 }
 
-/** Spec §2.5 step 8: Burn, expiry (active) / frozen timers (reserve), unarmed reactions, Blood Moon, autofill, victory. */
+/**
+ * Spec §2.5 step 8: Burn, expiry (active) / frozen timers (reserve), unarmed reactions cleared,
+ * winner check, Blood Moon (only if undecided), autofill, `matchEnd`.
+ */
 export function endRound(ctx: Ctx): void {
   const s = ctx.s;
   ctx.phase = 'endRound';
@@ -125,9 +129,11 @@ export function endRound(ctx: Ctx): void {
   }
 
   // Deaths were already recorded the moment HP reached 0 (checkDeath in dealHit / Burn tick).
-  for (const side of SIDES) bloodMoon(ctx, side);
+  // Ruling R34: the winner is known before Blood Moon (it changes neither HP nor the living count);
+  // a decided match gets no Blood Moon.
+  s.result = getWinner(s);
+  if (!s.result) for (const side of SIDES) bloodMoon(ctx, side);
   for (const side of SIDES) autoFill(ctx, side);
 
-  s.result = getWinner(s);
   if (s.result) emit(ctx, { type: 'matchEnd', winner: s.result.winner, reason: s.result.reason });
 }
