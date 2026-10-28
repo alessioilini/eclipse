@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { createRng } from '../engine';
+import { createRng, viewFor } from '../engine';
 import type { HeroAction, Slot } from '../engine';
 import { randomDeck } from '../engine/sim';
 import { defaultSave, type SaveV1 } from '../game/save/defaults';
@@ -7,7 +7,10 @@ import { SAVE_KEY } from '../game/save/storage';
 import { formatLog } from '../engine/log';
 import { viewFromPublic } from '../game/playback/viewReducer';
 import { newMatch, playerView } from '../game/session';
+import { createRunner, current, dismissSay } from '../game/tutorial/runner';
+import { SCRIPTS } from '../game/tutorial/scripts';
 import { attachPersistence, hydrate, toSave, useStore } from './index';
+import { selectAllowed } from './match';
 
 type FakeStorage = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>;
 
@@ -339,5 +342,86 @@ describe('интерфейс', () => {
     expect(useStore.getState().sheet).toEqual({ kind: 'log' });
     useStore.getState().closeSheet();
     expect(useStore.getState().sheet).toBeNull();
+  });
+});
+
+describe('обучение в сторе', () => {
+  const script = SCRIPTS[1];
+  const startTutorial = () => {
+    useStore.getState().startMatch(script.decks.A, {
+      opponentDeck: script.decks.B, seed: script.seed, mode: 'tutorial', tutorialId: 1, enemy: script.enemy,
+      ...(script.enemyHp ? { opponentHp: script.enemyHp } : {}),
+    });
+    useStore.getState().setTutorialRunner(createRunner(script));
+  };
+
+  it('setTutorialRunner зеркалит шаг в tutorialStepIndex, свободный матч даёт allowed = null', () => {
+    useStore.getState().startMatch(playerDeck(), opts());
+    expect(selectAllowed(useStore.getState())).toBeNull();
+    startTutorial();
+    expect(useStore.getState().tutorialStepIndex).toBe(0);
+    useStore.getState().setTutorialRunner(dismissSay(useStore.getState().tutorial!));
+    expect(useStore.getState().tutorialStepIndex).toBe(1);
+    expect(selectAllowed(useStore.getState())).toMatchObject({ slots: [0], actions: ['basic'] });
+  });
+
+  it('изменение черновика, подтверждение и конец проигрывания продвигают сценарий', () => {
+    startTutorial();
+    const st = () => useStore.getState();
+    st().setTutorialRunner(dismissSay(st().tutorial!));
+    st().setAction(0, basicOn(1));
+    expect(st().tutorialStepIndex).toBe(1);
+    st().setAction(0, basicOn(0));
+    expect(st().tutorialStepIndex).toBe(2);
+    st().setTutorialRunner(dismissSay(st().tutorial!));
+    st().setAction(1, { type: 'skill', target: { side: 'A', slot: 2 } });
+    st().setAction(2, basicOn(1));
+    expect(st().tutorialStepIndex).toBe(5);
+    st().confirm();
+    expect(st().tutorialStepIndex).toBe(6);
+    expect(st().tutorial!.round).toBe(1);
+    st().finishPlayback();
+    expect(st().tutorial!.round).toBe(2);
+    expect(current(st().tutorial!)).toEqual(script.steps[6]);
+  });
+
+  it('итог матча обучения не идёт в статистику', () => {
+    startTutorial();
+    useStore.getState().surrender();
+    useStore.getState().recordMatchResult();
+    expect(useStore.getState().stats).toEqual({ wins: 0, losses: 0, draws: 0 });
+  });
+
+  it('hydrate матча обучения возвращает сценарного противника и исполнителя на сохранённом шаге', () => {
+    startTutorial();
+    const st = () => useStore.getState();
+    st().setTutorialRunner({ ...st().tutorial!, stepIndex: 1 });
+    st().setAction(0, basicOn(0));
+    st().setTutorialRunner(dismissSay(st().tutorial!));
+    st().setAction(1, { type: 'skill', target: { side: 'A', slot: 2 } });
+    st().setAction(2, basicOn(1));
+    st().confirm();
+    st().finishPlayback();
+    const save = JSON.parse(JSON.stringify(toSave(st()))) as SaveV1;
+    expect(save.match?.tutorialStepIndex).toBe(6);
+    const restored = hydrate(save);
+    expect(restored.session!.enemy).toBe(script.enemy);
+    expect(restored.tutorial).toEqual({ script, stepIndex: 6, round: 2 });
+    expect(restored.tutorialStepIndex).toBe(6);
+    // Сценарный противник, а не бот: раунд разрешается его командами.
+    const before = restored.session!.state;
+    restored.setAction(0, basicOn(0));
+    restored.setAction(1, basicOn(0));
+    restored.setAction(2, basicOn(0));
+    useStore.getState().confirm();
+    const reveal = useStore.getState().lastEvents.find(e => e.type === 'reveal');
+    expect(reveal?.type === 'reveal' ? reveal.commands.B : null).toEqual(script.enemy(before.round, viewFor(before, 'B')));
+  });
+
+  it('hydrate свободного матча не создаёт исполнителя', () => {
+    useStore.getState().startMatch(playerDeck(), opts());
+    const restored = hydrate(toSave(useStore.getState()));
+    expect(restored.tutorial).toBeNull();
+    expect(restored.session!.enemy).toBeUndefined();
   });
 });

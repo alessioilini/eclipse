@@ -8,6 +8,8 @@ import {
   confirmRound, emptyDraft, isFinished, openMatch, playerView, surrender as surrenderSession,
 } from '../game/session';
 import type { Draft, MatchSession, NewMatchOpts } from '../game/session';
+import { allowed, onConfirm, onDraftChange, onPlaybackDone } from '../game/tutorial/runner';
+import type { AllowSet, RunnerState } from '../game/tutorial/runner';
 import type { StoreState } from './index';
 
 export type MatchPhase = 'planning' | 'playback' | 'finished';
@@ -27,11 +29,15 @@ export type MatchSlice = {
   allEvents: EngineEvent[];
   /** Отображение перед проигрыванием: с него экран проигрывания применяет биты. */
   viewBeforePlayback: ViewState | null;
-  /** Шаг сценария обучения, сохраняемый вместе с матчем (SaveV1.match.tutorialStepIndex). */
+  /** Шаг сценария обучения, сохраняемый вместе с матчем (SaveV1.match.tutorialStepIndex); зеркало `tutorial.stepIndex`. */
   tutorialStepIndex: number | null;
+  /** Исполнитель сценария обучения; null в свободном матче. */
+  tutorial: RunnerState | null;
   /** Состояние завершённого матча, итог которого уже занесён в статистику (сравнение по ссылке). */
   resultRecordedFor: MatchState | null;
   startMatch(playerDeck: Deck, opts: NewMatchOpts): void;
+  /** Ставит исполнителя сценария (null — убрать); `tutorialStepIndex` следует за ним. */
+  setTutorialRunner(r: RunnerState | null): void;
   setAction(slot: Slot, action: HeroAction | null): void;
   setCard(play: CardPlay | null): void;
   confirm(): void;
@@ -50,72 +56,94 @@ export const blankDraft = (): Draft => ({ actions: [null, null, null], card: nul
 export const noMatch = (): Pick<
   MatchSlice,
   'session' | 'draft' | 'phase' | 'beats' | 'beatIndex' | 'lastEvents' | 'allEvents' | 'viewBeforePlayback' | 'tutorialStepIndex'
-  | 'resultRecordedFor'
+  | 'resultRecordedFor' | 'tutorial'
 > => ({
   session: null, draft: blankDraft(), phase: 'planning', beats: [], beatIndex: 0, lastEvents: [], allEvents: [],
-  viewBeforePlayback: null, tutorialStepIndex: null, resultRecordedFor: null,
+  viewBeforePlayback: null, tutorialStepIndex: null, resultRecordedFor: null, tutorial: null,
 });
+
+const runnerFields = (r: RunnerState | null) => ({ tutorial: r, tutorialStepIndex: r ? r.stepIndex : null });
+
+/** Что разрешает обучение в планировании; null — свободный матч (разрешено всё, что легально). */
+export function selectAllowed(s: Pick<StoreState, 'tutorial' | 'session'>): AllowSet | null {
+  return s.tutorial && s.session ? allowed(s.tutorial, s.session.state) : null;
+}
 
 function requireSession(session: MatchSession | null): MatchSession {
   if (!session) throw new Error('no match');
   return session;
 }
 
-export const createMatchSlice: StateCreator<StoreState, [], [], MatchSlice> = (set, get) => ({
-  ...noMatch(),
-  startMatch(playerDeck, opts) {
-    const { session, events } = openMatch(playerDeck, opts);
-    set({
-      ...noMatch(), session, draft: emptyDraft(session.state), lastEvents: events, allEvents: events,
-      selectedSlot: null, sheet: null,
-    });
-  },
-  setAction(slot, action) {
-    const { draft } = get();
-    const actions = [...draft.actions] as Draft['actions'];
-    actions[slot] = action;
-    set({ draft: { ...draft, actions } });
-  },
-  setCard(play) {
-    set({ draft: { ...get().draft, card: play } });
-  },
-  confirm() {
-    const { session: current, draft, allEvents, lastEvents, phase } = get();
-    if (phase !== 'planning') return;
-    const before = requireSession(current);
-    const viewBeforePlayback = viewFromPublic(playerView(before));
-    const { session, events } = confirmRound(before, draft);
-    // Начало этого раунда уже в хвосте прошлого журнала: журнал раунда начинается с него.
-    const roundStart = lastEvents.filter(e => e.round === before.state.round);
-    set({
-      session, viewBeforePlayback, lastEvents: [...roundStart, ...events], allEvents: [...allEvents, ...events],
-      beats: toBeats(events), beatIndex: 0, phase: 'playback',
-    });
-  },
-  advanceBeat() {
-    const { beatIndex, beats } = get();
-    if (beatIndex < beats.length) set({ beatIndex: beatIndex + 1 });
-  },
-  skipPlayback() {
-    set({ beatIndex: get().beats.length });
-  },
-  finishPlayback() {
-    const { session, phase } = get();
-    if (!session || phase !== 'playback') return;
-    if (isFinished(session)) set({ phase: 'finished' });
-    else set({ phase: 'planning', draft: emptyDraft(session.state) });
-  },
-  surrender() {
-    set({ session: surrenderSession(requireSession(get().session)), phase: 'finished' });
-  },
-  clearMatch() {
-    set(noMatch());
-  },
-  recordMatchResult() {
-    const { session, resultRecordedFor, recordResult } = get();
-    const result = session?.state.result;
-    if (!session || !result || resultRecordedFor === session.state) return;
-    set({ resultRecordedFor: session.state });
-    recordResult(result.winner === 'A' ? 'win' : result.winner === 'B' ? 'loss' : 'draw');
-  },
-});
+export const createMatchSlice: StateCreator<StoreState, [], [], MatchSlice> = (set, get) => {
+  /** Новый черновик; в обучении проверяет требование текущего шага (спека §10.3). */
+  const setDraft = (draft: Draft) => {
+    const { tutorial, session } = get();
+    const next = tutorial && session ? onDraftChange(tutorial, draft, session.state) : tutorial;
+    set({ draft, ...(next !== tutorial ? runnerFields(next) : {}) });
+  };
+  return {
+    ...noMatch(),
+    startMatch(playerDeck, opts) {
+      const { session, events } = openMatch(playerDeck, opts);
+      set({
+        ...noMatch(), session, draft: emptyDraft(session.state), lastEvents: events, allEvents: events,
+        selectedSlot: null, sheet: null,
+      });
+    },
+    setTutorialRunner(r) {
+      set(runnerFields(r));
+    },
+    setAction(slot, action) {
+      const { draft } = get();
+      const actions = [...draft.actions] as Draft['actions'];
+      actions[slot] = action;
+      setDraft({ ...draft, actions });
+    },
+    setCard(play) {
+      setDraft({ ...get().draft, card: play });
+    },
+    confirm() {
+      const { session: current, draft, allEvents, lastEvents, phase } = get();
+      if (phase !== 'planning') return;
+      const before = requireSession(current);
+      const viewBeforePlayback = viewFromPublic(playerView(before));
+      const { session, events } = confirmRound(before, draft);
+      // Начало этого раунда уже в хвосте прошлого журнала: журнал раунда начинается с него.
+      const roundStart = lastEvents.filter(e => e.round === before.state.round);
+      const { tutorial } = get();
+      set({
+        session, viewBeforePlayback, lastEvents: [...roundStart, ...events], allEvents: [...allEvents, ...events],
+        beats: toBeats(events), beatIndex: 0, phase: 'playback',
+        ...(tutorial ? runnerFields(onConfirm(tutorial)) : {}),
+      });
+    },
+    advanceBeat() {
+      const { beatIndex, beats } = get();
+      if (beatIndex < beats.length) set({ beatIndex: beatIndex + 1 });
+    },
+    skipPlayback() {
+      set({ beatIndex: get().beats.length });
+    },
+    finishPlayback() {
+      const { session, phase, tutorial } = get();
+      if (!session || phase !== 'playback') return;
+      const runner = tutorial ? runnerFields(onPlaybackDone(tutorial)) : {};
+      if (isFinished(session)) set({ phase: 'finished', ...runner });
+      else set({ phase: 'planning', draft: emptyDraft(session.state), ...runner });
+    },
+    surrender() {
+      set({ session: surrenderSession(requireSession(get().session)), phase: 'finished' });
+    },
+    clearMatch() {
+      set(noMatch());
+    },
+    recordMatchResult() {
+      const { session, resultRecordedFor, recordResult } = get();
+      const result = session?.state.result;
+      // Бои обучения в статистику не идут.
+      if (!session || !result || session.mode === 'tutorial' || resultRecordedFor === session.state) return;
+      set({ resultRecordedFor: session.state });
+      recordResult(result.winner === 'A' ? 'win' : result.winner === 'B' ? 'loss' : 'draw');
+    },
+  };
+};

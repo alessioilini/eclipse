@@ -183,4 +183,15 @@ describe('вторые цели карт', () => {
     state.sides.A.reserve[1].hp = 0;
     expect(secondaryCandidates(state, 'reserve')).toEqual({ reserve: [0, 2] });
   });
+
+  it('opponentHp ставит стартовое HP героинь противника по порядку колоды', () => {
+    const deckB = randomDeck(createRng(105));
+    const hp = [5, 6, 7, 8, 9, 999];
+    const s = newMatch(randomDeck(createRng(5)), { opponentDeck: deckB, seed: 5, mode: 'tutorial', opponentHp: hp });
+    for (const h of [...s.state.sides.B.active, ...s.state.sides.B.reserve]) {
+      const want = hp[deckB.heroes.indexOf(h.id)]!;
+      expect(h.hp).toBe(Math.min(want, h.maxHp));
+    }
+    expect(s.state.sides.A.active.every(h => h.hp === h.maxHp)).toBe(true);
+  });
 });

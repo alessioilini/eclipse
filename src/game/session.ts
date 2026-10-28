@@ -38,7 +38,21 @@ export type NewMatchOpts = {
   mode: 'free' | 'tutorial';
   tutorialId?: 1 | 2 | 3;
   enemy?: (round: number, view: PublicState) => SideCommands;
+  /** Стартовое HP героинь противника в порядке `opponentDeck.heroes` (раненые противницы обучения). */
+  opponentHp?: number[];
 };
+
+/** Ставит героиням B стартовое HP из `hp` (по порядку колоды), в пределах 1..maxHp. */
+function woundOpponent(state: MatchState, deck: Deck, hp: number[] | undefined): MatchState {
+  if (!hp) return state;
+  const next = structuredClone(state);
+  const side = next.sides.B;
+  for (const hero of [...side.active, ...side.reserve]) {
+    const value = hp[deck.heroes.indexOf(hero.id)];
+    if (value !== undefined) hero.hp = Math.min(hero.maxHp, Math.max(1, Math.round(value)));
+  }
+  return next;
+}
 
 /** createMatch + startRound: сессия ждёт команд первого раунда. */
 export function newMatch(playerDeck: Deck, opts: NewMatchOpts): MatchSession {
@@ -47,7 +61,7 @@ export function newMatch(playerDeck: Deck, opts: NewMatchOpts): MatchSession {
 
 /** Как `newMatch`, плюс события начала первого раунда для игрока (roundStart, добор) — для журнала. */
 export function openMatch(playerDeck: Deck, opts: NewMatchOpts): { session: MatchSession; events: EngineEvent[] } {
-  const created = createMatch(playerDeck, opts.opponentDeck, opts.seed);
+  const created = woundOpponent(createMatch(playerDeck, opts.opponentDeck, opts.seed), opts.opponentDeck, opts.opponentHp);
   const { state, events } = startRound(created);
   const session: MatchSession = {
     state,

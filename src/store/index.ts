@@ -2,6 +2,9 @@ import { create } from 'zustand';
 import type { SaveV1 } from '../game/save/defaults';
 import { writeSave } from '../game/save/storage';
 import { emptyDraft, isFinished } from '../game/session';
+import type { MatchSession } from '../game/session';
+import { createRunner } from '../game/tutorial/runner';
+import { SCRIPTS } from '../game/tutorial/scripts';
 import { createDecksSlice, type DecksSlice } from './decks';
 import { createMatchSlice, noMatch, type MatchSlice } from './match';
 import { createProfileSlice, type ProfileSlice } from './profile';
@@ -33,12 +36,19 @@ export const store = useStore;
  */
 export function hydrate(save: SaveV1): StoreState {
   const m = save.match;
-  const session = m
+  // U17: функции не сохраняются — сценарного противника и исполнителя восстанавливаем по tutorialId.
+  const script = m?.mode === 'tutorial' && m.tutorialId !== undefined ? SCRIPTS[m.tutorialId] : null;
+  const session: MatchSession | null = m
     ? {
       state: m.state, botSeed: m.botSeed, mode: m.mode,
       ...(m.tutorialId !== undefined ? { tutorialId: m.tutorialId } : {}),
       playerDeck: m.playerDeck, opponentDeck: m.opponentDeck,
+      ...(script ? { enemy: script.enemy } : {}),
     }
+    : null;
+  // Матч восстанавливается в планировании текущего раунда: исполнитель на том же раунде и шаге.
+  const tutorial = script && m
+    ? { ...createRunner(script), stepIndex: m.tutorialStepIndex ?? 0, round: m.state.round }
     : null;
   useStore.setState({
     unlocked: save.profile.unlocked,
@@ -56,7 +66,8 @@ export function hydrate(save: SaveV1): StoreState {
         phase: isFinished(session) ? 'finished' : 'planning',
         // Завершённый матч уже был засчитан при завершении: после перезагрузки повторно не считаем.
         resultRecordedFor: isFinished(session) ? session.state : null,
-        tutorialStepIndex: m?.tutorialStepIndex ?? null,
+        tutorialStepIndex: tutorial ? tutorial.stepIndex : m?.tutorialStepIndex ?? null,
+        tutorial,
       }
       : {}),
     selectedSlot: null,
