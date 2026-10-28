@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { createRng } from '../rng';
+import { createRng, createRngFromState } from '../rng';
 
 describe('rng', () => {
   it('детерминирован при одном seed', () => {
@@ -15,5 +15,11 @@ describe('rng', () => {
     const out = createRng(7).shuffle(src);
     expect(src).toEqual([1, 2, 3, 4, 5]);
     expect([...out].sort()).toEqual([1, 2, 3, 4, 5]);
+  });
+  it('createRngFromState продолжает последовательность с сохранённого state()', () => {
+    const a = createRng(9);
+    a.next(); a.next();
+    const b = createRngFromState(a.state());
+    expect([b.next(), b.next()]).toEqual([a.next(), a.next()]);
   });
 });

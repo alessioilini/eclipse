@@ -40,3 +40,11 @@ export function createRng(seed: number): Rng {
 
   return { next, int, pick, shuffle, state: () => s };
 }
+
+/**
+ * Restores an Rng from a value previously returned by `state()` (e.g. MatchState.rngState).
+ * mulberry32's whole state is that 32-bit integer, so the generator resumes exactly where it stopped.
+ */
+export function createRngFromState(state: number): Rng {
+  return createRng(state);
+}
