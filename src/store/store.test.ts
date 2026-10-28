@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { createRng, viewFor, formatLog } from '../engine';
+import { ENGINE_VERSION, createRng, formatLog, viewFor } from '../engine';
 import type { HeroAction, Slot } from '../engine';
 import { randomDeck } from '../engine/sim';
 import { defaultSave, type SaveV1 } from '../game/save/defaults';
@@ -119,7 +119,7 @@ describe('сохранение стора', () => {
       match: {
         // Шаг 0 — начало раунда 1: шаг внутри раунда при восстановлении откатывается (тест ниже).
         state: session.state, botSeed: 5, mode: 'tutorial', tutorialId: 2, tutorialStepIndex: 0,
-        playerDeck: session.playerDeck, opponentDeck: session.opponentDeck,
+        playerDeck: session.playerDeck, opponentDeck: session.opponentDeck, engineVersion: ENGINE_VERSION,
       },
     };
     expect(toSave(hydrate(s))).toEqual(s);

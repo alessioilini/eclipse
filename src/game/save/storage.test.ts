@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { loadSave, writeSave, SAVE_KEY } from './storage';
 import { defaultSave } from './defaults';
+import { ENGINE_VERSION } from '../../engine';
 import { newMatch, opponentDeckFor } from '../session';
 
 type FakeStorage = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>;
@@ -80,11 +81,29 @@ describe('сохранение', () => {
     const opponentDeck = opponentDeckFor(1);
     const session = newMatch(playerDeck, { opponentDeck, seed: 5, mode: 'free' });
     const save = defaultSave();
-    save.match = { state: session.state, botSeed: 5, mode: 'free', playerDeck, opponentDeck };
+    save.match = { state: session.state, botSeed: 5, mode: 'free', playerDeck, opponentDeck, engineVersion: ENGINE_VERSION };
     const storage = fakeStorage();
     writeSave(save, storage);
     expect(loadSave(storage)).toEqual(save);
     expect(warn).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['другая версия движка', ENGINE_VERSION + 1],
+    ['версии нет (считается 0)', undefined],
+  ])('матч, сохранённый другим движком (%s), отбрасывается с предупреждением', (_name, engineVersion) => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const playerDeck = opponentDeckFor(0);
+    const opponentDeck = opponentDeckFor(1);
+    const session = newMatch(playerDeck, { opponentDeck, seed: 5, mode: 'free' });
+    const save = defaultSave();
+    save.profile.stats.wins = 2;
+    const match = { state: session.state, botSeed: 5, mode: 'free', playerDeck, opponentDeck, engineVersion };
+    const loaded = loadSave(fakeStorage({ [SAVE_KEY]: JSON.stringify({ ...save, match }) }));
+    expect(loaded.match).toBeNull();
+    expect(loaded.profile.stats.wins).toBe(2);
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(String(warn.mock.calls[0]?.[0])).toContain('[save]');
   });
 
   it.each([

@@ -9,6 +9,8 @@ export type SaveV1 = {
   match: null | {
     state: MatchState; botSeed: number; mode: 'free' | 'tutorial'; tutorialId?: 1 | 2 | 3; tutorialStepIndex?: number;
     playerDeck: Deck; opponentDeck: Deck;
+    /** `ENGINE_VERSION` движка, записавшего матч; матч другой версии при загрузке отбрасывается. */
+    engineVersion: number;
   };
 };
 

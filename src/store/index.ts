@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { ENGINE_VERSION } from '../engine';
 import type { SaveV1 } from '../game/save/defaults';
 import { writeSave } from '../game/save/storage';
 import { emptyDraft, isFinished } from '../game/session';
@@ -104,6 +105,7 @@ export function toSave(state: StoreState): SaveV1 {
         ...(s.tutorialId !== undefined ? { tutorialId: s.tutorialId } : {}),
         ...(state.tutorialStepIndex !== null ? { tutorialStepIndex: state.tutorialStepIndex } : {}),
         playerDeck: s.playerDeck, opponentDeck: s.opponentDeck,
+        engineVersion: ENGINE_VERSION,
       }
       : null,
   };

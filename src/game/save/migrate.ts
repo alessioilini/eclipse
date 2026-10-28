@@ -1,3 +1,4 @@
+import { ENGINE_VERSION } from '../../engine';
 import type { SaveV1 } from './defaults';
 
 function isObject(v: unknown): v is Record<string, unknown> {
@@ -25,6 +26,14 @@ export function migrate(raw: unknown): SaveV1 | null {
   if (raw.match !== null && raw.match !== undefined && !isMatch(raw.match)) {
     console.warn('[save] повреждённый матч в сохранении, матч сброшен');
     return { ...raw, match: null } as unknown as SaveV1;
+  }
+  if (isObject(raw.match)) {
+    // Матч другого движка (иная форма состояния или правила) не продолжаем; версии нет — значит 0.
+    const version = typeof raw.match.engineVersion === 'number' ? raw.match.engineVersion : 0;
+    if (version !== ENGINE_VERSION) {
+      console.warn(`[save] матч сохранён движком версии ${version}, текущая ${ENGINE_VERSION}: матч сброшен`);
+      return { ...raw, match: null } as unknown as SaveV1;
+    }
   }
   return { ...raw, match: raw.match ?? null } as unknown as SaveV1;
 }
