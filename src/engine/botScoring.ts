@@ -80,11 +80,21 @@ function hitDamage(view: PublicState, attacker: HeroState, mod: number, target: 
   });
 }
 
-/** Sum of the Basic Attacks of every living enemy on `hero` (standing in `slot`), minus her shield. */
+/** Enemy hits counted as a threat: the opponent rarely lands more than two single hits on one slot per round. */
+const THREAT_ATTACKERS = 2;
+
+/**
+ * Threat on `hero` (standing in `slot`): the Basic Attacks of the two strongest living enemies,
+ * minus her shield. Balance pass 1: the sum over all three enemies flagged a third of the board
+ * as threatened while the opponent spreads its hits (three hits on one slot in 9% of rounds).
+ */
 export function incomingOn(view: PublicState, side: Side, hero: HeroState, slot: number): number {
   const foe = other(side);
-  const sum = actives(view, foe).filter(isAlive)
-    .reduce((acc, e) => acc + hitDamage(view, e, 1, hero, side, slot), 0);
+  const hits = actives(view, foe).filter(isAlive)
+    .map(e => hitDamage(view, e, 1, hero, side, slot))
+    .sort((a, b) => b - a)
+    .slice(0, THREAT_ATTACKERS);
+  const sum = hits.reduce((acc, h) => acc + h, 0);
   return Math.max(0, sum - hero.shield);
 }
 
