@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { startRound } from '../resolve/round';
 import { makeCtx } from '../resolve/context';
-import { dealHit, runAbility } from '../resolve/actions';
+import { runAbility } from '../resolve/actions';
+import { dealHit } from '../resolve/effects';
 import { validateCommands } from '../validate';
 import { HEROES } from '../data/heroes';
 import { MOON_ORDER } from '../types';

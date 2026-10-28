@@ -1,8 +1,8 @@
-import type { CardId, Slot, SlotRef } from '../types';
+import type { CardId, Side, Slot, SlotRef } from '../types';
 import { effectiveAtk, hasStatus, isAlive } from '../status';
 import { aliveActive, heroAt, other, REDIRECT_NERISA } from '../targeting';
 import type { Ctx } from './context';
-import { applyStatusTo } from './actions';
+import { applyStatusTo } from './effects';
 
 /**
  * Data passed to a hook. Mutable boxes (`amount`, `flat`, `reductions`) let passives change a value
@@ -13,6 +13,10 @@ export type HookPayload = {
   source?: SlotRef; attacker?: SlotRef; target?: SlotRef;
   amount?: { v: number }; flat?: { v: number }; reductions?: { v: number };
   card?: CardId; secondary?: SlotRef | { reserveIndex: Slot }; killed?: boolean;
+  /** Side of the event when no active slot describes it (`onCardPlayed`, a buff on a reserve heroine). */
+  side?: Side;
+  /** Ability hooks: the ability already ran the interception chain (R19); see AbilityInterception. */
+  intercepted?: { reduction: number };
 };
 /** Returning `false` means "did not apply": a `once` trigger is then not consumed. */
 export type HookFn = (ctx: Ctx, self: SlotRef, payload: HookPayload) => boolean | void;
@@ -27,7 +31,6 @@ const FENNA_FIRST_HEAL_BONUS = 2;
 const NOKTA_CURSE_BONUS = 1;
 const KIRA_RAGE_BONUS = 2;
 const AURORA_AEGIS_REDUCTION = 1;
-const LIRAYA_KEY = 'liraya.moonWind';
 
 /** Named hero/card logic (spec §6.2). Task 9: the hooks its tests need; Task 10–11 add the rest. */
 export const HOOKS: Record<string, HookFn> = {
@@ -53,11 +56,8 @@ export const HOOKS: Record<string, HookFn> = {
     applyStatusTo(ctx, self, t, 'redirectTo', REDIRECT_NERISA, 'thisRound');
   },
 
-  /** Passive «Лунный ветер» (onMoonShift): +1 ATK until the end of the round, once per round. */
+  /** Passive «Лунный ветер» (onMoonShift, once per round via the trigger): +1 ATK until the end of the round. */
   'liraya.moonWind': (ctx, self) => {
-    const hero = heroAt(ctx.s, self);
-    if (hero.once[LIRAYA_KEY] === ctx.s.round) return false;
-    hero.once[LIRAYA_KEY] = ctx.s.round;
     applyStatusTo(ctx, self, self, 'atk', 1, 'thisRound');
   },
 

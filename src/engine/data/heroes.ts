@@ -89,7 +89,7 @@ export const HEROES: Record<HeroId, HeroDef> = {
     passive: {
       name: 'Лунный ветер',
       text: 'Если в этом раунде Луна была сдвинута (картой или умением любой стороны), Лирая получает +1 ATK до конца раунда.',
-      triggers: [{ on: 'onMoonShift', hook: 'liraya.moonWind' }],
+      triggers: [{ on: 'onMoonShift', once: 'round', hook: 'liraya.moonWind' }],
     },
     skill: {
       name: 'Лунный порыв', cost: 1, target: 'enemy',

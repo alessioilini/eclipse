@@ -1,152 +1,26 @@
-import { BUFF_IDS, MOON_ORDER } from '../types';
-import type {
-  Ability, Condition, Duration, Element, HeroAction, MoonPhase, Primitive, SlotRef, StatusId, TargetType,
-} from '../types';
+import { MOON_ORDER } from '../types';
+import type { Ability, Condition, HeroAction, Primitive, SlotRef, TargetType } from '../types';
 import { HEROES } from '../data/heroes';
-import { elementMultiplier } from '../data/elements';
-import {
-  applyHeal, applyShield, applyToHero, computeDamage, directDamage, healAmount, roundHalfUp, shieldAmount,
-} from '../damage';
-import { applyStatus, cleanse, effectiveAtk, hasStatus, isAlive, removeStatus, statusValue } from '../status';
+import { directDamage } from '../damage';
+import { cleanse, hasStatus, isAlive, removeStatus } from '../status';
 import {
   aliveActive, findLowestHpEnemy, heroAt, interceptSingleHit, other, resolveTarget, setHeroAt,
 } from '../targeting';
 import { ULTIMATE_ENERGY_COST, ultimateLunaCost } from '../validate';
 import type { Ctx } from './context';
 import { emit } from './context';
-import { checkDeath } from './endRound';
 import { fire } from './triggers';
 import { HOOKS } from './hooks';
 import { drawCard } from './deck';
+import { applyStatusTo, dealHit, grantShield, healHero, isBuff, takeInterception } from './effects';
+import type { AbilityInterception } from './effects';
 
-const MARK_BONUS = 3;
 const MAX_LUNA = 5;
 const ENTERED_KEY = 'enteredRound';
 
 export type AbilityKind = 'skill' | 'ultimate';
 
 const sameRef = (a: SlotRef, b: SlotRef): boolean => a.side === b.side && a.slot === b.slot;
-
-/** Buff class (spec §3.4): BUFF_IDS, or SPD/ATK modifiers with a positive value. */
-function isBuff(id: StatusId, value: number): boolean {
-  return BUFF_IDS.includes(id) || ((id === 'spd' || id === 'atk') && value > 0);
-}
-
-/** Spec §2.4: +1 to Dark at new moon, to Light/Star at full moon, to everyone at waning moon. */
-function lunarDamageBonus(moon: MoonPhase, element: Element): number {
-  if (moon === 'new' && element === 'dark') return 1;
-  if (moon === 'full' && (element === 'light' || element === 'star')) return 1;
-  if (moon === 'waning') return 1;
-  return 0;
-}
-
-/**
- * One hit from `attacker` on `target` (spec §3.1). Order: interception (single hits only) →
- * `beforeDealDamage` (passives add to `flat`) → `beforeTakeDamage` (passives add to `reductions`,
- * seen with the final target) → one-shot statuses (attacker's Pierce / NextHitBonus, victim's
- * DamageReduction, Mark on single hits) and the lunar bonus → computeDamage → applyToHero →
- * `damage` event → `afterDealDamage` → death check.
- */
-export function dealHit(
-  ctx: Ctx, attacker: SlotRef, target: SlotRef, mod: number, flat: number,
-  opts: { single: boolean; pierce?: boolean },
-): void {
-  const s = ctx.s;
-  let tgt = target;
-  let reductions = 0;
-  if (opts.single) {
-    const r = interceptSingleHit(s, attacker, target);
-    if (!sameRef(r.target, target)) emit(ctx, { type: 'redirect', from: target, to: r.target, reason: r.reason });
-    tgt = r.target;
-    reductions += r.reduction;
-  }
-
-  const flatBox = { v: flat };
-  const reductionBox = { v: 0 };
-  fire(ctx, 'beforeDealDamage', { attacker, target: tgt, flat: flatBox });
-  fire(ctx, 'beforeTakeDamage', { attacker, target: tgt, reductions: reductionBox });
-  reductions += reductionBox.v;
-
-  let att = heroAt(s, attacker);
-  const attDef = HEROES[att.id];
-  let totalFlat = flatBox.v + lunarDamageBonus(s.moon, attDef.element);
-  let pierce = opts.pierce ?? false;
-  if (hasStatus(att, 'pierce')) {
-    totalFlat += statusValue(att, 'pierce');
-    pierce = true;
-    att = removeStatus(att, 'pierce');
-  }
-  if (hasStatus(att, 'nextHitBonus')) {
-    totalFlat += statusValue(att, 'nextHitBonus');
-    att = removeStatus(att, 'nextHitBonus');
-  }
-  setHeroAt(s, attacker, att);
-
-  let victim = heroAt(s, tgt);
-  const victimEl = HEROES[victim.id].element;
-  const dr = statusValue(victim, 'damageReduction');
-  if (dr !== 0) {
-    reductions += dr;
-    victim = removeStatus(victim, 'damageReduction');
-  }
-  if (opts.single && hasStatus(victim, 'mark')) {
-    totalFlat += MARK_BONUS;
-    victim = removeStatus(victim, 'mark');
-  }
-
-  const atk = effectiveAtk(att);
-  const raw = roundHalfUp(atk * mod * elementMultiplier(attDef.element, victimEl));
-  const dmg = computeDamage({
-    atk, mod, attacker: attDef.element, target: victimEl,
-    flat: totalFlat, bloodMoon: att.bloodMoon, round: s.round, reductions,
-  });
-  const { hero: hit, absorbed } = applyToHero(victim, dmg, { pierce });
-  const hpLoss = victim.hp - hit.hp; // overkill beyond the victim's HP is not HP loss
-  setHeroAt(s, tgt, hit);
-  emit(ctx, {
-    type: 'damage', attacker, target: tgt, raw, flat: totalFlat, reductions,
-    dmg, absorbed, hpLoss, hp: hit.hp, shield: hit.shield,
-  });
-  s.sides[attacker.side].damageDealt += hpLoss;
-  fire(ctx, 'afterDealDamage', { attacker, target: tgt, amount: { v: hpLoss }, killed: hit.hp === 0 });
-  checkDeath(ctx, tgt);
-}
-
-// ---------------------------------------------------------------------------------------------
-// Effects shared by primitives and hooks. `source` is the heroine causing the effect.
-
-/** Applies a status, emits `statusApplied`; a buff fires `onEnemyBuffed` (Justina checks the side). */
-export function applyStatusTo(
-  ctx: Ctx, source: SlotRef, target: SlotRef, id: StatusId, value: number, duration: Duration,
-): void {
-  const s = ctx.s;
-  setHeroAt(s, target, applyStatus(heroAt(s, target), { id, value, duration, round: s.round, source }));
-  emit(ctx, { type: 'statusApplied', source, target, status: id, value });
-  if (isBuff(id, value)) fire(ctx, 'onEnemyBuffed', { source, target });
-}
-
-/** Spec §3.3. `onHeal` fires first with a mutable base amount (Fenna's +2), then curse/eclipse/moon apply. */
-export function healHero(ctx: Ctx, source: SlotRef, target: SlotRef, base: number): void {
-  const s = ctx.s;
-  const box = { v: base };
-  fire(ctx, 'onHeal', { source, target, amount: box });
-  const hero = heroAt(s, target);
-  const amount = healAmount(box.v, hero, s.moon, s.round);
-  const { hero: next, healed } = applyHeal(hero, amount);
-  setHeroAt(s, target, next);
-  emit(ctx, { type: 'heal', source, target, amount, healed, hp: next.hp });
-}
-
-/** Spec §3.3: shield with eclipse/moon modifiers; fires `onShieldGranted` and `onEnemyBuffed`. */
-export function grantShield(ctx: Ctx, source: SlotRef, target: SlotRef, base: number): void {
-  const s = ctx.s;
-  const amount = shieldAmount(base, s.moon, s.round);
-  const next = applyShield(heroAt(s, target), amount, s.round);
-  setHeroAt(s, target, next);
-  emit(ctx, { type: 'shield', source, target, amount, shield: next.shield });
-  fire(ctx, 'onShieldGranted', { source, target });
-  fire(ctx, 'onEnemyBuffed', { source, target });
-}
 
 // ---------------------------------------------------------------------------------------------
 // Abilities as data (spec §6.2).
@@ -203,9 +77,12 @@ function inferType(actor: SlotRef, target?: SlotRef): TargetType {
 /**
  * Runs one primitive for `actor`. `type` is the ability's target type (it decides who `heal`,
  * non-AoE `damage` and `who: 'target'` hit); without it, it is inferred from `target`.
+ * `intercepted` is set when the ability already ran the interception chain (ruling R19): single
+ * hits then go to `target` as is; without it a single hit is intercepted inside dealHit.
  */
 export function runPrimitive(
   ctx: Ctx, actor: SlotRef, p: Primitive, target?: SlotRef, type: TargetType = inferType(actor, target),
+  intercepted?: AbilityInterception,
 ): void {
   const s = ctx.s;
   switch (p.op) {
@@ -217,7 +94,9 @@ export function runPrimitive(
         for (let i = 0; i < (p.hits ?? 1); i++) {
           if (!isAlive(heroAt(s, t)) || !isAlive(heroAt(s, actor))) break;
           const mod = p.when && !checkCondition(ctx, p.when, actor, t) ? (p.elseMod ?? p.mod) : p.mod;
-          dealHit(ctx, actor, t, mod, p.flat ?? 0, { single: !p.aoe });
+          const opts = p.aoe ? { single: false }
+            : intercepted ? { single: true, intercepted: takeInterception(intercepted) } : { single: true };
+          dealHit(ctx, actor, t, mod, p.flat ?? 0, opts);
         }
       }
       return;
@@ -276,7 +155,7 @@ export function runPrimitive(
     case 'hook': {
       const fn = HOOKS[p.name];
       if (!fn) throw new Error('unknown hook: ' + p.name);
-      fn(ctx, actor, target ? { target } : {});
+      fn(ctx, actor, { ...(target ? { target } : {}), ...(intercepted ? { intercepted } : {}) });
       return;
     }
   }
@@ -298,8 +177,8 @@ function fizzleReason(ctx: Ctx, actor: SlotRef, ability: Ability, kind: AbilityK
  * Skill / ultimate (spec §2.3, §6.2). If the side can no longer perform it (price raised or
  * Freeze/Silence received after planning), it fizzles into a Basic Attack on the same enemy target
  * (lowest-HP enemy for other target types). Otherwise the single target is resolved once
- * (retarget), Energy (and for an ultimate Luna + `ultimateUsed`) is paid, `heroAction` is emitted
- * and the primitives run in order.
+ * (retarget), Energy (and for an ultimate Luna + `ultimateUsed`) is paid, `heroAction` is emitted,
+ * an enemy single target is intercepted once (R19) and the primitives run in order.
  */
 export function runAbility(ctx: Ctx, actor: SlotRef, ability: Ability, target: SlotRef | undefined, kind: AbilityKind): void {
   const s = ctx.s;
@@ -334,7 +213,17 @@ export function runAbility(ctx: Ctx, actor: SlotRef, ability: Ability, target: S
     type: 'heroAction', side: actor.side, slot: actor.slot, heroId: hero.id, action: kind,
     ...(tgt ? { target: tgt } : {}),
   });
-  for (const p of ability.effects) runPrimitive(ctx, actor, p, tgt, ability.target);
+
+  // Ruling R19: a single-target enemy ability is intercepted once, here; the victim is the target
+  // of every primitive (damage conditions, statuses, hooks), and dealHit does not intercept again.
+  let intercepted: AbilityInterception | undefined;
+  if (ability.target === 'enemy' && tgt) {
+    const r = interceptSingleHit(s, actor, tgt);
+    if (!sameRef(r.target, tgt)) emit(ctx, { type: 'redirect', from: tgt, to: r.target, reason: r.reason });
+    tgt = r.target;
+    intercepted = { reduction: r.reduction };
+  }
+  for (const p of ability.effects) runPrimitive(ctx, actor, p, tgt, ability.target, intercepted);
 }
 
 // ---------------------------------------------------------------------------------------------
