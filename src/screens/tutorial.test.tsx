@@ -77,6 +77,9 @@ describe('экран обучения', () => {
   it('цели сужены до требуемой; верная цель продвигает шаг', async () => {
     const user = setup();
     await user.click(screen.getByRole('button', { name: ru.tutorial.next }));
+    const overlay = screen.getByTestId('tutorial-overlay');
+    expect(overlay).toHaveAttribute('data-anchor', 'hero-A-0');
+    expect(overlay).toHaveAttribute('data-anchor-target', 'hero-B-0');
     await user.click(hero('A', 0));
     await user.click(screen.getByTestId('sheet-item-basic'));
     expect([0, 1, 2].map(i => pressed(hero('B', i)))).toEqual([true, false, false]);

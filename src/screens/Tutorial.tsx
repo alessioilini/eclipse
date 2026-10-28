@@ -3,7 +3,8 @@ import { isFinished } from '../game/session';
 import { createRunner, current, dismissSay } from '../game/tutorial/runner';
 import { STARTER_DECK_ID, TUTORIAL_UNLOCKS, starterDeck } from '../game/tutorial/rewards';
 import { SCRIPTS } from '../game/tutorial/scripts';
-import type { TutorialScript, UiAnchor } from '../game/tutorial/types';
+import type { SlotRef } from '../engine';
+import type { Requirement, TutorialScript, TutorialStep, UiAnchor } from '../game/tutorial/types';
 import { ru } from '../i18n/ru';
 import { navigate } from '../router';
 import { useStore } from '../store';
@@ -25,6 +26,13 @@ function anchorTestId(anchor: UiAnchor): string {
     case 'moon': return 'moon';
     case 'energy': return 'energy';
   }
+}
+
+/** Цель, которую требует шаг (если требует). */
+function requiredTarget(step: TutorialStep): SlotRef | undefined {
+  if (!('require' in step)) return undefined;
+  const req = (step as Extract<TutorialStep, { require: Requirement }>).require;
+  return req !== 'confirm' && 'target' in req ? req.target : undefined;
 }
 
 /** Прямоугольник якоря на экране; undefined, если элемента нет или у него нет размера (jsdom). */
@@ -86,6 +94,12 @@ export function Tutorial({ id }: { id: Id }) {
   const ours = session?.mode === 'tutorial' && session.tutorialId === id && tutorial !== null;
   const step = ours && phase === 'planning' ? current(tutorial) : null;
   const anchor = step && 'anchor' in step ? step.anchor : undefined;
+  const target = step ? requiredTarget(step) : undefined;
+  // Для сквозного теста: testid якоря и требуемой цели (data-anchor, data-anchor-target).
+  const ids = {
+    ...(anchor ? { anchorId: anchorTestId(anchor) } : {}),
+    ...(target ? { targetId: anchorTestId({ kind: 'hero', ref: target }) } : {}),
+  };
 
   const [rect, setRect] = useState<AnchorRect | undefined>(undefined);
   useLayoutEffect(() => {
@@ -115,10 +129,11 @@ export function Tutorial({ id }: { id: Id }) {
       <Battle />
       {step && (
         'require' in step ? (
-          <Overlay text={step.say} {...(rect ? { anchorRect: rect } : {})} />
+          <Overlay text={step.say} {...ids} {...(rect ? { anchorRect: rect } : {})} />
         ) : (
           <Overlay
             text={step.say}
+            {...ids}
             {...(rect ? { anchorRect: rect } : {})}
             onNext={() => setTutorialRunner(dismissSay(tutorial))}
           />

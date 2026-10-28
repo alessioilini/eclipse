@@ -5,7 +5,14 @@ import { cx } from './cx';
 
 export type AnchorRect = { top: number; left: number; width: number; height: number };
 
-export type OverlayProps = { text: string; anchorRect?: AnchorRect; onNext?: () => void };
+export type OverlayProps = {
+  text: string;
+  anchorRect?: AnchorRect;
+  onNext?: () => void;
+  /** testid подсвеченного элемента и цели шага — для сквозных тестов (`data-anchor`, `data-anchor-target`). */
+  anchorId?: string;
+  targetId?: string;
+};
 
 /**
  * Tutorial overlay. With `onNext` (a text step): dims the screen, cuts a spotlight hole over
@@ -14,12 +21,12 @@ export type OverlayProps = { text: string; anchorRect?: AnchorRect; onNext?: () 
  * Without `onNext` (a step that waits for an action): a hint — only an outline around the anchor and
  * a text bubble, nothing is dimmed or blocked (what is allowed is decided by the planning screen).
  */
-export function Overlay({ text, anchorRect: a, onNext }: OverlayProps) {
+export function Overlay({ text, anchorRect: a, onNext, anchorId, targetId }: OverlayProps) {
   const bubbleOnTop = a !== undefined && a.top + a.height / 2 > window.innerHeight / 2;
   const box = a && { top: a.top, left: a.left, width: a.width, height: a.height };
   const blocking = onNext !== undefined;
   return (
-    <div className={styles.root} data-testid="tutorial-overlay">
+    <div className={styles.root} data-testid="tutorial-overlay" data-anchor={anchorId} data-anchor-target={targetId}>
       {blocking && box && a ? (
         <>
           <div className={styles.hole} style={box} />
