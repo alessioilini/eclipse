@@ -65,7 +65,7 @@ describe('R19: перехват на уровне умения', () => {
 });
 
 describe('хуки героинь', () => {
-  it('aira.burnBonus: тик Burn 2 → 3; aira.detonate: ульта 120% всем + 2(+1) за каждый Burn', () => {
+  it('aira.burnBonus: тик Burn 2 → 3; aira.detonate: ульта 120% всем + лишний тик Burn (2 × стаки + 1)', () => {
     // Тик: Юстина (враг Айры) 1 стак → 2 + 1 = 3; Фенна (союзница Айры) 1 стак → 2.
     let s = withStatus(makeMatch(), enemy(1), st('burn'));
     s = withStatus(s, ally(1), st('burn'));
@@ -73,16 +73,17 @@ describe('хуки героинь', () => {
       cmd(basic(0, ally(2)), basic(1, ally(2)), basic(2, ally(2))));
     expect(ofType(r.events, 'burn').map(e => [e.target, e.dmg, e.hp])).toEqual([[ally(1), 2, 22], [enemy(1), 3, 20]]);
 
-    // Ульта: 7×1.2 = 8.4 → 8 (Юстине и Нокте 8 − 1 Аврора = 7), затем по 3 за стак Burn.
+    // Ульта: 7×1.2 = 8.4 → 8 (Юстине и Нокте 8 − 1 Аврора = 7), затем один лишний тик Burn:
+    // 2 × стаки + 1 (пассивка) — 3 стака → 7, 1 стак → 3.
     const ctx = ctxFor(['aira', 'fenna', 'nerisa', 'tali', 'zefira', 'liraya'], undefined, x => {
       x.sides.A.luna = 3;
-      x.sides.B.active[1].statuses.push(st('burn', 0, null, 2));
+      x.sides.B.active[1].statuses.push(st('burn', 0, null, 3));
       x.sides.B.active[2].statuses.push(st('burn'));
     });
     runAbility(ctx, ally(0), HEROES.aira.ultimate, undefined, 'ultimate');
     expect(hits(ctx.events, ally(0)).map(h => [h.target, h.dmg])).toEqual([[enemy(0), 8], [enemy(1), 7], [enemy(2), 7]]);
-    expect(ofType(ctx.events, 'detonate').map(e => [e.target, e.stacks, e.dmg])).toEqual([[enemy(1), 2, 6], [enemy(2), 1, 3]]);
-    expect([hpOf(ctx.s, enemy(0)), hpOf(ctx.s, enemy(1)), hpOf(ctx.s, enemy(2))]).toEqual([24, 10, 10]);
+    expect(ofType(ctx.events, 'detonate').map(e => [e.target, e.stacks, e.dmg])).toEqual([[enemy(1), 3, 7], [enemy(2), 1, 3]]);
+    expect([hpOf(ctx.s, enemy(0)), hpOf(ctx.s, enemy(1)), hpOf(ctx.s, enemy(2))]).toEqual([24, 9, 10]);
   });
 
   it('fenna.revive: последняя погибшая возвращается 9 HP + Shield 3 на своём слоте; без погибших Heal 5 всем активным', () => {

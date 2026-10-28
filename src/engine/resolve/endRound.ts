@@ -45,6 +45,16 @@ export function freezeTimers(hero: HeroState): HeroState {
   };
 }
 
+/**
+ * Damage of one Burn tick on `ref`: 2 per stack, then `burnTick` fires with the mutable amount
+ * (Aira's «Жар» +1). Used by the End Round tick and by Aira's ultimate (one extra tick).
+ */
+export function burnTickAmount(ctx: Ctx, ref: SlotRef, stacks: number): number {
+  const amount = { v: BURN_PER_STACK * stacks };
+  fire(ctx, 'burnTick', { target: ref, amount });
+  return amount.v;
+}
+
 function burnTick(ctx: Ctx): void {
   for (const side of SIDES) {
     for (const slot of SLOTS) {
@@ -52,10 +62,8 @@ function burnTick(ctx: Ctx): void {
       const hero = heroAt(ctx.s, ref);
       const burn = hero.statuses.find(st => st.id === 'burn');
       if (!isAlive(hero) || !burn) continue;
-      // `burnTick` fires before the tick with a mutable amount (Aira's «Жар» +1).
-      const amount = { v: BURN_PER_STACK * burn.stacks };
-      fire(ctx, 'burnTick', { target: ref, amount });
-      const { hero: next, hpLoss } = directDamage(heroAt(ctx.s, ref), amount.v);
+      const amount = burnTickAmount(ctx, ref, burn.stacks);
+      const { hero: next, hpLoss } = directDamage(heroAt(ctx.s, ref), amount);
       setHeroAt(ctx.s, ref, next);
       emit(ctx, { type: 'burn', target: ref, stacks: burn.stacks, dmg: hpLoss, hp: next.hp });
       checkDeath(ctx, ref);

@@ -5,7 +5,7 @@ import { effectiveAtk, hasStatus, isAlive } from '../status';
 import { aliveActive, findLowestHpEnemy, heroAt, other, REDIRECT_NERISA } from '../targeting';
 import type { Ctx } from './context';
 import { emit } from './context';
-import { checkDeath, DEATH_KEY } from './endRound';
+import { burnTickAmount, checkDeath, DEATH_KEY } from './endRound';
 import { drawCard } from './deck';
 import { replayCard } from './cards';
 import { fire } from './triggers';
@@ -39,7 +39,6 @@ const below50 = (ctx: Ctx, ref: SlotRef): boolean => {
 
 const MAX_LUNA = 5;
 const AIRA_BURN_BONUS = 1;
-const AIRA_DETONATE_PER_STACK = 2;
 const FENNA_FIRST_HEAL_BONUS = 2;
 const FENNA_REVIVE_HP = 9;
 const FENNA_REVIVE_SHIELD = 3;
@@ -92,6 +91,7 @@ function reviveLastFallen(ctx: Ctx, self: SlotRef): boolean {
     const dead = slot >= 0 ? sd.active[slot]! : sd.reserve[reserveIndex]!;
     const once = { ...dead.once };
     delete once[DEATH_KEY];
+    // She comes back clean: statuses and any old shield are cleared before Shield 3 (controller ruling).
     const back = { ...dead, hp: FENNA_REVIVE_HP, shield: 0, shieldExpiresAtRound: null, statuses: [], once };
     if (slot >= 0) {
       const ref: SlotRef = { side: self.side, slot: slot as Slot };
@@ -169,14 +169,14 @@ export const HOOKS: Record<string, HookFn> = {
   },
 
   /**
-   * Ultimate «Запретный дар» (after the 120% AoE): every Burn on the enemies goes off at once,
-   * 2 direct damage per stack, +1 per stack from Aira's own «Жар» (so 3 per stack).
+   * Ultimate «Запретный дар» (after the 120% AoE): every burning enemy takes one extra Burn tick
+   * at once, computed like the End Round tick (2 × stacks, +1 from «Жар» via `burnTick`).
    */
   'aira.detonate': (ctx, self) => {
     for (const t of aliveActive(ctx.s, other(self.side))) {
       const burn = heroAt(ctx.s, t).statuses.find(st => st.id === 'burn');
       if (!burn) continue;
-      const dmg = directHit(ctx, self, t, (AIRA_DETONATE_PER_STACK + AIRA_BURN_BONUS) * burn.stacks);
+      const dmg = directHit(ctx, self, t, burnTickAmount(ctx, t, burn.stacks));
       emit(ctx, { type: 'detonate', source: self, target: t, stacks: burn.stacks, dmg, hp: heroAt(ctx.s, t).hp });
       checkDeath(ctx, t);
     }
