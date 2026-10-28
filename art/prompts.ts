@@ -16,7 +16,7 @@ export const STYLE =
   + 'no interior, nothing that competes with the character. One consistent palette for the whole roster: warm fair '
   + 'skin with a light blush, thin dark plum line art, painterly shading without hard cel-shading. A single adult '
   + 'young woman as the only subject, correct human anatomy, anatomically correct hands with exactly five fingers '
-  + 'each, clearly visible hands in relaxed natural poses, strong recognizable silhouette. No text, no letters, '
+  + 'each, clearly visible hands in relaxed natural poses, strong recognizable silhouette. Forbidden: no text, no letters, '
   + 'no numbers, no logos, no watermark, no UI, no card frame, no chibi, no cartoon proportions, no photorealism, '
   + 'no revealing outfits, no close-up weapons, no other characters.';
 
