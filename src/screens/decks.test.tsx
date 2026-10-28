@@ -45,6 +45,18 @@ describe('список колод', () => {
     expect(window.location.hash).toBe(`#/decks/${encodeURIComponent(created.id)}`);
   });
 
+  it('первая созданная колода становится активной, следующая — нет', () => {
+    unlockAll();
+    render(<Decks />);
+    fireEvent.click(screen.getByRole('button', { name: ru.decks.new }));
+    const first = st().decks[0]!;
+    expect(st().activeDeckId).toBe(first.id);
+    fireEvent.click(screen.getByRole('button', { name: ru.decks.autoBuild }));
+    fireEvent.click(screen.getByTestId('sheet-item-attack'));
+    expect(st().decks).toHaveLength(2);
+    expect(st().activeDeckId).toBe(first.id);
+  });
+
   it('«Собрать за меня → Защита» при 12 открытых даёт колоду с двумя стражами и ведёт в конструктор', () => {
     unlockAll();
     render(<Decks />);

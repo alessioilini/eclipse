@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { newId } from '../game/decks/ids';
 import { ARCHETYPE_KEYS, buildPreset, type Archetype } from '../game/decks/presets';
 import { fmt, ru } from '../i18n/ru';
 import { navigate } from '../router';
@@ -24,8 +25,9 @@ export function Decks() {
   const canBuild = unlocked.length >= 6;
 
   const create = (archetype: Archetype, name: string) => {
-    const id = crypto.randomUUID();
+    const id = newId();
     upsertDeck({ id, name, deck: buildPreset(archetype, unlocked) });
+    if (activeDeckId === null) setActiveDeck(id);
     navigate({ name: 'deck', id });
   };
 
