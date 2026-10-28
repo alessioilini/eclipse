@@ -1,5 +1,5 @@
 import { chooseCommands } from './bot';
-import { createMatch, validateDeck } from './match';
+import { MAX_ROUNDS, createMatch, validateDeck } from './match';
 import { createRng } from './rng';
 import type { Rng } from './rng';
 import { resolveRound, startRound } from './resolve/round';
@@ -10,8 +10,6 @@ import type { EngineEvent, EventSource } from './events';
 import type { CardId, Deck, HeroId, MatchState, Side, SideCommands, SlotRef } from './types';
 
 const SIDES: Side[] = ['A', 'B'];
-/** Spec §2.2: a match never lasts longer than this; hitting it is an engine bug. */
-const MAX_ROUNDS = 10;
 
 export type ResultReason = NonNullable<MatchState['result']>['reason'];
 const RESULT_REASONS: ResultReason[] = ['wipe', 'heroes', 'hpPct', 'damage', 'draw'];

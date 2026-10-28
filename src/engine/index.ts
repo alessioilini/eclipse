@@ -1,7 +1,18 @@
 // Public entry point of the battle engine: the UI imports only from here.
-export { createMatch, validateDeck, getWinner } from './match';
+
+/**
+ * Version of the persisted `MatchState` shape and rules. Bumped by hand whenever either changes, so a
+ * saved match from an older engine is dropped instead of being resumed under different rules.
+ */
+export const ENGINE_VERSION = 1;
+
+export { createMatch, validateDeck, getWinner, MAX_ROUNDS } from './match';
 export { startRound, resolveRound } from './resolve/round';
-export { validateCommands } from './validate';
+export {
+  validateCommands, ULTIMATE_ENERGY_COST, energyBudget, actionEnergy, cardEnergy, cardCost, ultimateLunaCost,
+  isCoverGuardian, livingReserve, ownSide,
+} from './validate';
+export { ECLIPSE_ROUND } from './damage';
 export { viewFor, eventsFor } from './view';
 export { chooseCommands } from './bot';
 export { legalActions, legalCardPlays } from './legal';
@@ -9,7 +20,7 @@ export { formatLog, formatEvent } from './log';
 export { createRng } from './rng';
 export { HEROES, HERO_IDS } from './data/heroes';
 export { CARDS, CARD_IDS } from './data/cards';
-export { MOON_ORDER } from './types';
+export { MOON_ORDER, MAX_LUNA, BUFF_IDS, DEBUFF_ORDER } from './types';
 
 export type {
   MatchState, SideCommands, HeroAction, CardPlay, Deck, HeroId, CardId, Slot, Side, SlotRef, StatusId, Status,
