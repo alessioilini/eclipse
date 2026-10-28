@@ -116,8 +116,11 @@ describe('экран боя: проигрывание', () => {
     expect(window.location.hash).toBe('#/result');
   });
 
-  it('журнал из шапки показывает строку «R1 Moon=new» и закрывается', () => {
+  it('во время проигрывания журнала нет; после — журнал из шапки показывает «R1 Moon=new» и закрывается', () => {
     setup();
+    // M4: журнал посреди проигрывания раскрыл бы ещё не показанные биты.
+    expect(screen.queryByRole('button', { name: ru.battle.log })).toBeNull();
+    fireEvent.click(screen.getByTestId('skip'));
     fireEvent.click(screen.getByRole('button', { name: ru.battle.log }));
     const drawer = screen.getByTestId('log-drawer');
     expect(within(drawer).getByText('R1 Moon=new')).toBeInTheDocument();

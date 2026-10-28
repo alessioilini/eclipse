@@ -170,7 +170,11 @@ export const createMatchSlice: StateCreator<StoreState, [], [], MatchSlice> = (s
       else set({ phase: 'planning', draft: emptyDraft(session.state), ...runner });
     },
     surrender() {
-      const session = surrenderSession(requireSession(get().session));
+      const { session: current, phase } = get();
+      // Сдаться можно только в планировании незавершённого матча: иначе сдача перезаписала бы итог
+      // уже разрешённого раунда (I2).
+      if (!current || isFinished(current) || phase !== 'planning') return;
+      const session = surrenderSession(current);
       set({ session, phase: 'finished', ...resultPatch(get(), session) });
     },
     clearMatch() {

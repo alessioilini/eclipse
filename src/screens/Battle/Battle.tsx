@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState, type SyntheticEvent } from 'react';
 import { MAX_ROUNDS } from '../../game/session';
 import { fmt, ru } from '../../i18n/ru';
 import { navigate } from '../../router';
@@ -19,6 +19,11 @@ export function Battle() {
   const surrender = useStore((s) => s.surrender);
   const hidden = useHidden();
   const [asking, setAsking] = useState(false);
+  const body = useRef<HTMLDivElement>(null);
+  // Подтверждение сдачи модально: поле под ним инертно (клавиатура, вспомогательные технологии, тапы).
+  useEffect(() => {
+    body.current?.toggleAttribute('inert', asking);
+  }, [asking]);
   const toMenu = () => navigate({ name: 'menu' });
 
   // Завершённый матч (в т.ч. восстановленный после перезагрузки) живёт на экране результата: итог уже
@@ -33,6 +38,10 @@ export function Battle() {
     if (!session || session.mode === 'tutorial') toMenu();
     else if (phase === 'finished') navigate({ name: 'result' });
     else setAsking(true);
+  };
+  const swallow = (e: SyntheticEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
   };
   const giveUp = () => {
     setAsking(false);
@@ -54,7 +63,8 @@ export function Battle() {
   return (
     <main className={styles.screen} data-testid="battle">
       <header className={styles.header}>
-        <Button variant="ghost" onClick={back}>
+        {/* Во время проигрывания раунд уже разрешён: уйти или сдаться можно только после него (I2). */}
+        <Button variant="ghost" onClick={back} disabled={phase === 'playback'}>
           {ru.battle.back}
         </Button>
         <span className={styles.title}>
@@ -67,7 +77,7 @@ export function Battle() {
             })}
           </span>
         </span>
-        {hidden.includes('log') ? (
+        {hidden.includes('log') || phase === 'playback' ? (
           <span />
         ) : (
           <Button variant="ghost" onClick={() => openSheet({ kind: 'log' })}>
@@ -76,14 +86,28 @@ export function Battle() {
         )}
       </header>
       {asking && (
-        <div className={styles.surrender} role="alertdialog" aria-label={ru.battle.surrenderConfirm}>
-          <span className={styles.surrenderText}>{ru.battle.surrenderConfirm}</span>
-          <Button variant="danger" onClick={giveUp}>{ru.battle.yes}</Button>
-          <Button variant="secondary" onClick={() => setAsking(false)}>{ru.battle.no}</Button>
+        <div className={styles.modalRoot}>
+          <div className={styles.backdrop} data-testid="surrender-backdrop" />
+          <div className={styles.surrender} role="alertdialog" aria-modal="true" aria-label={ru.battle.surrenderConfirm}>
+            <span className={styles.surrenderText}>{ru.battle.surrenderConfirm}</span>
+            <Button variant="danger" onClick={giveUp}>{ru.battle.yes}</Button>
+            <Button variant="secondary" onClick={() => setAsking(false)}>{ru.battle.no}</Button>
+          </div>
         </div>
       )}
-      {phase === 'planning' && <Planning session={session} />}
-      {phase === 'playback' && <Playback session={session} />}
+      <div
+        ref={body}
+        className={styles.body}
+        aria-hidden={asking || undefined}
+        style={asking ? { pointerEvents: 'none' } : undefined}
+        // Там, где `inert` не поддержан, события поля перехватываются до карточек.
+        onClickCapture={asking ? swallow : undefined}
+        onPointerDownCapture={asking ? swallow : undefined}
+        data-testid="battle-body"
+      >
+        {phase === 'planning' && <Planning session={session} />}
+        {phase === 'playback' && <Playback session={session} />}
+      </div>
       {sheet?.kind === 'log' && <LogDrawer session={session} />}
     </main>
   );

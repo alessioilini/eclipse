@@ -301,6 +301,34 @@ describe('матч в сторе', () => {
     expect(s.phase).toBe('finished');
   });
 
+  it('сдача во время проигрывания выигранного раунда ничего не делает, победа сохраняется', () => {
+    useStore.getState().startMatch(playerDeck(), opts());
+    makeNextRoundFinal();
+    fillDraft();
+    useStore.getState().confirm();
+    const won = useStore.getState().session;
+    expect(useStore.getState().phase).toBe('playback');
+    useStore.getState().surrender();
+    const s = useStore.getState();
+    expect(s.session).toBe(won);
+    expect(s.session!.state.result?.winner).toBe('A');
+    expect(s.session!.surrendered).toBeUndefined();
+    expect(s.phase).toBe('playback');
+    expect(s.stats).toEqual({ wins: 1, losses: 0, draws: 0 });
+  });
+
+  it('сдача во время проигрывания обычного раунда и без матча ничего не делает', () => {
+    useStore.getState().surrender();
+    expect(useStore.getState().session).toBeNull();
+    useStore.getState().startMatch(playerDeck(), opts());
+    fillDraft();
+    useStore.getState().confirm();
+    const session = useStore.getState().session;
+    useStore.getState().surrender();
+    expect(useStore.getState().session).toBe(session);
+    expect(useStore.getState().session!.state.result).toBeNull();
+  });
+
   it('recordMatchResult засчитывает матч один раз', () => {
     useStore.getState().startMatch(playerDeck(), opts());
     useStore.getState().surrender();

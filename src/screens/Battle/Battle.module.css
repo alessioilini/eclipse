@@ -14,16 +14,38 @@
   gap: var(--sp-8);
 }
 
-/* Подтверждение сдачи под шапкой (тот же приём, что удаление колоды). */
+/* Поле боя под шапкой: обёртка не участвует в раскладке, только делает поле инертным под диалогом. */
+.body {
+  display: contents;
+}
+
+/* Модальное подтверждение сдачи: затемнение перекрывает всё поле, панель по центру. */
+.modalRoot {
+  position: fixed;
+  inset: 0;
+  z-index: 25;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--sp-16);
+}
+
 .surrender {
+  position: relative;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: center;
   gap: var(--sp-8);
+  max-width: 480px;
+  padding: var(--sp-16);
+  border-radius: var(--r-16);
+  background: var(--surface);
 }
 
 .surrenderText {
+  flex-basis: 100%;
+  text-align: center;
   font-size: var(--fs-14);
   color: var(--danger);
 }

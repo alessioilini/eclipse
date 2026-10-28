@@ -1,4 +1,5 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { App } from '../../App';
 import { HERO_IDS } from '../../engine';
@@ -52,5 +53,32 @@ describe('экран боя: «Назад» и сдача', () => {
     expect(window.location.hash).toBe('#/');
     expect(st().session).toBe(session);
     expect(st().session!.state.result).toBeNull();
+  });
+
+  it('под открытым подтверждением поле не нажимается: тап по hero-A-0 не открывает лист', async () => {
+    const user = userEvent.setup({ pointerEventsCheck: 0 });
+    render(<App />);
+    fireEvent.click(screen.getByRole('button', { name: ru.battle.back }));
+    expect(screen.getByRole('alertdialog')).toHaveAttribute('aria-modal', 'true');
+    expect(screen.getByTestId('battle-body')).toHaveAttribute('inert');
+    // Даже если событие дойдёт до карточки (jsdom не проверяет перекрытие), поле его не получает.
+    await user.click(screen.getByTestId('hero-A-0'));
+    expect(st().sheet).toBeNull();
+    expect(screen.queryByRole('dialog')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: ru.battle.no }));
+    expect(screen.getByTestId('battle-body')).not.toHaveAttribute('inert');
+    await user.click(screen.getByTestId('hero-A-0'));
+    expect(st().sheet).not.toBeNull();
+  });
+
+  it('во время проигрывания «Назад» неактивна и журнала нет', () => {
+    render(<App />);
+    act(() => {
+      for (const slot of [0, 1, 2] as const) st().setAction(slot, { type: 'basic', target: { side: 'B', slot } });
+      st().confirm();
+    });
+    expect(st().phase).toBe('playback');
+    expect(screen.getByRole('button', { name: ru.battle.back })).toBeDisabled();
+    expect(screen.queryByRole('button', { name: ru.battle.log })).toBeNull();
   });
 });
