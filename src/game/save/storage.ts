@@ -15,29 +15,38 @@ function defaultStorage(): SaveStorage | undefined {
   }
 }
 
-export function loadSave(storage: SaveStorage | undefined = defaultStorage()): SaveV1 {
-  if (!storage) return defaultSave();
+/**
+ * Сохранение из хранилища и признак, что оно действительно прочитано: `loaded: false` — взято сохранение
+ * по умолчанию (хранилища нет, записи нет, JSON битый, версия или форма неизвестны).
+ */
+export function loadSaveResult(storage: SaveStorage | undefined = defaultStorage()): { save: SaveV1; loaded: boolean } {
+  const fallback = () => ({ save: defaultSave(), loaded: false });
+  if (!storage) return fallback();
   let raw: string | null;
   try {
     raw = storage.getItem(SAVE_KEY);
   } catch (e) {
     console.warn('[save] не удалось прочитать хранилище, взято сохранение по умолчанию', e);
-    return defaultSave();
+    return fallback();
   }
-  if (raw === null) return defaultSave();
+  if (raw === null) return fallback();
   let parsed: unknown;
   try {
     parsed = JSON.parse(raw);
   } catch (e) {
     console.warn('[save] повреждённый JSON, взято сохранение по умолчанию', e);
-    return defaultSave();
+    return fallback();
   }
   const migrated = migrate(parsed);
   if (!migrated) {
     console.warn('[save] неизвестная версия или форма записи, взято сохранение по умолчанию');
-    return defaultSave();
+    return fallback();
   }
-  return migrated;
+  return { save: migrated, loaded: true };
+}
+
+export function loadSave(storage: SaveStorage | undefined = defaultStorage()): SaveV1 {
+  return loadSaveResult(storage).save;
 }
 
 export function writeSave(save: SaveV1, storage: SaveStorage | undefined = defaultStorage()): void {

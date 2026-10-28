@@ -1,13 +1,13 @@
 import { createRoot } from 'react-dom/client';
 import { App } from './App';
 import { loadCloud, type CloudSections } from './game/save/cloud';
-import { isUnsynced, loadSave } from './game/save/storage';
+import { isUnsynced, loadSaveResult } from './game/save/storage';
 import { createPlatform, type Platform } from './platform';
 import { attachPersistence, hydrate, type PersistenceHooks } from './store';
 import './styles/tokens.css';
 import './styles/global.css';
 
-type SaveStorage = Parameters<typeof loadSave>[0];
+type SaveStorage = Parameters<typeof loadSaveResult>[0];
 
 /** Сколько ждать чтения облака при запуске; дольше — облако на этот запуск отключено. */
 export const CLOUD_BOOT_TIMEOUT_MS = 3000;
@@ -51,7 +51,7 @@ export function onPageHide(win: Window, doc: Document): (cb: () => void) => () =
 export async function boot(
   storage?: SaveStorage, platform?: Platform, hooks: Pick<PersistenceHooks, 'onHide'> = {},
 ): Promise<() => void> {
-  const local = loadSave(storage);
+  const { save: local, loaded } = loadSaveResult(storage);
   let cloud = platform?.cloud ?? null;
   let fromCloud: CloudSections | null = null;
   if (cloud) {
@@ -63,8 +63,10 @@ export async function boot(
     }
   }
   // Облако пусто (первый запуск в Telegram) или отстаёт от локального: локальное в облако, не задерживая
-  // запуск (отказ записи писатель сам предупреждает, метка тогда остаётся до следующего раза).
-  const pushLocal = cloud !== null && (fromCloud === null || isUnsynced(storage));
+  // запуск (отказ записи писатель сам предупреждает, метка тогда остаётся до следующего раза). Метка весома
+  // только при настоящем локальном сохранении: битое или непереносимое заменено умолчаниями, и затирать ими
+  // облако нельзя — тогда побеждает облако, а метку снимет ближайшая успешная запись.
+  const pushLocal = cloud !== null && (fromCloud === null || (isUnsynced(storage) && loaded));
   const save = fromCloud && !pushLocal ? { ...local, ...fromCloud } : local;
   hydrate(save);
   return attachPersistence(storage, cloud ?? undefined, { ...hooks, pushNow: pushLocal });

@@ -108,6 +108,8 @@ export function createCloudWriter(cloud: CloudStorage, delayMs = 1000, onSynced?
   let timer: ReturnType<typeof setTimeout> | null = null;
   let chain: Promise<void> = Promise.resolve();
   let rejectWarned = false;
+  /** Номер последней записи: `onSynced` только для записи, после которой новых не было. */
+  let generation = 0;
 
   /** true — все разделы записаны (или уже были в облаке). */
   async function perform(save: SaveV1): Promise<boolean> {
@@ -139,12 +141,14 @@ export function createCloudWriter(cloud: CloudStorage, delayMs = 1000, onSynced?
   function run(): Promise<void> {
     timer = null;
     const save = pending;
+    const mine = generation;
     pending = null;
     if (save) {
       chain = chain.then(async () => {
         const ok = await perform(save);
-        // Новая запись пришла во время этой: облако ещё не догнало локальное сохранение.
-        if (ok && pending === null) onSynced?.();
+        // После этой записи пришла новая (ждёт таймера или уже стоит в очереди за этой): облако ещё не
+        // догнало локальное сохранение, метку снимет только запись последнего поколения.
+        if (ok && generation === mine) onSynced?.();
       });
     }
     return chain;
@@ -152,6 +156,7 @@ export function createCloudWriter(cloud: CloudStorage, delayMs = 1000, onSynced?
 
   return {
     write(save) {
+      generation += 1;
       pending = save;
       if (timer === null) timer = setTimeout(() => void run(), delayMs);
     },

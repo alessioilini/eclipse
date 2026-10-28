@@ -180,6 +180,25 @@ describe('запуск приложения', () => {
     }
   });
 
+  it('метка стоит, но локальное сохранение битое → побеждает облако, умолчания в облако не пишутся', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const cloudProfile = { ...defaultSave().profile, tutorialStep: 3, stats: { wins: 20, losses: 1, draws: 0 } };
+    for (const broken of ['{не json', JSON.stringify({ version: 99 })]) {
+      const storage = fakeStorage({ [SAVE_KEY]: broken, [UNSYNCED_KEY]: '1' });
+      const cloud = fakeCloud({ [CLOUD_KEYS.profile]: JSON.stringify(cloudProfile) });
+      const detach = await boot(storage, withCloud(cloud));
+      try {
+        expect(useStore.getState().stats.wins).toBe(20);
+        expect(useStore.getState().tutorialStep).toBe(3);
+        await new Promise((r) => setTimeout(r, 0));
+        expect(cloud.setItem).not.toHaveBeenCalled();
+        expect(cloud.map.get(CLOUD_KEYS.profile)).toBe(JSON.stringify(cloudProfile));
+      } finally {
+        detach();
+      }
+    }
+  });
+
   it('метка остаётся, если отправка локального в облако не удалась', async () => {
     vi.spyOn(console, 'warn').mockImplementation(() => {});
     const storage = fakeStorage({ [SAVE_KEY]: JSON.stringify(localSave()), [UNSYNCED_KEY]: '1' });

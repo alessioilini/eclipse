@@ -226,4 +226,29 @@ describe('createCloudWriter', () => {
     await vi.advanceTimersByTimeAsync(1000);
     expect(onSynced).toHaveBeenCalledTimes(1);
   });
+
+  it('onSynced не вызывается, пока новая запись стоит в очереди за текущей (flush при уходе в фон)', async () => {
+    const cloud = fakeCloud();
+    const held: (() => void)[] = [];
+    cloud.setItem.mockImplementation((k: string, v: string) => new Promise<void>((r) => {
+      held.push(() => { cloud.map.set(k, v); r(); });
+    }));
+    const onSynced = vi.fn();
+    const writer = createCloudWriter(cloud, 1000, onSynced);
+    const s1 = sampleSave();
+    writer.write(s1);
+    const first = writer.flush();
+    await vi.waitFor(() => expect(held).toHaveLength(3));
+    const s2 = { ...s1, profile: { ...s1.profile, stats: { wins: 9, losses: 0, draws: 0 } } };
+    writer.write(s2);
+    const second = writer.flush();
+    held.splice(0).forEach((release) => release());
+    await first;
+    expect(onSynced).not.toHaveBeenCalled();
+    await vi.waitFor(() => expect(held).toHaveLength(1));
+    held.splice(0).forEach((release) => release());
+    await second;
+    expect(onSynced).toHaveBeenCalledTimes(1);
+    expect(JSON.parse(cloud.map.get(CLOUD_KEYS.profile)!).stats.wins).toBe(9);
+  });
 });

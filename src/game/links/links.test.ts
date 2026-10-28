@@ -78,6 +78,7 @@ describe('кодек ссылки-вызова', () => {
   it('убирает управляющие и форматирующие символы, ZWJ эмодзи сохраняет', () => {
     expect(truncateName('Ан\u202Eя\tОля\n\u200B')).toBe('АняОля');
     expect(truncateName('\u202E\u2066\u0000')).toBe('');
+    expect(truncateName('Ая\u2028Оля\u2029')).toBe('АяОля');
     expect(truncateName('👩\u200D🚀')).toBe('👩\u200D🚀');
     // До обрезки: невидимые символы не съедают предел в 16 символов.
     expect(truncateName('\u202E'.repeat(5) + 'a'.repeat(20))).toBe('a'.repeat(16));

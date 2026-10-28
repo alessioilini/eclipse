@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { clearUnsynced, isUnsynced, loadSave, markUnsynced, writeSave, SAVE_KEY, UNSYNCED_KEY } from './storage';
+import { clearUnsynced, isUnsynced, loadSave, loadSaveResult, markUnsynced, writeSave, SAVE_KEY, UNSYNCED_KEY } from './storage';
 import { defaultSave } from './defaults';
 import { ENGINE_VERSION } from '../../engine';
 import { newMatch, opponentDeckFor } from '../session';
@@ -121,6 +121,23 @@ describe('сохранение', () => {
     expect(loaded.profile.stats.wins).toBe(4);
     expect(warn).toHaveBeenCalledTimes(1);
     expect(String(warn.mock.calls[0]?.[0])).toContain('[save]');
+  });
+});
+
+describe('loadSaveResult', () => {
+  it('loaded: true только для настоящего сохранения; умолчания при отсутствии, битом JSON и чужой версии', () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const save = defaultSave();
+    save.profile.stats.wins = 5;
+    const real = loadSaveResult(fakeStorage({ [SAVE_KEY]: JSON.stringify(save) }));
+    expect(real.loaded).toBe(true);
+    expect(real.save.profile.stats.wins).toBe(5);
+    const cases: Record<string, string>[] = [{}, { [SAVE_KEY]: '{битый' }, { [SAVE_KEY]: JSON.stringify({ version: 99 }) }];
+    for (const initial of cases) {
+      const result = loadSaveResult(fakeStorage(initial));
+      expect(result.loaded).toBe(false);
+      expect(result.save).toEqual(defaultSave());
+    }
   });
 });
 
