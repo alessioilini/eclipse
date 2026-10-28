@@ -219,10 +219,11 @@ describe('resolveRound: basic и swap', () => {
     expect(ofType(events, 'retarget')).toEqual([
       { type: 'retarget', round: 1, phase: 'heroes', from: enemy(2), to: enemy(1) },
     ]);
-    expect(damageBy(events, ally(0))).toEqual([expect.objectContaining({ target: enemy(1), dmg: 7 })]);
-    // Добивающий удар: урон 4, но в HP ушла только 1 — оверкилл не считается.
-    expect(damageBy(events, ally(1))).toEqual([expect.objectContaining({ target: enemy(2), dmg: 4, hpLoss: 1, hp: 0 })]);
-    expect(state.sides.A.damageDealt).toBe(1 + 7 + 4); // Фенна 1, Айра 7, Нериса → Аврора 4
+    // Пассивка Авроры (HP > 50%): урон по её союзницам −1.
+    expect(damageBy(events, ally(0))).toEqual([expect.objectContaining({ target: enemy(1), dmg: 6, reductions: 1 })]);
+    // Добивающий удар: урон 4 − 1 = 3, но в HP ушла только 1 — оверкилл не считается.
+    expect(damageBy(events, ally(1))).toEqual([expect.objectContaining({ target: enemy(2), dmg: 3, hpLoss: 1, hp: 0 })]);
+    expect(state.sides.A.damageDealt).toBe(1 + 6 + 4); // Фенна 1, Айра 6, Нериса → Аврора 4
     expect(state.deaths).toEqual([{ side: 'B', heroId: 'nokta', round: 1 }]);
     expect(state.sides.B.luna).toBe(3);
     expect(ofType(events, 'lunaChanged').filter(e => e.reason === 'death'))
@@ -250,7 +251,7 @@ describe('resolveRound: конец раунда', () => {
     expect(state.deaths).toEqual([{ side: 'B', heroId: 'justina', round: 1 }]);
     expect(state.sides.B.luna).toBe(3);
     expect(state.sides.B.active[0].hp).toBe(28);
-    expect(state.sides.B.active[2].hp).toBe(20 - 6 - 4 - 4);
+    expect(state.sides.B.active[2].hp).toBe(20 - 5 - 3 - 3); // Тали 6, Фенна 4, Нериса 4, каждая −1 от Авроры
   });
 
   it('автозамена: мёртвая в active[1] меняется с первой живой из reserve', () => {
@@ -407,7 +408,7 @@ describe('resolveRound: детерминизм и валидация', () => {
     expect(validateCommands(started, 'A', energy5)).toEqual([]);
     expect(validateCommands(started, 'A', drawn)).toEqual([]);
     const r = resolveRound(started, { A: energy5, B: bDefault() });
-    // До Task 9 скилл по союзнице никого не бьёт.
+    // Скиллы Фенны и Нерисы по союзницам урона не наносят.
     expect(damageBy(r.events, ally(1))).toEqual([]);
     expect(damageBy(r.events, ally(2))).toEqual([]);
     expect(() => resolveRound(started, { A: drawn, B: bDefault() })).not.toThrow();

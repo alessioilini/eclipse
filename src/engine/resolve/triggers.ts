@@ -8,13 +8,17 @@ import type { HookPayload } from './hooks';
 
 const SIDES: Side[] = ['A', 'B'];
 const SLOTS: Slot[] = [0, 1, 2];
+const ONCE_MATCH = -1;
 
-export type TriggerPayload = HookPayload & { hero?: SlotRef };
+export type TriggerPayload = HookPayload;
 
 /**
- * Passive dispatcher: every living active heroine (A0..A2, then B0..B2) with a trigger on `event`
- * runs its hook, honouring `once` ('round' compares to the round, 'match' fires once ever).
- * A trigger whose hook is not registered yet is skipped without consuming `once`.
+ * Passive dispatcher (spec §6.2): every living active heroine (A0..A2, then B0..B2) with a trigger
+ * on `event` runs its hook with `self` = her slot. Hooks decide for themselves whether the event
+ * concerns them (e.g. `sameRef(self, payload.attacker)`) and return `false` when it does not.
+ * `once: 'round'` / `'match'` is stored in `hero.once[hook]` (the round, or -1) and is consumed
+ * only when the hook did not return `false`.
+ * A trigger whose hook is not registered yet (hero hooks of Task 10) is skipped.
  */
 export function fire(ctx: Ctx, event: TriggerEvent, payload: TriggerPayload = {}): void {
   for (const side of SIDES) {
@@ -26,11 +30,13 @@ export function fire(ctx: Ctx, event: TriggerEvent, payload: TriggerPayload = {}
         if (trig.on !== event) continue;
         const hook = HOOKS[trig.hook];
         if (!hook) continue;
-        const key = `trigger:${trig.hook}`;
-        if (trig.once === 'round' && hero.once[key] === ctx.s.round) continue;
-        if (trig.once === 'match' && hero.once[key] !== undefined) continue;
-        if (trig.once) hero.once[key] = ctx.s.round;
-        hook(ctx, self, payload);
+        const used = hero.once[trig.hook];
+        if (trig.once === 'round' && used === ctx.s.round) continue;
+        if (trig.once === 'match' && used === ONCE_MATCH) continue;
+        const applied = hook(ctx, self, payload);
+        if (applied !== false && trig.once) {
+          heroAt(ctx.s, self).once[trig.hook] = trig.once === 'round' ? ctx.s.round : ONCE_MATCH;
+        }
       }
     }
   }

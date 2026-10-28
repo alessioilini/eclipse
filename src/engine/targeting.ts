@@ -4,8 +4,8 @@ import { hasStatus, isAlive } from './status';
 const SLOTS: Slot[] = [0, 1, 2];
 
 /** `redirectTo` status values: set by the cover card (2) and by Nerisa's skill (1). */
-const REDIRECT_NERISA = 1;
-const REDIRECT_COVER = 2;
+export const REDIRECT_NERISA = 1;
+export const REDIRECT_COVER = 2;
 
 export const ZEFIRA_INTERCEPT_KEY = 'zefira.intercept';
 export const ZEFIRA_REDUCTION = 2;

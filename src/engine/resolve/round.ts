@@ -1,19 +1,13 @@
 import type { GameEvent, MatchState, Side, SideCommands } from '../types';
-import { createRngFromState } from '../rng';
 import { validateCommands } from '../validate';
-import type { Ctx, Phase } from './context';
-import { emit } from './context';
+import type { Ctx } from './context';
+import { emit, makeCtx } from './context';
 import { roundStart } from './roundStart';
 import { actionOrder } from './order';
 import { runHeroAction } from './actions';
 import { endRound } from './endRound';
 
 type Result = { state: MatchState; events: GameEvent[] };
-
-function openCtx(state: MatchState, phase: Phase): Ctx {
-  const s = structuredClone(state);
-  return { s, events: [], rng: createRngFromState(s.rngState), phase };
-}
 
 function closeCtx(ctx: Ctx): Result {
   ctx.s.rngState = ctx.rng.state();
@@ -27,7 +21,7 @@ function closeCtx(ctx: Ctx): Result {
 export function startRound(state: MatchState): Result {
   if (state.result !== null) throw new Error('match finished');
   if (state.awaitingCommands) throw new Error('round already started');
-  const ctx = openCtx(state, 'roundStart');
+  const ctx = makeCtx(state, 'roundStart');
   roundStart(ctx);
   ctx.s.awaitingCommands = true;
   return closeCtx(ctx);
@@ -47,7 +41,7 @@ export function resolveRound(state: MatchState, cmds: Record<Side, SideCommands>
   ];
   if (errors.length > 0) throw new Error('invalid commands: ' + errors.join('; '));
 
-  const ctx = openCtx(state, 'reveal');
+  const ctx = makeCtx(state, 'reveal');
   ctx.s.awaitingCommands = false;
   emit(ctx, { type: 'reveal', commands: structuredClone(cmds) });
 

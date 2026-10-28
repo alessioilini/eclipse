@@ -4,7 +4,7 @@ import { HEROES } from './data/heroes';
 import { hasStatus, isAlive } from './status';
 import { aliveActive, heroAt, other } from './targeting';
 
-const ULTIMATE_ENERGY_COST = 2;
+export const ULTIMATE_ENERGY_COST = 2;
 const BLOOD_PACT_BUDGET_BONUS = 2;
 const MIRA_DISCOUNT = 1;
 

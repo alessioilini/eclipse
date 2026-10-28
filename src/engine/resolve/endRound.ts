@@ -54,7 +54,7 @@ function burnTick(ctx: Ctx): void {
       const { hero: next, hpLoss } = directDamage(hero, BURN_PER_STACK * burn.stacks);
       setHeroAt(ctx.s, ref, next);
       emit(ctx, { type: 'burn', target: ref, stacks: burn.stacks, dmg: hpLoss, hp: next.hp });
-      fire(ctx, 'burnTick', { hero: ref, target: ref, amount: hpLoss });
+      fire(ctx, 'burnTick', { target: ref, amount: { v: hpLoss } });
       checkDeath(ctx, ref);
     }
   }
