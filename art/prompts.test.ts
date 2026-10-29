@@ -14,7 +14,7 @@ describe('промпты арта', () => {
     const p = PROMPTS[id];
     expect(p.base.length).toBeGreaterThan(40);
     expect(p.portrait).toMatch(/bust portrait, looking at the camera/);
-    expect(p.full).toMatch(/full body, standing, slight turn/);
+    expect(p.full).toMatch(/full body, (standing|seated)/);
   });
 
   it('prompt() = STYLE + base + часть кадра', () => {

@@ -41,11 +41,18 @@ export interface HeroPrompt {
 }
 
 /** Concept sheet plus her own head pose for the portrait and body pose for the full-body art. */
-const framed = (base: string, headPose: string, bodyPose: string): HeroPrompt => ({
+const framed = (base: string, headPose: string, bodyPose: string, fullComposition = FULL): HeroPrompt => ({
   base,
   portrait: `${PORTRAIT} Pose: ${headPose}`,
-  full: `${FULL} Pose: ${bodyPose}`,
+  full: `${fullComposition} Pose: ${bodyPose}`,
 });
+
+/** Tali sits: a throne of clear ice instead of the standing composition. */
+const TALI_FULL =
+  'Composition: full body, seated sideways on a throne carved from clear ice with thin streams of water running '
+  + 'down its back and armrests, the whole figure and the throne in frame with empty space above and below, '
+  + 'clearly visible footwear, both hands in frame, no cropped limbs, no cropped signature elements, camera at '
+  + 'chest height, vertical 2:3 composition, character centred.';
 
 export const PROMPTS: Record<HeroId, HeroPrompt> = {
   // Fire · mage. Passive "Heat", skill "Casket of Calamities", ultimate "Forbidden Gift".
@@ -108,13 +115,14 @@ export const PROMPTS: Record<HeroId, HeroPrompt> = {
     + 'clasps, a thin silver circlet with a single water-drop crystal, light boots. Signature elements that must '
     + 'stay consistent: 1) pale-blue frosted hair; 2) the sheer frosted capelet; 3) a ring of water droplets and '
     + 'tiny ice shards slowly orbiting around her waist; 4) the water-drop circlet. Magic: elegant suspended '
-    + 'droplets and thin shards with cold blue glints, a subtle mist at the feet, no big waves. Hands: both arms '
-    + 'lowered, each hand lightly pinching the edge of the sheer capelet at hip level as if about to twirl, '
-    + 'fingers relaxed and clearly visible, arms with correct natural anatomy, no raised arms, no twisted wrists.',
+    + 'droplets and thin shards with cold blue glints, a subtle mist at the feet, no big waves. Hands: one hand '
+    + 'resting on the armrest of her ice throne with the fingers relaxed and clearly visible, the other hand '
+    + 'lightly lifting the edge of the sheer capelet, arms with correct natural anatomy, no twisted wrists.',
     'looking over her shoulder at the camera with a playful smile, one eyebrow slightly raised.',
-    'light playful stance on the balls of her feet, body turned three-quarters and the face turned back over the '
-    + 'shoulder toward the camera, both arms lowered holding the capelet edges at the hips as if about to twirl, '
-    + 'the ring of droplets orbiting her waist.',
+    'playful: sitting sideways on the ice throne with her legs crossed and one foot swinging, leaning back '
+    + 'against the armrest, a cheeky over-the-shoulder smile at the camera, one hand resting on the armrest, the '
+    + 'other lifting the edge of the capelet, the ring of droplets orbiting the throne.',
+    TALI_FULL,
   ),
   // Wind · guardian. Passive "Illusory Guard", skill "Mirror Shield", ultimate "Reflection".
   zefira: framed(
@@ -248,7 +256,8 @@ export function prompt(id: HeroId, kind: ArtKind): string {
 // - base — концепт-лист героини: возраст и лицо, волосы, костюм с вырезом, четыре фирменных элемента (их модель
 //   держит между портретом и артом в рост), магия, руки. Кадр и поза добавляются сами, их в base не писать.
 // - Позы: у каждой героини свой поворот головы для портрета и своя стойка для арта в рост (третий и четвёртый
-//   аргументы framed), чтобы двенадцать не стояли одинаково.
+//   аргументы framed), чтобы двенадцать не стояли одинаково; пятым аргументом можно заменить сам кадр
+//   (Тали сидит на ледяном троне).
 // - Декольте: у всех открыта верхняя часть груди, формулировки «elegant open neckline», «tasteful» проходят
 //   модерацию; наготу и фетиш STYLE запрещает.
 // - Руки видны у всех: STYLE требует ровно пять пальцев, раздельные пальцы, естественные позы; в base у каждой
