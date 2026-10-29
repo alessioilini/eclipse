@@ -109,11 +109,11 @@ export const PROMPTS: Record<HeroId, HeroPrompt> = {
     + 'stay consistent: 1) pale-blue frosted hair; 2) the sheer frosted capelet; 3) a ring of water droplets and '
     + 'tiny ice shards slowly orbiting around her raised hand; 4) the water-drop circlet. Magic: elegant suspended '
     + 'droplets and thin shards with cold blue glints, a subtle mist at the feet, no big waves. Hands: one hand '
-    + 'raised to shoulder height with the palm open toward the camera and five fingers relaxed, the other hand '
-    + 'lightly holding the edge of the capelet.',
+    + 'raised at chest height with the palm turned up and the fingers relaxed and slightly curled, droplets '
+    + 'orbiting above it, the other hand lightly holding the edge of the capelet.',
     'looking over her shoulder at the camera with a playful smile, one eyebrow slightly raised.',
     'light playful stance on the balls of her feet, body turned away and the face turned back over the shoulder '
-    + 'toward the camera, one open hand raised with droplets orbiting it, the other holding the capelet.',
+    + 'toward the camera, one hand raised palm up with droplets orbiting above it, the other holding the capelet.',
   ),
   // Wind · guardian. Passive "Illusory Guard", skill "Mirror Shield", ultimate "Reflection".
   zefira: framed(
