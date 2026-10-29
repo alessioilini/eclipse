@@ -107,14 +107,14 @@ export const PROMPTS: Record<HeroId, HeroPrompt> = {
     + 'neckline showing the upper chest and a wave pattern on the hem, a sheer frosted capelet, silver wave-shaped '
     + 'clasps, a thin silver circlet with a single water-drop crystal, light boots. Signature elements that must '
     + 'stay consistent: 1) pale-blue frosted hair; 2) the sheer frosted capelet; 3) a ring of water droplets and '
-    + 'tiny ice shards slowly orbiting around her raised hand; 4) the water-drop circlet. Magic: elegant suspended '
-    + 'droplets and thin shards with cold blue glints, a subtle mist at the feet, no big waves. Hands: one forearm '
-    + 'held upright with the elbow resting close to her side at waist level, the open palm turned up at chest '
-    + 'height in a natural easy bend with the fingers relaxed, droplets orbiting above the palm, the other hand '
-    + 'lightly holding the edge of the capelet; arms with correct natural anatomy, no twisted wrists or elbows.',
+    + 'tiny ice shards slowly orbiting around her waist; 4) the water-drop circlet. Magic: elegant suspended '
+    + 'droplets and thin shards with cold blue glints, a subtle mist at the feet, no big waves. Hands: both arms '
+    + 'lowered, each hand lightly pinching the edge of the sheer capelet at hip level as if about to twirl, '
+    + 'fingers relaxed and clearly visible, arms with correct natural anatomy, no raised arms, no twisted wrists.',
     'looking over her shoulder at the camera with a playful smile, one eyebrow slightly raised.',
-    'light playful stance on the balls of her feet, body turned away and the face turned back over the shoulder '
-    + 'toward the camera, one forearm upright with the elbow at her side and the palm up under orbiting droplets, the other hand holding the capelet.',
+    'light playful stance on the balls of her feet, body turned three-quarters and the face turned back over the '
+    + 'shoulder toward the camera, both arms lowered holding the capelet edges at the hips as if about to twirl, '
+    + 'the ring of droplets orbiting her waist.',
   ),
   // Wind · guardian. Passive "Illusory Guard", skill "Mirror Shield", ultimate "Reflection".
   zefira: framed(
