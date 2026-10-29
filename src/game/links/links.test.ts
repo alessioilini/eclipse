@@ -198,7 +198,12 @@ describe('адреса вызова', () => {
   });
 
   it('Telegram без бота: тоже адрес сайта', () => {
-    expect(buildChallengeUrl(code, fakePlatform('telegram'))).toBe(`https://alessioilini.github.io/eclipse/#/c/${code}`);
+    const noBot = { TG_BOT: null, TG_APP: 'play', SITE_URL: 'https://alessioilini.github.io/eclipse/' };
+    expect(buildChallengeUrl(code, fakePlatform('telegram'), noBot)).toBe(`https://alessioilini.github.io/eclipse/#/c/${code}`);
+  });
+
+  it('Telegram с настроенным ботом по умолчанию: ссылка t.me/eclipse26ru_bot/play', () => {
+    expect(buildChallengeUrl(code, fakePlatform('telegram'))).toBe(`https://t.me/eclipse26ru_bot/play?startapp=${code}`);
   });
 
   it('Telegram с ботом: ссылка t.me со startapp', () => {
